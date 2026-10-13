@@ -19,6 +19,8 @@ dev = [
     "pytest>=8",
     "ruff>=0.5",
     "reportlab>=4",     # only to generate the synthetic contract PDFs
+    "bandit>=1.7",      # security scan (scripts/check.py)
+    "pip-audit>=2.7",   # known-vulnerability scan (scripts/check.py; needs network)
 ]
 
 # Phase 1 code lives under MCP-PlugIn/src; the SAP interface and mock adapter are shared at the repo root.

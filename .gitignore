@@ -37,3 +37,6 @@ Thumbs.db
 desktop.ini
 .vscode/
 .idea/
+
+# Personal Claude Code settings for this project (not committed)
+.claude/settings.local.json

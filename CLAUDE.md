@@ -21,7 +21,22 @@ It has two levels:
 4. **Use the defaults in `MCP-PlugIn/Plan.md` section 3** (D1 to D7) when a decision is still open. If you must deviate, write a short note in `docs/decisions/` and tell the user. Don't silently change a default.
 5. **Stop and ask** before: calling the Claude API (it costs money), adding a dependency that is not obviously needed, adding a seventh tool, adding anything that writes outside the set locations, or anything involving real SAP or Ingenus data.
 6. **Never guess about the real world.** SAP table names, T-codes, BAPIs, release details, Claude plan features and Anthropic or MCP behaviour that the Plan marks **verify** stay unverified until checked against a source. Say what you did not verify.
-7. **When a step is done**, update the status tables in `README.md` and say what you tested and what you didn't.
+7. **Run the full check once, at the end of a complete change** (see "The check" below). Not after each edit. While you work, run only the specific tests you need, for example `pytest MCP-PlugIn/tests/test_compare.py -k name`.
+8. **When a step is done**, update the status tables in `README.md` and say what you tested and what you didn't.
+
+## The check (`scripts/check.py`)
+
+One command runs every quality gate: ruff lint and format, bandit, pip-audit, the repo-rule scans (no stdout in server code, no secrets, no client material, synthetic data labelled, guidance files versioned, fixtures and labels in sync, manifest matches the tools, markdown links resolve) and the full pytest suite.
+
+**When to run it:** once, when a complete change is finished: a whole step (S1 to S6), a feature, a refactor, or any change that touched several files. **Do not run it after each fix or each edit**, and do not use it as a substitute for running the one test you are working on. Small single-file edits do not need it; the final check of the larger change covers them.
+
+**What to do with the result:**
+1. Run `python scripts/check.py` and read the whole output. It lists every failing gate and why.
+2. Fix **all** the failures from that run, then run it again once. Repeat until it ends with `0 failed`. Use `python scripts/check.py --fix` first when only formatting or safe lint fixes are failing.
+3. Fix the cause. Do not weaken a gate, edit a gate's word list, or add a suppression (`noqa`, `nosec`) to get green. If a gate is wrong, say so and ask.
+4. Only report a change as done after the check ends with `0 failed`. If you cannot get it there (for example `pip-audit` has no network), say which gate you skipped and why.
+
+Options: `--fast` (lint, format and the repo-rule scans only), `--only a,b`, `--skip pip-audit` (when offline), `--bundle` (also build and smoke-test the desktop extension; needs Node.js), `--list`. On Windows `scripts\check.bat` does the same; on macOS, Linux or Git Bash use `bash scripts/check.sh`. All three run the same logic.
 
 ## Hard rules
 
@@ -88,6 +103,9 @@ pip install -e ".[dev]"     # install (use the project .venv)
 pytest                      # offline tests, including the domain-word test and the read-only test
 pytest -m live              # tests that call the Claude API (cost money; ask first). None exist yet
 ruff check . && ruff format .     # build/ and .spike/ are excluded in pyproject.toml
+python scripts/check.py           # ALL quality gates: run ONCE at the end of a complete change
+python scripts/check.py --fast    # lint, format and repo-rule scans only
+python scripts/check.py --fix     # apply ruff's safe fixes and formatting, then check
 python -m ingenus_plugin.server               # Phase 1: the MCP server on stdio
 python -m ingenus_plugin.report               # Phase 1: usage report from the tool-call log
 python -m ingenus_plugin.evals page-finder    # Phase 1: page-finder recall on labelled contracts
@@ -119,8 +137,8 @@ The synthetic Chain X scenario must produce exactly these results. If it doesn't
 
 ## Before you finish a task
 
-- Run `pytest` and the domain-word test.
-- Phase 1: confirm the read-only test passes and no tool was added without a decision record.
+- Run `python scripts/check.py` **once**, now that the whole change is finished (not after each edit), and fix every failure until it ends with `0 failed`. It includes `pytest`, the domain-word test and the read-only test.
+- Phase 1: confirm no tool was added without a decision record.
 - Phase 2 only: if you touched `foundation/` because of a slice need, add the `docs/coupling_log.md` entry.
 - Update the status tables in `README.md`.
 - Say plainly what you didn't verify, especially anything about real SAP behaviour, the Claude plan's features, or the MCP SDK and desktop-extension format.

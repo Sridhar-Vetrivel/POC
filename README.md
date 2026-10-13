@@ -184,6 +184,7 @@ python -m venv .venv
 pip install -e ".[dev]"
 pytest                                   # 80 offline tests, including the domain-word and read-only tests
 ruff check . && ruff format .
+python scripts/check.py                  # all quality gates; run once at the end of a complete change
 python -m ingenus_plugin.server          # the MCP server on stdio (an MCP client talks to it)
 python -m ingenus_plugin.report          # usage report from the tool-call log
 python -m ingenus_plugin.evals page-finder

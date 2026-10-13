@@ -1,0 +1,173 @@
+{
+  "Chain_X/Chain_X_Amendment_1_2025.pdf": {
+    "category": "control_no_terms",
+    "term_pages": []
+  },
+  "Chain_X/Chain_X_Amendment_2_2026.pdf": {
+    "category": "easy",
+    "term_pages": [
+      1,
+      2
+    ]
+  },
+  "Chain_X/Chain_X_Amendment_3_DRAFT.pdf": {
+    "category": "draft",
+    "term_pages": [
+      1
+    ]
+  },
+  "Chain_X/Chain_X_Master_Supply_Agreement_2024.pdf": {
+    "category": "easy",
+    "term_pages": [
+      4
+    ]
+  },
+  "Chain_Y/Chain_Y_Amendment_1_2026.pdf": {
+    "category": "hostile_text",
+    "term_pages": [
+      2
+    ]
+  },
+  "Wholesaler_Z/Wholesaler_Z_Master_Supply_Agreement.pdf": {
+    "category": "scanned_page",
+    "term_pages": [
+      4
+    ]
+  },
+  "bulk/Customer_01/Contract_01_schedule_end.pdf": {
+    "category": "easy",
+    "term_pages": [
+      8
+    ]
+  },
+  "bulk/Customer_01/Contract_09_short_amendment.pdf": {
+    "category": "synonym_unlisted",
+    "term_pages": [
+      2
+    ]
+  },
+  "bulk/Customer_01/Contract_17_table_style.pdf": {
+    "category": "synonym_listed",
+    "term_pages": [
+      3
+    ]
+  },
+  "bulk/Customer_02/Contract_02_split_pages.pdf": {
+    "category": "easy",
+    "term_pages": [
+      5
+    ]
+  },
+  "bulk/Customer_02/Contract_10_long_middle.pdf": {
+    "category": "synonym_unlisted",
+    "term_pages": [
+      6
+    ]
+  },
+  "bulk/Customer_02/Contract_18_control_false_positive.pdf": {
+    "category": "control_false_positive",
+    "term_pages": []
+  },
+  "bulk/Customer_03/Contract_03_short_amendment.pdf": {
+    "category": "easy",
+    "term_pages": [
+      2
+    ]
+  },
+  "bulk/Customer_03/Contract_11_table_style.pdf": {
+    "category": "easy",
+    "term_pages": [
+      3
+    ]
+  },
+  "bulk/Customer_03/Contract_19_schedule_end.pdf": {
+    "category": "synonym_unlisted",
+    "term_pages": [
+      8
+    ]
+  },
+  "bulk/Customer_04/Contract_04_long_middle.pdf": {
+    "category": "easy",
+    "term_pages": [
+      6
+    ]
+  },
+  "bulk/Customer_04/Contract_12_control_false_positive.pdf": {
+    "category": "control_false_positive",
+    "term_pages": []
+  },
+  "bulk/Customer_04/Contract_20_split_pages.pdf": {
+    "category": "synonym_unlisted",
+    "term_pages": [
+      5
+    ]
+  },
+  "bulk/Customer_05/Contract_05_table_style.pdf": {
+    "category": "synonym_listed",
+    "term_pages": [
+      3
+    ]
+  },
+  "bulk/Customer_05/Contract_13_schedule_end.pdf": {
+    "category": "easy",
+    "term_pages": [
+      8
+    ]
+  },
+  "bulk/Customer_05/Contract_21_short_amendment.pdf": {
+    "category": "easy",
+    "term_pages": [
+      2
+    ]
+  },
+  "bulk/Customer_06/Contract_06_control_false_positive.pdf": {
+    "category": "control_false_positive",
+    "term_pages": []
+  },
+  "bulk/Customer_06/Contract_14_split_pages.pdf": {
+    "category": "easy",
+    "term_pages": [
+      5
+    ]
+  },
+  "bulk/Customer_06/Contract_22_long_middle.pdf": {
+    "category": "easy",
+    "term_pages": [
+      6
+    ]
+  },
+  "bulk/Customer_07/Contract_07_schedule_end.pdf": {
+    "category": "synonym_listed",
+    "term_pages": [
+      8
+    ]
+  },
+  "bulk/Customer_07/Contract_15_short_amendment.pdf": {
+    "category": "synonym_listed",
+    "term_pages": [
+      2
+    ]
+  },
+  "bulk/Customer_07/Contract_23_table_style.pdf": {
+    "category": "easy",
+    "term_pages": [
+      3
+    ]
+  },
+  "bulk/Customer_08/Contract_08_split_pages.pdf": {
+    "category": "synonym_unlisted",
+    "term_pages": [
+      5
+    ]
+  },
+  "bulk/Customer_08/Contract_16_long_middle.pdf": {
+    "category": "synonym_listed",
+    "term_pages": [
+      6
+    ]
+  },
+  "bulk/Customer_08/Contract_24_control_false_positive.pdf": {
+    "category": "control_false_positive",
+    "term_pages": []
+  }
+}

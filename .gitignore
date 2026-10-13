@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secrets and local settings
+.env
+.env.*
+!.env.example
+
+# Generated desktop-extension bundle and scratch spikes
+build/
+*.mcpb
+.spike/
+
+# Runtime output: the system's write locations
+outbox/
+data/runtime/
+
+# Never commit client material. Only synthetic or public data belongs here.
+data/client/
+**/*CONFIDENTIAL*
+**/*Ingenus_internal*
+*.docx
+*.msg
+*.eml
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

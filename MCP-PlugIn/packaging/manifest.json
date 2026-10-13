@@ -1,0 +1,60 @@
+{
+  "manifest_version": "0.3",
+  "name": "ingenus-contract-check",
+  "display_name": "Ingenus Contract Check (POC)",
+  "version": "0.1.0",
+  "description": "Read-only helper that checks customer contract rebates and fees against SAP. Proof of concept on synthetic data.",
+  "long_description": "Read-only tools for Claude: find contract files, read the pages on rebates and fees, read the SAP setup (mock data in this build), and compare them in code with quote checks. It cannot change SAP or any file. Phase 1 proof of concept by Psiog; synthetic data only.",
+  "author": { "name": "Psiog" },
+  "server": {
+    "type": "python",
+    "entry_point": "server/main.py",
+    "mcp_config": {
+      "command": "python",
+      "args": ["${__dirname}/server/main.py"],
+      "env": {
+        "PYTHONPATH": "${__dirname}/server/lib",
+        "INGENUS_CONTRACTS_DIR": "${user_config.contracts_dir}",
+        "INGENUS_LOG_PATH": "${user_config.log_dir}${/}tool_calls.jsonl",
+        "INGENUS_SLICE_DIR": "${__dirname}/slice",
+        "INGENUS_SAP_MOCK_FILE": "${__dirname}/data/sap/entities.json",
+        "INGENUS_PROMPTS_DIR": "${__dirname}/prompts",
+        "INGENUS_SAP_ADAPTER": "mock"
+      }
+    }
+  },
+  "tools": [
+    { "name": "resolve_customer", "description": "Map a customer name to its SAP customer id." },
+    { "name": "find_contract_files", "description": "List a customer's contract files; drafts are left out." },
+    { "name": "get_contract_pages", "description": "Return only the pages on rebates, fees and dates, with page numbers." },
+    { "name": "get_rebate_setup", "description": "Read the rebate and fee setup in SAP (mock data in this build)." },
+    { "name": "get_sales_volume", "description": "Read monthly net sales by product from SAP (mock data in this build)." },
+    { "name": "compare_contract_to_sap", "description": "Compare extracted contract terms with SAP in code; checks every quote." }
+  ],
+  "prompts": [
+    {
+      "name": "contract_check",
+      "description": "Check a customer's contract against the rebate and fee setup in SAP.",
+      "arguments": ["customer"],
+      "text": "Check the contract for ${arguments.customer} against SAP. Resolve the customer, find the contract files, read the rebate and fee pages, extract each term with an exact quote, compare in code, and report what is not checked."
+    }
+  ],
+  "user_config": {
+    "contracts_dir": {
+      "type": "directory",
+      "title": "Contract folder",
+      "description": "The folder with contract files. For the demo, choose the sample_contracts folder next to this extension file.",
+      "required": true
+    },
+    "log_dir": {
+      "type": "directory",
+      "title": "Log folder",
+      "description": "Where the tool-call log (tool_calls.jsonl) is written. Ingenus must agree this location before real use.",
+      "required": true
+    }
+  },
+  "compatibility": {
+    "platforms": ["win32"],
+    "runtimes": { "python": ">=3.13,<3.14" }
+  }
+}

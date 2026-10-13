@@ -1,0 +1,20 @@
+# SYNTHETIC customer names and aliases, mapped to the (synthetic) SAP customer ids.
+# A name that matches more than one customer is ambiguous and must never be resolved by guessing.
+version: 1
+label: SYNTHETIC
+customers:
+  - sap_customer_id: SYN-CUST-0001
+    name: Chain X
+    aliases: [Chain X Pharmacy, CHX, Chain-X]
+  - sap_customer_id: SYN-CUST-0002
+    name: Chain Y
+    aliases: [Chain Y Drug Stores, CHY]
+  - sap_customer_id: SYN-CUST-0003
+    name: Wholesaler Z
+    aliases: [WZ, Wholesaler Z Inc]
+  - sap_customer_id: SYN-CUST-0004
+    name: Regional Pharmacy East
+    aliases: [Regional Pharmacy, RPE]
+  - sap_customer_id: SYN-CUST-0005
+    name: Regional Pharmacy West
+    aliases: [Regional Pharmacy, RPW]

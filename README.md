@@ -13,6 +13,8 @@ A proof of concept for Psiog's pre-sales proposal to Ingenus: **one reusable, re
 3. **The rest of this file is the bigger picture**: where Phase 1 sits, and the larger foundation that later phases would add. **Do not build Phase 2 work unless the repo owner asks.**
 4. When you finish a step, update the status table below.
 
+**Guides:** [`developer_guide.md`](developer_guide.md) (how to work in the code) · [`design_guide.md`](design_guide.md) (why it is built this way, from a systems-design view) · [`MCP-PlugIn/docs/demo_guide.md`](MCP-PlugIn/docs/demo_guide.md) (hands-on test in Claude Desktop).
+
 ### Where we are now
 
 | Phase | What | Status |

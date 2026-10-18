@@ -52,6 +52,15 @@ Ingenus systems.
 5. **Skill descriptions must avoid `: `.** Four skill headers failed to parse as YAML until the colons were removed
    (caught by `tests/test_skills_and_prompts.py`).
 
+6. **The packed `.mcpb` would not install on the test laptop (16 Oct 2026).** Settings > Extensions > Install
+   Extension showed the install dialog with the Install button disabled. **Install unpacked extension**, pointed at
+   `build\mcpb`, worked, and the six tools ran. Observed, not explained. Candidate causes: bundle size (24 MB), the
+   Python requirement warning shown in the dialog, or a plan or policy setting. A Claude chat called it a known
+   Desktop bug on Windows and named a size limit and error text; none of that was checked against a source, so treat
+   it as a lead only (demo guide finding 7). This matters for D1: Ingenus would receive a `.mcpb`, not a folder, so
+   the install route must be proven on a clean machine before Phase 1 is called deliverable. A smaller bundle (for
+   example one that does not ship the libraries, see decision 0002) may also help; untested.
+
 ## Pass or fail for the decisions
 
 | Decision | Status |

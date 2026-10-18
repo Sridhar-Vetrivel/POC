@@ -11,7 +11,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Annotated, Literal
 
-from pydantic import Field
+from pydantic import BeforeValidator, Field
 
 from ingenus_plugin.core import contracts, customers
 from ingenus_plugin.core import sap as sap_access
@@ -26,6 +26,7 @@ from ingenus_plugin.core.models import (
     RebateSetupResult,
     ResolveCustomerResult,
     SalesVolumeResult,
+    TopicName,
 )
 from ingenus_plugin.core.registry import tool
 
@@ -80,7 +81,7 @@ def find_contract_files(
 def get_contract_pages(
     document_id: Annotated[str, Field(description="document_id from find_contract_files.")],
     topics: Annotated[
-        list[str] | None,
+        list[Annotated[TopicName, BeforeValidator(contracts.normalise_topic)]] | None,
         Field(
             description=(
                 "Topics to look for: rebates, fees, effective_date, payment_terms, returns, chargebacks. "

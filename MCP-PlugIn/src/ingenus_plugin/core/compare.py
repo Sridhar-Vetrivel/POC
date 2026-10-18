@@ -74,6 +74,17 @@ def compare(
 
     not_checked: list[NotChecked] = []
 
+    # 0. An admin fee applies to total net sales, so it has no product. Claude sometimes labels it
+    # ("All Products"); left in, that label stops it pairing with SAP's admin-fee line.
+    ignored_fee_labels: list[str] = []
+    cleaned: list[ExtractedTerm] = []
+    for term in terms:
+        if term.kind == "admin_fee" and term.product:
+            ignored_fee_labels.append(term.product)
+            term = term.model_copy(update={"product": None})
+        cleaned.append(term)
+    terms = cleaned
+
     # 1. Keep only terms whose quote is really on the cited page and holds the rate.
     verified: list[ExtractedTerm] = []
     for term in terms:
@@ -124,6 +135,7 @@ def compare(
 
     # 4. Compare each term over the months it applies.
     findings: list[Finding] = []
+    partial = False
     for term, end in sorted(
         usable,
         key=lambda x: (_KIND_ORDER[x[0].kind], norm(x[0].product or ""), x[0].effective_date),
@@ -175,22 +187,39 @@ def compare(
         else:
             status = "variance"
 
-        # A matching line has no exposure, so it only needs the latest month's sales (for the
-        # base shown). A line that differs needs every month it applies to: never guess a month.
-        needed = months[-1:] if status == "match" else months
-        bases = {m: base_for(m) for m, _ in needed}
-        missing = [m for m, b in bases.items() if b is None]
-        if missing:
+        # The rate status never depends on sales. A matching line has no exposure, so it only needs
+        # the latest month that has sales (for the base shown). A line that differs is counted over
+        # the months that have SAP sales; a month without sales is listed as not checked and is
+        # never guessed or filled in.
+        bases = {m: base_for(m) for m, _ in months}
+        with_sales = [(m, f) for m, f in months if bases[m] is not None]
+        if not with_sales:
             not_checked.append(
-                NotChecked(item=label, reason=f"SAP sales missing for {', '.join(missing)}.")
+                NotChecked(
+                    item=label,
+                    reason=f"SAP sales missing for {', '.join(m for m, _ in months)}.",
+                )
             )
             continue
+        needed = with_sales[-1:] if status == "match" else with_sales
+        missing = [m for m, _ in months if bases[m] is None]
+        if missing and status != "match":
+            partial = True
+            not_checked.append(
+                NotChecked(
+                    item=label,
+                    reason=(
+                        f"SAP sales missing for {', '.join(missing)}. The exposure counts only "
+                        f"{', '.join(m for m, _ in needed)}."
+                    ),
+                )
+            )
 
         exposure = sum(
             (diff / HUNDRED * bases[m] * fraction for m, fraction in needed),  # type: ignore[operator]
             Decimal(0),
         )
-        latest_base = bases[months[-1][0]]
+        latest_base = bases[needed[-1][0]]
         assert latest_base is not None
         monthly_gap = diff / HUNDRED * latest_base
         findings.append(
@@ -244,6 +273,16 @@ def compare(
         ),
         f"SAP data source: {setup.source}.",
     ]
+    if partial:
+        caveats.append(
+            "Some months have no SAP sales yet. The exposure counts only the months that do, so the "
+            "true exposure to the as_of date is likely larger. Do not present it as complete."
+        )
+    for label in sorted(set(ignored_fee_labels)):
+        caveats.append(
+            f"The admin fee was supplied with the product label '{label}'. An admin fee applies to "
+            "total net sales, so the label was ignored."
+        )
     return CompareResult(
         customer_id=customer_id,
         as_of=as_of,

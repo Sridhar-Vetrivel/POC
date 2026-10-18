@@ -48,6 +48,28 @@ def test_output_does_not_depend_on_the_order_of_terms():
     assert forward == backward
 
 
+def test_admin_fee_with_a_product_label_still_pairs_with_sap():
+    # Seen in the Claude Desktop demo (Q2, run A): the fee was sent as "All Products" and the
+    # compare charged the full 2.5% as a gap, giving 16,500 / 33,000 instead of 8,500 / 17,000.
+    terms = chain_x_terms()
+    terms[3] = term(
+        "admin_fee",
+        "All Products",
+        "2.5",
+        "Administrative fee: 2.5% of total net sales of all Products.",
+    )
+    result = run(terms)
+    fee = next(f for f in result.findings if f.kind == "admin_fee")
+    assert fee.status == "variance"
+    assert fee.sap_rate_pct == Decimal("2.0")
+    assert fee.monthly_gap == Decimal("2000.00")
+    assert result.total_monthly_gap == Decimal("8500.00")
+    assert result.total_indicative_exposure == Decimal("17000.00")
+    assert result.in_sap_not_in_contract_terms == []
+    assert any("'All Products'" in c and "ignored" in c for c in result.caveats)
+    assert not any("ignored" in c for c in run(chain_x_terms()).caveats)
+
+
 def test_fabricated_quote_is_rejected_and_listed():
     terms = chain_x_terms()
     terms[0] = term("rebate", "Product A", "9", "Product A rebate: 9.0% of net sales of Product A.")
@@ -96,10 +118,40 @@ def test_unknown_product_is_not_checked_not_guessed(make_world):
     assert any("No SAP setup and no SAP sales" in n.reason for n in result.not_checked)
 
 
-def test_missing_sap_sales_month_is_reported():
+def test_missing_sap_sales_month_gives_a_partial_result_not_nothing():
+    # Seen in the Claude Desktop demo (Q6, run A): September has no SAP sales, so every line was
+    # dropped and Claude compared the rates itself. Now the rates are always compared in code, the
+    # exposure counts only the months that have sales, and the missing month is listed.
     result = run(chain_x_terms(), as_of=date(2026, 9, 30))
+    by_line = {(f.kind, f.product): f for f in result.findings}
+    assert len(result.findings) == 4
+    assert by_line[("rebate", "Product A")].status == "variance"
+    assert by_line[("rebate", "Product B")].status == "match"
+    assert by_line[("rebate", "Product C")].status == "not_set_up_in_sap"
+    assert by_line[("admin_fee", None)].status == "variance"
+    # July and August only: the same figures as 31 Aug, not a guess for September.
+    assert result.total_monthly_gap == Decimal("8500.00")
+    assert result.total_indicative_exposure == Decimal("17000.00")
+    missing = [n for n in result.not_checked if "SAP sales missing for 2026-09" in n.reason]
+    assert (
+        len(missing) == 3
+    )  # A, C and the fee; B matches, so its exposure is nil whatever September holds
+    assert all("counts only 2026-07, 2026-08" in n.reason for n in missing)
+    assert any("true exposure to the as_of date is likely larger" in c for c in result.caveats)
+
+
+def test_no_sales_at_all_for_a_line_is_not_checked(make_world):
+    doc = make_world(
+        ["Widget rebate: 5.0% of net sales of Widget."],
+        [{"kind": "rebate", "product": "Widget", "rate_pct": "4.0", "basis": "product_net_sales"}],
+        [{"month": "2026-05", "product": "Widget", "net_sales": "100000.00"}],
+    )
+    t = term(
+        "rebate", "Widget", "5", "Widget rebate: 5.0% of net sales of Widget.", document=doc, page=1
+    )
+    result = run([t], as_of=date(2026, 7, 31), customer="T-1")
     assert result.findings == []
-    assert all("SAP sales missing for 2026-09" in n.reason for n in result.not_checked)
+    assert any("SAP sales missing for 2026-07" in n.reason for n in result.not_checked)
 
 
 def test_unknown_customer_is_reported():

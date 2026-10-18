@@ -93,3 +93,33 @@ def test_the_server_logged_every_call():
         "get_contract_pages",  # the refused traversal attempt is logged too
     ]
     assert records[-1]["error"] is not None
+
+
+def test_topics_are_a_fixed_list_in_the_schema_and_near_misses_are_mapped():
+    params = StdioServerParameters(
+        command=sys.executable,
+        args=["-m", "ingenus_plugin.server"],
+        env={**os.environ, "INGENUS_LOG_PATH": os.environ["INGENUS_LOG_PATH"], "INGENUS_USER": "t"},
+    )
+
+    async def flow() -> tuple[dict, bool, dict, bool]:
+        async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
+            await session.initialize()
+            tool = next(
+                t for t in (await session.list_tools()).tools if t.name == "get_contract_pages"
+            )
+            ok = await session.call_tool(
+                "get_contract_pages", {"document_id": AMEND2, "topics": ["Admin Fee", "rebate"]}
+            )
+            bad = await session.call_tool(
+                "get_contract_pages", {"document_id": AMEND2, "topics": ["Product C"]}
+            )
+            return tool.input_schema, ok.is_error, ok.structured_content, bad.is_error
+
+    schema, ok_is_error, ok_content, bad_is_error = asyncio.run(flow())
+    assert "rebates" in json.dumps(
+        schema["properties"]["topics"]
+    )  # the allowed values are in the schema
+    assert "enum" in json.dumps(schema["properties"]["topics"])
+    assert ok_is_error is False and ok_content["topics"] == ["fees", "rebates"]
+    assert bad_is_error is True

@@ -9,7 +9,10 @@ import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILLS = sorted((ROOT / "skills" / "v1").iterdir())
+SKILL_VERSIONS = ["v1", "v2"]
+SKILLS = sorted(
+    folder for version in SKILL_VERSIONS for folder in (ROOT / "skills" / version).iterdir()
+)
 EXPECTED = {
     "contract-check-playbook",
     "reading-amendments",
@@ -29,11 +32,12 @@ def frontmatter(path: Path) -> tuple[dict, str]:
     return yaml.safe_load(match.group(1)), match.group(2)
 
 
-def test_the_eight_planned_skills_exist():
-    assert {p.name for p in SKILLS} == EXPECTED
+@pytest.mark.parametrize("version", SKILL_VERSIONS)
+def test_the_eight_planned_skills_exist(version):
+    assert {p.name for p in (ROOT / "skills" / version).iterdir()} == EXPECTED
 
 
-@pytest.mark.parametrize("folder", SKILLS, ids=lambda p: p.name)
+@pytest.mark.parametrize("folder", SKILLS, ids=lambda p: f"{p.parent.name}/{p.name}")
 def test_each_skill_has_a_matching_name_and_a_short_description(folder):
     meta, body = frontmatter(folder / "SKILL.md")
     assert meta["name"] == folder.name  # the docs say the folder name must match the skill name

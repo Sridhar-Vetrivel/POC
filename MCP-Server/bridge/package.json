@@ -1,0 +1,11 @@
+{
+  "name": "ingenus-mcp-bridge",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Thin Claude Desktop bridge: forwards MCP messages between Claude Desktop (stdio) and the central Ingenus MCP server (HTTP). Holds no tools, data or secrets.",
+  "type": "module",
+  "main": "server/index.js",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1"
+  }
+}

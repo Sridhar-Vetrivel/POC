@@ -1,0 +1,34 @@
+{
+  "manifest_version": "0.3",
+  "name": "ingenus-mcp-bridge",
+  "display_name": "Ingenus (POC)",
+  "version": "0.2.0",
+  "description": "Connects Claude Desktop to the Ingenus MCP server: read-only contract and SAP checks. Proof of concept on synthetic data.",
+  "long_description": "A thin bridge with no tools of its own: it forwards Claude Desktop's requests to the central Ingenus MCP server, where the read-only tools and guidance live. It cannot change SAP or any file. Phase 1 v1 proof of concept by Psiog; synthetic data only.",
+  "author": { "name": "Psiog" },
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.js"],
+      "env": {
+        "INGENUS_MCP_URL": "${user_config.server_url}"
+      }
+    }
+  },
+  "tools_generated": true,
+  "prompts_generated": true,
+  "user_config": {
+    "server_url": {
+      "type": "string",
+      "title": "Server URL",
+      "description": "The Ingenus MCP server address. For the local test: http://127.0.0.1:8765/mcp. A server on the network must use https://.",
+      "default": "http://127.0.0.1:8765/mcp",
+      "required": true
+    }
+  },
+  "compatibility": {
+    "platforms": ["win32", "darwin"]
+  }
+}

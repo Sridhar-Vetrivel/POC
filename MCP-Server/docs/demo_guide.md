@@ -89,7 +89,7 @@ instead of the folder. The mock SAP stays a local file on the server until the r
 | Git commit (`git rev-parse --short HEAD`) | |
 | Server: where it runs, URL | `http://127.0.0.1:8765/mcp` (this laptop) |
 | Bridge: version and install route | 0.2.0, unpacked |
-| Guidance served by the server? | No (V1-3 not built) |
+| Guidance served by the server? | Yes from V1-3 (`get_guide`, skills v2) |
 
 ## 5. Pre-flight checklist
 
@@ -167,19 +167,20 @@ Get-Content MCP-Server\data\runtime\tool_calls.jsonl | Select-Object -Last 8 |
 Log times are UTC (IST minus 5 hours 30 minutes). Also try question 1 once in **Cowork** and note whether it
 behaves the same.
 
-## 8. Run B (after V1-3): with guidance from the server
+## 8. Run B: with guidance from the server
 
-When V1-3 is built, the server will serve the eight guides itself; nothing is uploaded to Claude. Re-run the 16
+V1-3 is built: the server serves the eight `v2` guides through the `get_guide` tool; nothing is uploaded to
+Claude. Restart the server (and toggle the extension) so Claude Desktop sees the seventh tool. Re-run the 16
 questions in new chats and compare with section 7.
 
 | Measure | Without guidance (section 7) | With server guidance |
 |---|---|---|
-| Tool calls for question 1 | 6 | |
-| Followed the playbook order? | Yes | |
-| Showed page numbers **and exact quotes**? | Pages only | |
-| Said it cannot change SAP? | No | |
-| Listed `not_checked` and the caveats? | Caveats yes | |
-| Did Claude fetch a guide (`get_guide` in the log)? | n/a | |
+| Tool calls for question 1 | 6 | 8 (19 Oct): `get_guide` → `resolve_customer` ×2 → `find_contract_files` → `get_contract_pages` ×3 → `compare_contract_to_sap` |
+| Followed the playbook order? | Yes | Yes (resolved the customer twice: harmless) |
+| Showed page numbers **and exact quotes**? | Pages only | **Yes**: the four quotes, Amendment 2 p.2 |
+| Said it cannot change SAP? | No | **Yes** ("read-only and cannot change SAP itself") |
+| Listed `not_checked` and the caveats? | Caveats yes | Yes: Not checked (none), Warnings (none), four caveats, exposure period stated |
+| Did Claude fetch a guide (`get_guide` in the log)? | n/a | **Yes, first call**, several guides in one call |
 
 ## 9. v1-specific tests
 

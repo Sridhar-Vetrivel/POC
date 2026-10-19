@@ -15,7 +15,7 @@ Nothing here uses Ingenus data: contracts and SAP are synthetic.
 | V1-1 | [`mock_sap.md`](../MCP-PlugIn/docs/mock_sap.md) | Done |
 | V1-2 | This skeleton: core copied from v0, one module per tool, HTTP server, Claude Code demo folder | **Built and tested offline** (HTTP end-to-end test gives 8,500.00 / 17,000.00). Not yet tried from a Claude client |
 | V1-5 | **Claude Desktop bridge** (primary client): Node-only extension, forwards to the server | **Installed in Claude Desktop 19 Oct 2026; Chat connects.** Desktop ran it with its **built-in Node** (its log says so), so the laptop needs no Node or Python. Cowork and Code sessions failed ("Session not found"): their probe sends a request before any handshake, which a stateful server rejects. Fixed by making the server stateless by default (`INGENUS_MCP_STATELESS`). **Retested 19 Oct 2026: no start errors; the Chain X question in Chat gave 8,500.00 a month and 17,000.00 exposure** through bridge and server. Install route: **only "Install unpacked extension" worked**; the packed `.mcpb` again left Install disabled, although the bridge has no Python requirement, so that was not the cause (cause still unknown) |
-| V1-3 | Guidance served by the server, `list_changed` on reload | After V1-5 |
+| V1-3 | Guidance served by the server: skills `v2` in `guidance/v2/`, read through the `get_guide` tool (decision 0003); read fresh on every call, so a guide added on the server needs no restart | **Built and tested offline** (guides travel through HTTP and the bridge). Not yet tried in Claude Desktop |
 | V1-4 | Psiog VM, server sign-in, per-user log | Waits for Psiog IT |
 | V1-6, V1-7 | SharePoint and OneDrive (Graph), upload script. Site: `https://psiog0.sharepoint.com/sites/INGENUS` | Waits for the app registration |
 | V1-8 | Network drive | Waits for a share and service account |
@@ -31,6 +31,7 @@ MCP-Server/
 │   ├── server/      HTTP (default) and stdio entry points
 │   ├── report.py    usage report from the tool-call log
 │   └── evals.py     page-finder recall on the labelled contracts
+├── guidance/v2/     the guides (skills v2) served by get_guide; add a folder with a SKILL.md to add a guide
 ├── prompts/         contract_check.v1.md (MCP prompt)
 ├── data/sap/        entities.json: synthetic mock SAP (a copy of v0's; a check gate keeps them equal)
 ├── bridge/          Claude Desktop bridge extension: manifest.json, server/index.js (Node), build_bridge.py

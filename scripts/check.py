@@ -317,13 +317,14 @@ def run_versioning() -> bool:
     for p in sorted(slice_dir.glob("*.yaml")) + sorted(slice_dir.glob("*.json")):
         if not _VERSIONED.search(p.name):
             offenders.append(f"{_rel(p)}: filename has no .vN version")
-    skills = ROOT / "MCP-PlugIn" / "skills"
-    if skills.is_dir():
-        for p in sorted(skills.iterdir()):
-            if p.is_dir() and not re.fullmatch(r"v\d+", p.name):
-                offenders.append(
-                    f"{_rel(p)}: skills must sit under a versioned folder such as skills/v1/"
-                )
+    # v0's skills and v1's served guidance (decision 0003) both sit under versioned folders.
+    for skills in (ROOT / "MCP-PlugIn" / "skills", ROOT / "MCP-Server" / "guidance"):
+        if skills.is_dir():
+            for p in sorted(skills.iterdir()):
+                if p.is_dir() and not re.fullmatch(r"v\d+", p.name):
+                    offenders.append(
+                        f"{_rel(p)}: guides must sit under a versioned folder such as {skills.name}/v1/"
+                    )
     return _report(
         "unversioned guidance files:",
         offenders,

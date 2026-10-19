@@ -26,6 +26,7 @@ BASELINE_TOOLS = {
     "get_rebate_setup",
     "get_sales_volume",
     "compare_contract_to_sap",
+    "get_guide",  # decision 0003
 }
 
 

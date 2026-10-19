@@ -177,3 +177,23 @@ class CompareResult(BaseModel):
     not_checked: list[NotChecked]
     summary: str
     caveats: list[str]
+
+
+class GuideSummary(BaseModel):
+    name: str
+    description: str = Field(description="When to use this guide (one line).")
+
+
+class Guide(GuideSummary):
+    content: str = Field(description="The guide's full text (Markdown). Follow it.")
+
+
+class GuideResult(BaseModel):
+    available: list[GuideSummary] = Field(description="Every guide the server has.")
+    guides: list[Guide] = Field(
+        description="The guides asked for, in full. Empty if none were asked."
+    )
+    not_found: list[str] = Field(
+        default_factory=list, description="Names asked for that do not exist."
+    )
+    note: str

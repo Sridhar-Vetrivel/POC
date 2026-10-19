@@ -35,7 +35,10 @@ def run_over_http(url: str) -> dict:
 
 def check_demo(out: dict) -> None:
     assert out["server"] == "ingenus"
-    assert len(out["tools"]) == 6 and all(out["tools"].values())
+    assert len(out["tools"]) == 7 and all(out["tools"].values())  # six + get_guide (0003)
+    assert "get_guide" in out["tools"]
+    assert out["guides"] == ["contract-check-playbook", "report-format"]
+    assert out["guide_chars"] > 1000  # the full guide text travelled, not just the names
     assert out["prompts"] == ["contract_check"]
     assert AMEND2 in out["files"]
     result = out["compare"]
@@ -51,7 +54,8 @@ def test_full_demo_over_http(http_server, isolated_env):
     # The server process wrote the tool-call log to the test's temp folder (set by isolated_env).
     log = isolated_env / "tool_calls.jsonl"
     records = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
-    assert [r["tool"] for r in records][:3] == [
+    assert [r["tool"] for r in records][:4] == [
+        "get_guide",
         "resolve_customer",
         "find_contract_files",
         "compare_contract_to_sap",

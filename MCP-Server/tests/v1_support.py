@@ -163,6 +163,11 @@ async def chain_x_flow(session) -> dict:
     tools = (await session.list_tools()).tools
     out["tools"] = {t.name: t.annotations.read_only_hint for t in tools}
     out["prompts"] = [p.name for p in (await session.list_prompts()).prompts]
+    guide = await session.call_tool(
+        "get_guide", {"names": ["contract-check-playbook", "report-format"]}
+    )
+    out["guides"] = [g["name"] for g in guide.structured_content["guides"]]
+    out["guide_chars"] = sum(len(g["content"]) for g in guide.structured_content["guides"])
     resolved = await session.call_tool("resolve_customer", {"name": "Chain X"})
     customer_id = resolved.structured_content["resolved"]["sap_customer_id"]
     files = await session.call_tool("find_contract_files", {"customer": "Chain X"})

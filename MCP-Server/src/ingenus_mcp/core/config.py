@@ -25,6 +25,7 @@ class Settings:
     sap_mock_file: Path
     log_path: Path
     prompts_dir: Path
+    guidance_dir: Path
     host: str
     port: int
     stateless: bool
@@ -56,6 +57,8 @@ def load_settings() -> Settings:
         sap_mock_file=path("INGENUS_SAP_MOCK_FILE", _DATA / "sap" / "entities.json"),
         log_path=path("INGENUS_LOG_PATH", _DATA / "runtime" / "tool_calls.jsonl"),
         prompts_dir=path("INGENUS_PROMPTS_DIR", _SERVER_DIR / "prompts"),
+        # The guides (skills) the server serves through get_guide; decision 0003.
+        guidance_dir=path("INGENUS_GUIDANCE_DIR", _SERVER_DIR / "guidance" / "v2"),
         # Loopback by default. Binding to a network address is a deployment decision (V1-4), made
         # together with server sign-in: an open port without sign-in would let anyone call the tools.
         host=os.environ.get("INGENUS_MCP_HOST", "127.0.0.1"),

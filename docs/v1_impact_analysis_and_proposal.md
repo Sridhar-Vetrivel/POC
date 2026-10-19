@@ -363,6 +363,8 @@ V1-0 to V1-3 do not depend on IT and can start now. V1-4, V1-6 and V1-8 wait for
 
 ## Appendix A. Draft request to Psiog IT
 
+> **Superseded for V1-4 and V1-6 (19 Oct 2026)** by the fuller request [psiog_it_request_v1-4_v1-6.md](psiog_it_request_v1-4_v1-6.md): two app registrations, server sign-in, assignment, and the HTTPS certificate. The draft below is kept for the file-share item.
+
 > **Subject:** Entra app registration, SharePoint site, file share and a small VM for a client POC (synthetic data only)
 >
 > Hi team,

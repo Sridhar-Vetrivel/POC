@@ -1,0 +1,314 @@
+{
+  "_label": "SYNTHETIC: invented for the Ingenus POC. Not Ingenus data. Customers, products and numbers are made up.",
+  "customers": [
+    {
+      "customer_id": "SYN-CUST-0001",
+      "name": "Chain X"
+    },
+    {
+      "customer_id": "SYN-CUST-0002",
+      "name": "Chain Y"
+    },
+    {
+      "customer_id": "SYN-CUST-0003",
+      "name": "Wholesaler Z"
+    },
+    {
+      "customer_id": "SYN-CUST-0004",
+      "name": "Regional Pharmacy East"
+    },
+    {
+      "customer_id": "SYN-CUST-0005",
+      "name": "Regional Pharmacy West"
+    }
+  ],
+  "rebate_setup": [
+    {
+      "customer_id": "SYN-CUST-0001",
+      "kind": "rebate",
+      "product": "Product A",
+      "rate_pct": "4.0",
+      "basis": "product_net_sales",
+      "valid_from": "2025-01-01",
+      "valid_to": null
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "kind": "rebate",
+      "product": "Product B",
+      "rate_pct": "3.0",
+      "basis": "product_net_sales",
+      "valid_from": "2025-01-01",
+      "valid_to": null
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "kind": "admin_fee",
+      "product": null,
+      "rate_pct": "2.0",
+      "basis": "total_net_sales",
+      "valid_from": "2025-01-01",
+      "valid_to": null
+    },
+    {
+      "customer_id": "SYN-CUST-0002",
+      "kind": "rebate",
+      "product": "Product A",
+      "rate_pct": "5.0",
+      "basis": "product_net_sales",
+      "valid_from": "2025-01-01",
+      "valid_to": null
+    },
+    {
+      "customer_id": "SYN-CUST-0003",
+      "kind": "admin_fee",
+      "product": null,
+      "rate_pct": "1.5",
+      "basis": "total_net_sales",
+      "valid_from": "2025-01-01",
+      "valid_to": null
+    }
+  ],
+  "sales_volume": [
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-01",
+      "product": "Product A",
+      "net_sales": "200000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-02",
+      "product": "Product A",
+      "net_sales": "200000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-03",
+      "product": "Product A",
+      "net_sales": "200000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-04",
+      "product": "Product A",
+      "net_sales": "200000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-05",
+      "product": "Product A",
+      "net_sales": "200000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-06",
+      "product": "Product A",
+      "net_sales": "200000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-07",
+      "product": "Product A",
+      "net_sales": "200000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-08",
+      "product": "Product A",
+      "net_sales": "200000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-01",
+      "product": "Product B",
+      "net_sales": "150000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-02",
+      "product": "Product B",
+      "net_sales": "150000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-03",
+      "product": "Product B",
+      "net_sales": "150000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-04",
+      "product": "Product B",
+      "net_sales": "150000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-05",
+      "product": "Product B",
+      "net_sales": "150000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-06",
+      "product": "Product B",
+      "net_sales": "150000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-07",
+      "product": "Product B",
+      "net_sales": "150000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-08",
+      "product": "Product B",
+      "net_sales": "150000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-01",
+      "product": "Product C",
+      "net_sales": "50000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-02",
+      "product": "Product C",
+      "net_sales": "50000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-03",
+      "product": "Product C",
+      "net_sales": "50000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-04",
+      "product": "Product C",
+      "net_sales": "50000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-05",
+      "product": "Product C",
+      "net_sales": "50000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-06",
+      "product": "Product C",
+      "net_sales": "50000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-07",
+      "product": "Product C",
+      "net_sales": "50000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0001",
+      "month": "2026-08",
+      "product": "Product C",
+      "net_sales": "50000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0002",
+      "month": "2026-01",
+      "product": "Product A",
+      "net_sales": "80000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0002",
+      "month": "2026-02",
+      "product": "Product A",
+      "net_sales": "80000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0002",
+      "month": "2026-03",
+      "product": "Product A",
+      "net_sales": "80000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0002",
+      "month": "2026-04",
+      "product": "Product A",
+      "net_sales": "80000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0002",
+      "month": "2026-05",
+      "product": "Product A",
+      "net_sales": "80000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0002",
+      "month": "2026-06",
+      "product": "Product A",
+      "net_sales": "80000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0002",
+      "month": "2026-07",
+      "product": "Product A",
+      "net_sales": "80000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0002",
+      "month": "2026-08",
+      "product": "Product A",
+      "net_sales": "80000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0003",
+      "month": "2026-01",
+      "product": "Product A",
+      "net_sales": "120000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0003",
+      "month": "2026-02",
+      "product": "Product A",
+      "net_sales": "120000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0003",
+      "month": "2026-03",
+      "product": "Product A",
+      "net_sales": "120000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0003",
+      "month": "2026-04",
+      "product": "Product A",
+      "net_sales": "120000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0003",
+      "month": "2026-05",
+      "product": "Product A",
+      "net_sales": "120000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0003",
+      "month": "2026-06",
+      "product": "Product A",
+      "net_sales": "120000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0003",
+      "month": "2026-07",
+      "product": "Product A",
+      "net_sales": "120000.00"
+    },
+    {
+      "customer_id": "SYN-CUST-0003",
+      "month": "2026-08",
+      "product": "Product A",
+      "net_sales": "120000.00"
+    }
+  ]
+}

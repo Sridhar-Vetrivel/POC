@@ -59,12 +59,26 @@ def _reexec_in_venv() -> None:
 
 
 # Python source roots that the linters and security scanners cover.
-PY_DIRS = ["MCP-PlugIn", "mcp_servers", "tests", "scripts"]  # MCP-PlugIn includes data/synthetic
+PY_DIRS = [
+    "MCP-PlugIn",
+    "MCP-Server",
+    "mcp_servers",
+    "tests",
+    "scripts",
+]  # MCP-PlugIn includes data/synthetic
 # v0's synthetic data (contracts, SAP mock, generator) lives inside MCP-PlugIn since 19 Oct 2026.
 SYNTHETIC = "MCP-PlugIn/data/synthetic"
+# v1 keeps its own copy of the mock SAP data; it must stay equal to v0's (synthetic-label gate).
+V1_SAP_COPY = "MCP-Server/data/sap/entities.json"
 # Code that ships in the server process: stdout there is the protocol channel.
-SERVER_DIRS = ["MCP-PlugIn/src/ingenus_plugin/core", "MCP-PlugIn/src/ingenus_plugin/server"]
-BANDIT_DIRS = ["MCP-PlugIn/src", "mcp_servers", "scripts"]
+SERVER_DIRS = [
+    "MCP-PlugIn/src/ingenus_plugin/core",
+    "MCP-PlugIn/src/ingenus_plugin/server",
+    "MCP-Server/src/ingenus_mcp/core",
+    "MCP-Server/src/ingenus_mcp/tools",
+    "MCP-Server/src/ingenus_mcp/server",
+]
+BANDIT_DIRS = ["MCP-PlugIn/src", "MCP-Server/src", "mcp_servers", "scripts"]
 
 # Never scanned or walked: environments, generated output, caches.
 SKIP_DIRS = {
@@ -268,6 +282,15 @@ def run_synthetic_label() -> bool:
         text = " ".join((p.extract_text() or "") for p in PdfReader(str(path)).pages)
         if "SYNTHETIC" not in text:
             offenders.append(f"{_rel(path)}: no SYNTHETIC footer in the text")
+
+    v1_sap = ROOT / V1_SAP_COPY
+    if v1_sap.is_file() and sap.is_file():
+        if json.loads(v1_sap.read_text(encoding="utf-8")) != json.loads(
+            sap.read_text(encoding="utf-8")
+        ):
+            offenders.append(
+                f"{V1_SAP_COPY}: differs from {_rel(sap)} (copy the changed file across, or record why)"
+            )
     return _report("synthetic data without a label:", offenders)
 
 
@@ -282,6 +305,7 @@ def run_versioning() -> bool:
         slice_dir / "schemas",
         slice_dir / "ontology",
         ROOT / "MCP-PlugIn" / "prompts",
+        ROOT / "MCP-Server" / "prompts",
     ]
     offenders = [
         f"{_rel(p)}: filename has no .vN version"

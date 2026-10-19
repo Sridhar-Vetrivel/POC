@@ -17,7 +17,7 @@ picture is in the [root README](../README.md), and the rules for people and AI a
 | Skills pack (8) and the MCP prompt | `skills/v1/`, `prompts/contract_check.v1.md` |
 | Desktop-extension packaging | `packaging/` (`manifest.json`, `build_bundle.py`, `smoke_test_bundle.py`) |
 | Tests (offline) | `tests/` here, plus `../tests/test_no_domain_terms.py` |
-| Shared with later phases | `../slices/contract_to_sap_check/` (rules, schemas, aliases, golden tests), `../mcp_servers/sap/` (read-only interface and mock adapter), `../data/synthetic/` |
+| Shared with later phases | `../slices/contract_to_sap_check/` (rules, schemas, aliases, golden tests), `../mcp_servers/sap/` (read-only interface and mock adapter). Synthetic data: `data/synthetic/` (inside this folder since 19 Oct 2026) |
 
 **Not verified:** installing the extension in Claude Desktop, any real SAP route, Ingenus's Claude plan, and
 whether laptops have a matching Python. See [docs/S0_spike_results.md](docs/S0_spike_results.md).
@@ -32,7 +32,7 @@ pytest                                          # 80 offline tests
 python -m ingenus_plugin.server                 # the MCP server on stdio (an MCP client talks to it)
 python -m ingenus_plugin.report                 # usage report from the tool-call log
 python -m ingenus_plugin.evals page-finder      # page-finder recall on the labelled contracts
-python data/synthetic/generate_contracts.py     # regenerate the synthetic contracts and labels
+python MCP-PlugIn/data/synthetic/generate_contracts.py     # regenerate the synthetic contracts and labels
 python MCP-PlugIn/tools/write_schema.py         # rewrite the extraction schema (only if the model changed)
 ```
 
@@ -43,12 +43,12 @@ Settings come from environment variables (defaults point at the synthetic data):
 ## Try it in Claude Desktop (not yet done by us)
 
 ```bash
-python MCP-PlugIn/packaging/build_bundle.py        # builds build/ingenus-contract-check.mcpb (24 MB)
+python MCP-PlugIn/packaging/build_bundle.py        # builds MCP-PlugIn/build/ingenus-contract-check.mcpb (24 MB)
 python MCP-PlugIn/packaging/smoke_test_bundle.py   # proves the staged bundle runs without the venv
 ```
 
 Then, in Claude Desktop: Settings > Extensions > Advanced settings > Extension Developer > Install Extension, pick
-the `.mcpb` file, choose `build/sample_contracts` as the contract folder and any folder for the log. The laptop needs
+the `.mcpb` file, choose `MCP-PlugIn/build/sample_contracts` as the contract folder and any folder for the log. The laptop needs
 Python 3.13 on PATH (the bundle's libraries are built for it). An Owner may need to allow extensions on a Team plan.
 Then run the questions in
 `../slices/contract_to_sap_check/evals/golden/golden_questions.v1.md` and record the results.

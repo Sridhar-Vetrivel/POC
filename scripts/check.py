@@ -59,7 +59,9 @@ def _reexec_in_venv() -> None:
 
 
 # Python source roots that the linters and security scanners cover.
-PY_DIRS = ["MCP-PlugIn", "mcp_servers", "tests", "data/synthetic", "scripts"]
+PY_DIRS = ["MCP-PlugIn", "mcp_servers", "tests", "scripts"]  # MCP-PlugIn includes data/synthetic
+# v0's synthetic data (contracts, SAP mock, generator) lives inside MCP-PlugIn since 19 Oct 2026.
+SYNTHETIC = "MCP-PlugIn/data/synthetic"
 # Code that ships in the server process: stdout there is the protocol channel.
 SERVER_DIRS = ["MCP-PlugIn/src/ingenus_plugin/core", "MCP-PlugIn/src/ingenus_plugin/server"]
 BANDIT_DIRS = ["MCP-PlugIn/src", "mcp_servers", "scripts"]
@@ -231,8 +233,9 @@ _CLIENT_NAME_HINTS = ("confidential", "ingenus_internal", "transcript")
 def run_client_material() -> bool:
     """Rule: only synthetic or public data. Never add client documents, transcripts or SAP extracts."""
     offenders: list[str] = []
-    if (ROOT / "data" / "client").exists():
-        offenders.append("data/client/ exists (client data must never be in this repo)")
+    for client_dir in (ROOT / "data" / "client", ROOT / "MCP-PlugIn" / "data" / "client"):
+        if client_dir.exists():
+            offenders.append(f"{_rel(client_dir)}/ exists (client data must never be in this repo)")
     for path in _walk():
         name = path.name.lower()
         if path.suffix.lower() in _CLIENT_SUFFIXES:
@@ -249,11 +252,11 @@ def run_client_material() -> bool:
 def run_synthetic_label() -> bool:
     """Rule: every synthetic value is labelled synthetic."""
     offenders: list[str] = []
-    sap = ROOT / "data" / "synthetic" / "sap" / "entities.json"
+    sap = ROOT / SYNTHETIC / "sap" / "entities.json"
     if sap.is_file():
         label = str(json.loads(sap.read_text(encoding="utf-8")).get("_label", ""))
         if "SYNTHETIC" not in label.upper():
-            offenders.append("data/synthetic/sap/entities.json: _label does not say SYNTHETIC")
+            offenders.append(f"{_rel(sap)}: _label does not say SYNTHETIC")
     customers = ROOT / "slices" / "contract_to_sap_check" / "ontology"
     for path in customers.glob("customers*.yaml") if customers.is_dir() else []:
         if "SYNTHETIC" not in path.read_text(encoding="utf-8").upper():
@@ -261,7 +264,7 @@ def run_synthetic_label() -> bool:
 
     from pypdf import PdfReader  # imported here so the other gates run even if it is missing
 
-    for path in sorted((ROOT / "data" / "synthetic" / "contracts").rglob("*.pdf")):
+    for path in sorted((ROOT / SYNTHETIC / "contracts").rglob("*.pdf")):
         text = " ".join((p.extract_text() or "") for p in PdfReader(str(path)).pages)
         if "SYNTHETIC" not in text:
             offenders.append(f"{_rel(path)}: no SYNTHETIC footer in the text")
@@ -309,9 +312,9 @@ def run_fixtures() -> bool:
     labels_file = (
         ROOT / "slices" / "contract_to_sap_check" / "evals" / "golden" / "page_labels.json"
     )
-    contracts = ROOT / "data" / "synthetic" / "contracts"
+    contracts = ROOT / SYNTHETIC / "contracts"
     if not labels_file.is_file() or not contracts.is_dir():
-        return _report("fixtures missing:", [f"{_rel(labels_file)} or data/synthetic/contracts"])
+        return _report("fixtures missing:", [f"{_rel(labels_file)} or {SYNTHETIC}/contracts"])
     labels = json.loads(labels_file.read_text(encoding="utf-8"))
     on_disk = {p.relative_to(contracts).as_posix() for p in contracts.rglob("*.pdf")}
     offenders = [f"{doc}: has a label but no file" for doc in sorted(set(labels) - on_disk)]
@@ -319,7 +322,7 @@ def run_fixtures() -> bool:
     return _report(
         "contract fixtures and labels disagree:",
         offenders,
-        "Regenerate with: python data/synthetic/generate_contracts.py",
+        f"Regenerate with: python {SYNTHETIC}/generate_contracts.py",
     )
 
 

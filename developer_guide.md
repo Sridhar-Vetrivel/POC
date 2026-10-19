@@ -69,11 +69,14 @@ POC/
 ├── mcp_servers/sap/             the read-only SAP interface and adapters (shared)
 │   ├── interface.py             ONE method: read(). No write methods exist
 │   └── adapters/                mock.py (used), real_stub.py (refuses to run)
-├── data/synthetic/              fake SAP data and fake contract PDFs + the generator
-├── data/public/                 empty: public sample contracts will go here
 ├── docs/decisions/              short decision records (0001, 0002)
-├── tests/test_no_domain_terms.py   repo-wide rule test
-└── build/                       generated desktop-extension bundle (git-ignored)
+└── tests/test_no_domain_terms.py   repo-wide rule test
+
+v0's data and build output live inside MCP-PlugIn/ (moved 19 Oct 2026):
+MCP-PlugIn/data/synthetic/       fake SAP data and fake contract PDFs + the generator
+MCP-PlugIn/data/public/          empty: public sample contracts will go here
+MCP-PlugIn/data/runtime/         tool-call log (git-ignored)
+MCP-PlugIn/build/                generated desktop-extension bundle (git-ignored)
 ```
 
 Why `slices/` and `mcp_servers/` sit outside `MCP-PlugIn/`: a later phase reuses them unchanged. Phase 1 code may
@@ -115,15 +118,15 @@ Defaults point at the synthetic data in this repo. The desktop extension sets th
 
 | Variable | Meaning | Default |
 |---|---|---|
-| `INGENUS_CONTRACTS_DIR` | Contract folder the tools may read | `data/synthetic/contracts` |
+| `INGENUS_CONTRACTS_DIR` | Contract folder the tools may read | `MCP-PlugIn/data/synthetic/contracts` |
 | `INGENUS_SAP_ADAPTER` | `mock` (works), `real` (stub that refuses) | `mock` |
-| `INGENUS_SAP_MOCK_FILE` | Mock SAP data (must be labelled SYNTHETIC) | `data/synthetic/sap/entities.json` |
+| `INGENUS_SAP_MOCK_FILE` | Mock SAP data (must be labelled SYNTHETIC) | `MCP-PlugIn/data/synthetic/sap/entities.json` |
 | `INGENUS_SLICE_DIR` | Topics, aliases, rules | `slices/contract_to_sap_check` |
 | `INGENUS_PROMPTS_DIR` | Where `contract_check.v1.md` lives | `MCP-PlugIn/prompts` |
-| `INGENUS_LOG_PATH` | Tool-call log file | `data/runtime/tool_calls.jsonl` |
+| `INGENUS_LOG_PATH` | Tool-call log file | `MCP-PlugIn/data/runtime/tool_calls.jsonl` |
 | `INGENUS_USER` | Overrides the user name in the log | OS user |
 
-Tests set their own temp log and user (`conftest.py`), so they never touch `data/runtime/`.
+Tests set their own temp log and user (`conftest.py`), so they never touch `MCP-PlugIn/data/runtime/`.
 
 ## 6. Everyday commands
 
@@ -133,9 +136,9 @@ pytest MCP-PlugIn/tests/test_compare.py -k fabricated    # one test
 python -m ingenus_plugin.server               # run the server on stdio (an MCP client talks to it)
 python -m ingenus_plugin.report               # who used which tool, per day; returning users
 python -m ingenus_plugin.evals page-finder    # how well the page finder finds labelled pages
-python data/synthetic/generate_contracts.py   # regenerate fake contracts + labels (deterministic)
+python MCP-PlugIn/data/synthetic/generate_contracts.py   # regenerate fake contracts + labels (deterministic)
 python MCP-PlugIn/tools/write_schema.py       # rewrite contract_terms.v1.json after a model change
-python MCP-PlugIn/packaging/build_bundle.py   # build build/ingenus-contract-check.mcpb
+python MCP-PlugIn/packaging/build_bundle.py   # build MCP-PlugIn/build/ingenus-contract-check.mcpb
 python MCP-PlugIn/packaging/smoke_test_bundle.py   # run the staged bundle WITHOUT the venv
 ruff check . ; ruff format .                  # lint and format (build/ is excluded)
 python scripts/check.py                       # ALL quality gates, once, at the end of a complete change
@@ -152,10 +155,10 @@ weaken a gate or add `noqa`/`nosec`. The `.bat` and `.sh` files next to it are t
 
 ## 7. Recipes: how to change things
 
-**Change what SAP "says" (mock data).** Edit `data/synthetic/sap/entities.json` (keep the `_label` that says SYNTHETIC; the
+**Change what SAP "says" (mock data).** Edit `MCP-PlugIn/data/synthetic/sap/entities.json` (keep the `_label` that says SYNTHETIC; the
 adapter refuses data without it). Tests that assert Chain X numbers will tell you what you broke.
 
-**Add a synthetic contract.** Add it to `data/synthetic/generate_contracts.py` (with its `term_pages` label), run the
+**Add a synthetic contract.** Add it to `MCP-PlugIn/data/synthetic/generate_contracts.py` (with its `term_pages` label), run the
 generator, then `python -m ingenus_plugin.evals page-finder`. Do not hand-edit PDFs. Do not add real documents.
 
 **Add a customer or alias.** `slices/.../ontology/customers.v1.yaml` (and the `customers` list in the mock SAP data).
@@ -225,7 +228,7 @@ pass `env={...}` explicitly. To try it in Claude Desktop, build the bundle and f
   finds it through a `.pth` file, which is why `server/main.py` uses `site.addsitedir`.
 - **PDF text looks odd.** Extraction is `pypdf`. Hyphenated line breaks or ligatures can stop an exact quote
   matching. That is a "not checked", not a bug in the comparison.
-- **`ruff --fix` rewrote something under `build/`.** Don't lint `build/`; it is excluded for this reason.
+- **`ruff --fix` rewrote something under `MCP-PlugIn/build/`.** Don't lint it; it is excluded for this reason.
 
 ## 11. The rules in one list (full text in CLAUDE.md)
 

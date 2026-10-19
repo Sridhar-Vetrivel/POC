@@ -43,7 +43,7 @@ addopts = "-q"
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-extend-exclude = [".spike", "build"]   # build/ holds the generated desktop-extension bundle
+extend-exclude = [".spike", "build", "MCP-PlugIn/build"]   # build/ holds the generated desktop-extension bundle
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

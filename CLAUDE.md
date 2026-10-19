@@ -47,7 +47,7 @@ Breaking one is a defect, even if the tests pass. The numbering is kept stable b
 2. **The foundation never imports from `slices/`** *(Phase 2)*. Slices plug in through the slice package (`slice.yaml`) and the registry. Phase 1 code may read slice files (rules, schemas) as data.
 3. **If a slice needs a foundation change, log it** *(Phase 2)*. Add an entry to `docs/coupling_log.md`: what changed, which slice needed it, and whether the next slice would need it too. In Phase 1 nothing touches `foundation/`, so there is nothing to log yet.
 4. **SAP is read-only** *(all phases)*. No SAP tool, adapter or code path may create, change or delete SAP data. Don't add a write tool, even a mock one. In Phase 2 the gateway rejects any tool not registered as read-only. **In Phase 1 the plug-in's own tool registry enforces it:** every tool is marked read-only, and a test fails if one is not.
-5. **Files are written only to set locations** *(all phases)*. Allowed: `outbox/`, and the records store and logs under `data/runtime/` (in Phase 1 the tool-call log goes to a configured location, decision D7). Nothing deletes or moves source files or creates folders in source locations.
+5. **Files are written only to set locations** *(all phases)*. Allowed: `outbox/`, and the records store and logs under `MCP-PlugIn/data/runtime/` (in Phase 1 the tool-call log goes to a configured location, decision D7). Nothing deletes or moves source files or creates folders in source locations.
 6. **No LLM in Compare, Estimate or Verify** *(all phases)*. These steps are plain, deterministic code driven by the slice's rule files. The same inputs must give the same findings.
 7. **Every extracted field carries a citation** *(all phases)*: `{document, page, clause, quote}`. Code checks that the quote appears verbatim in the extracted source text. If the check fails, the field goes to the "not checked" list instead of being used. **In Phase 1 Claude extracts and passes the fields in, and `compare_contract_to_sap` does the check.**
 8. **"Not checked" beats guessing** *(all phases)*. Low confidence, unreadable pages, unmatched names and missing SAP records are reported, never filled in.
@@ -109,8 +109,8 @@ python scripts/check.py --fix     # apply ruff's safe fixes and formatting, then
 python -m ingenus_plugin.server               # Phase 1: the MCP server on stdio
 python -m ingenus_plugin.report               # Phase 1: usage report from the tool-call log
 python -m ingenus_plugin.evals page-finder    # Phase 1: page-finder recall on labelled contracts
-python data/synthetic/generate_contracts.py   # regenerate the synthetic contracts and their labels
-python MCP-PlugIn/packaging/build_bundle.py   # build the desktop extension (build/*.mcpb)
+python MCP-PlugIn/data/synthetic/generate_contracts.py   # regenerate the synthetic contracts and their labels
+python MCP-PlugIn/packaging/build_bundle.py   # build the desktop extension (MCP-PlugIn/build/*.mcpb)
 python MCP-PlugIn/packaging/smoke_test_bundle.py   # run the staged bundle without the venv
 python -m poc demo chain-x                    # Phase 2: end-to-end demo (planned, from M1)
 python -m poc eval contract_to_sap_check      # Phase 2: extraction accuracy (planned, from M2)
@@ -121,7 +121,7 @@ Gotchas learned in Phase 1:
 - A stdio client passes only a few environment variables to the server process. Pass settings explicitly.
 - Never print to stdout in server code: on stdio it is the protocol channel. Use stderr.
 - Skill descriptions in `SKILL.md` must not contain `: ` (it breaks the YAML header). A test checks this.
-- Do not run `ruff --fix` on `build/`; it rewrites third-party files in the bundle.
+- Do not run `ruff --fix` on `MCP-PlugIn/build/`; it rewrites third-party files in the bundle.
 
 ## Expected demo numbers (Phase 1 S3 acceptance and Phase 2 M1)
 

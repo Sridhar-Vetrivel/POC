@@ -131,7 +131,7 @@ POC/
 └── tests/                      # repo-wide tests, including the domain-word test
 ```
 
-Shared by both phases: `slices/contract_to_sap_check/` (rules, schemas, ontology terms, golden tests), the mock SAP adapter and `data/`. Keeping them outside `MCP-PlugIn/` is what lets Phase 2 reuse them.
+Shared by both phases: `slices/contract_to_sap_check/` (rules, schemas, ontology terms, golden tests), and the mock SAP adapter. Keeping them outside `MCP-PlugIn/` is what lets Phase 2 reuse them. Since 19 Oct 2026 v0's synthetic data and build output live in `MCP-PlugIn/data/` and `MCP-PlugIn/build/` (v1 keeps its own copy; see `docs/v1_impact_analysis_and_proposal.md`).
 
 ## Phase 1 milestones
 
@@ -192,7 +192,7 @@ python -m ingenus_plugin.report          # usage report from the tool-call log
 python -m ingenus_plugin.evals page-finder
 ```
 
-More commands (build the desktop extension, regenerate the synthetic contracts) are in [`MCP-PlugIn/README.md`](MCP-PlugIn/README.md). Do not run `ruff` on the generated `build/` folder; it is excluded in `pyproject.toml`.
+More commands (build the desktop extension, regenerate the synthetic contracts) are in [`MCP-PlugIn/README.md`](MCP-PlugIn/README.md). Do not run `ruff` on the generated `MCP-PlugIn/build/` folder; it is excluded in `pyproject.toml`.
 
 ## Open decisions
 

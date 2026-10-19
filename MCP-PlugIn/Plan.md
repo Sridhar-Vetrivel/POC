@@ -45,7 +45,7 @@ The README describes a larger POC: an orchestrator, a policy and audit gateway, 
 | Item                                                                                                       | Carries over to phase 1                               | Differs in phase 1                                                                                                                                                                                          |
 | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Synthetic and public data only; Chain X demo and numbers                                                   | Yes, unchanged ($8,500 a month; $17,000 for Jul–Aug) |                                                                                                                                                                                                             |
-| SAP read-only; files written only to`outbox/` and `data/runtime/`                                      | Yes (rules 4 and 5)                                   |                                                                                                                                                                                                             |
+| SAP read-only; files written only to`outbox/` and `MCP-PlugIn/data/runtime/`                                      | Yes (rules 4 and 5)                                   |                                                                                                                                                                                                             |
 | No LLM in compare or estimate; citations on every field, code-checked quotes; "not checked" beats guessing | Yes (rules 6, 7, 8)                                   |                                                                                                                                                                                                             |
 | Versioned prompts, skills, schemas, rules                                                                  | Yes                                                   |                                                                                                                                                                                                             |
 | Rules, schemas, ontology terms and golden tests live in`slices/contract_to_sap_check/`                   | Yes: keeps the work reusable for P2 later             |                                                                                                                                                                                                             |
@@ -107,8 +107,7 @@ POC/
 │   └── tests/
 ├── slices/contract_to_sap_check/   # rules, schemas, ontology terms, evals/golden (shared with later phases)
 ├── mcp_servers/sap/adapters/       # mock adapter (reused); real adapters are TODO(verify) stubs
-├── data/synthetic/ · data/public/  # fixtures and sample contracts
-└── data/runtime/                   # tool-call log (set location, D7); ignored by git
+└── (data/ and build/ moved into MCP-PlugIn/ on 19 Oct 2026: data/synthetic, data/public, data/runtime, build/)
 ```
 
 ### 4.3 Tool catalogue (proposal; business-level, all read-only)

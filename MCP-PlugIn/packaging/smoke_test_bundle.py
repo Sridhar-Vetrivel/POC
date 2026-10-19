@@ -1,9 +1,9 @@
 """Smoke test for the staged desktop-extension bundle, run WITHOUT the project's virtual environment.
 
-    python MCP-PlugIn/packaging/build_bundle.py        # first, to stage build/mcpb
+    python MCP-PlugIn/packaging/build_bundle.py        # first, to stage MCP-PlugIn/build/mcpb
     python MCP-PlugIn/packaging/smoke_test_bundle.py   # then this (use the project venv to get the MCP client)
 
-It starts build/mcpb/server/main.py with a plain system Python (so only the bundled libraries are
+It starts MCP-PlugIn/build/mcpb/server/main.py with a plain system Python (so only the bundled libraries are
 available, as on a user's laptop), talks to it over stdio, and calls two tools. It does not test
 Claude Desktop itself.
 """
@@ -19,8 +19,8 @@ from pathlib import Path
 
 from mcp import ClientSession, StdioServerParameters, stdio_client
 
-POC = Path(__file__).resolve().parents[2]
-STAGE = POC / "build" / "mcpb"
+BUILD = Path(__file__).resolve().parents[1] / "build"
+STAGE = BUILD / "mcpb"
 
 
 def system_python() -> str:
@@ -42,7 +42,7 @@ async def main() -> None:
     env = {
         "SYSTEMROOT": os.environ.get("SYSTEMROOT", ""),
         "PATH": os.environ.get("PATH", ""),
-        "INGENUS_CONTRACTS_DIR": str(POC / "build" / "sample_contracts"),
+        "INGENUS_CONTRACTS_DIR": str(BUILD / "sample_contracts"),
         "INGENUS_LOG_PATH": str(log),
         "INGENUS_SLICE_DIR": str(STAGE / "slice"),
         "INGENUS_SAP_MOCK_FILE": str(STAGE / "data" / "sap" / "entities.json"),

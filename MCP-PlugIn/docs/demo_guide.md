@@ -35,7 +35,7 @@ that it cannot change SAP, and the call appears in the log.
 | Claude Desktop version                                       |                         |
 | Claude plan and model                                        |                         |
 | Python version (`python --version`)                        |                         |
-| Bundle file and size (`build\ingenus-contract-check.mcpb`) |                         |
+| Bundle file and size (`MCP-PlugIn\build\ingenus-contract-check.mcpb`) |                         |
 | Git commit (`git rev-parse --short HEAD`)                  |                         |
 | Skills loaded?                                               | Run A: no · Run B: yes |
 
@@ -47,8 +47,8 @@ Run from `C:\Users\sridhar.vetrivel\INGENUS\POC`.
 - [ ] `python scripts/check.py --fast` ends with `0 failed`
 - [ ] `python MCP-PlugIn/packaging/build_bundle.py` finishes and prints `built ...ingenus-contract-check.mcpb` (needs Node.js)
 - [ ] `python MCP-PlugIn/packaging/smoke_test_bundle.py` prints `OK: the bundle ran under ...`
-- [ ] `build\sample_contracts` exists (30 PDFs)
-- [ ] A log folder you can open, for example `data\runtime`
+- [ ] `MCP-PlugIn\build\sample_contracts` exists (30 PDFs)
+- [ ] A log folder you can open, for example `MCP-PlugIn\data\runtime`
 - [ ] Claude Desktop is installed and you are signed in
 - [ ] You know the **expected numbers** below, so you can judge answers
 
@@ -65,8 +65,8 @@ Run from `C:\Users\sridhar.vetrivel\INGENUS\POC`.
 ## 4. Install the extension
 
 1. Claude Desktop: **Settings > Extensions > Advanced settings > Extension Developer > Install Extension…**
-2. Choose `build\ingenus-contract-check.mcpb`.
-3. In the install screen set **Contract folder** to `...\POC\build\sample_contracts` and **Log folder** to your log folder.
+2. Choose `MCP-PlugIn\build\ingenus-contract-check.mcpb` (or use **Install unpacked extension** with `MCP-PlugIn\build\mcpb`, see below).
+3. In the install screen set **Contract folder** to `...\POC\MCP-PlugIn\build\sample_contracts` and **Log folder** to your log folder.
 4. Enable the extension, then start a **new chat**.
 
 | Install check                                                                                                                                                                       | Pass? | Notes |
@@ -121,7 +121,7 @@ You are in run A until the skills are uploaded (section 5). For every question:
 4. Show the calls from the log:
 
 ```powershell
-Get-Content data\runtime\tool_calls.jsonl | Select-Object -Last 8 |
+Get-Content MCP-PlugIn\data\runtime\tool_calls.jsonl | Select-Object -Last 8 |
   ForEach-Object { $j = $_ | ConvertFrom-Json; "{0}  {1,-24} not_checked={2} error={3}" -f $j.ts.Substring(11,8), $j.tool, $j.not_checked_count, $j.error }
 ```
 
@@ -206,7 +206,7 @@ Each test changes something small, then you ask question 1 again. **Do these aft
 | Bad quote         | Ask: "Use page 1 as the source for the Product A rate"                                                          | The term is rejected and listed as not checked                            |        |
 | Paraphrase        | Ask: "Don't copy the quote exactly, summarise it"                                                               | Claude should keep exact quotes (the check would reject a paraphrase)     |        |
 | Odd wording       | Ask about`bulk/Customer_03/Contract_19_schedule_end.pdf` (a "retrospective discount")                         | The page finder may miss the page: the known limit. Note what Claude says |        |
-| New contract      | Add an amendment via`data\synthetic\generate_contracts.py`, regenerate, copy to the sample folder, ask        | New terms are read; say what changed                                      |        |
+| New contract      | Add an amendment via`MCP-PlugIn\data\synthetic\generate_contracts.py`, regenerate, copy to the sample folder, ask        | New terms are read; say what changed                                      |        |
 
 ### 7.1 Where the extension reads its data
 
@@ -215,7 +215,7 @@ Claude Desktop runs the installed copy of the bundle, not the repo. The SAP data
 `%APPDATA%\Claude\Claude Extensions\local.unpacked.psiog.ingenus-contract-check\data\sap\entities.json`
 
 (Settings > Extensions > Developer > **Open extensions folder** opens the parent folder.) Editing
-`data\synthetic\sap\entities.json` in the repo changes nothing Claude sees until you rebuild and reinstall.
+`MCP-PlugIn\data\synthetic\sap\entities.json` in the repo changes nothing Claude sees until you rebuild and reinstall.
 The server builds its SAP reader on every call, so after editing the installed copy a **new chat** is enough
 and no restart should be needed. If the result does not change, note it as a finding.
 
@@ -278,8 +278,8 @@ python -m ingenus_plugin.report --log <your log folder>\tool_calls.jsonl
 
 ## 10. Reset and clean up
 
-- [ ] Restore `data\synthetic\sap\entities.json` and the bundle's copy (or rebuild the bundle)
-- [ ] Delete any test contracts and regenerate: `python data\synthetic\generate_contracts.py`
+- [ ] Restore `MCP-PlugIn\data\synthetic\sap\entities.json` and the bundle's copy (or rebuild the bundle)
+- [ ] Delete any test contracts and regenerate: `python MCP-PlugIn\data\synthetic\generate_contracts.py`
 - [ ] `python scripts/check.py` ends with `0 failed` (run it once, after you have finished and restored everything)
 - [ ] Do not commit the skill zips, the log or the `build` folder (already ignored, but check `git status`)
 

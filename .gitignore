@@ -19,12 +19,12 @@ build/
 *.mcpb
 .spike/
 
-# Runtime output: the system's write locations
+# Runtime output: the system's write locations (any depth: v0 keeps them under MCP-PlugIn/data/)
 outbox/
-data/runtime/
+**/data/runtime/
 
 # Never commit client material. Only synthetic or public data belongs here.
-data/client/
+**/data/client/
 **/*CONFIDENTIAL*
 **/*Ingenus_internal*
 *.docx

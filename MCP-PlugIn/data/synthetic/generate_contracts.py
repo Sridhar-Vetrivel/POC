@@ -1,6 +1,6 @@
 """Generate the SYNTHETIC contract PDFs and the page labels used by the page-finder eval.
 
-Run from the repo root:  python data/synthetic/generate_contracts.py
+Run from the repo root:  python MCP-PlugIn/data/synthetic/generate_contracts.py
 Output is deterministic (fixed seed, invariant PDFs). Every page carries a SYNTHETIC footer.
 Nothing here is Ingenus data: customers, products, rates and wording are invented.
 """
@@ -19,7 +19,7 @@ from reportlab.pdfgen.canvas import Canvas
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / "contracts"
 LABELS = (
-    ROOT.parents[1] / "slices" / "contract_to_sap_check" / "evals" / "golden" / "page_labels.json"
+    ROOT.parents[2] / "slices" / "contract_to_sap_check" / "evals" / "golden" / "page_labels.json"
 )
 FOOTER = "SYNTHETIC: invented for the Ingenus POC. Not a real contract."
 

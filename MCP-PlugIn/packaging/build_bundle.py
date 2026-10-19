@@ -3,9 +3,10 @@
     python MCP-PlugIn/packaging/build_bundle.py            # stage the bundle and try to pack it
 
 What it does:
-  1. Stages a clean folder (build/mcpb) with the manifest, a tiny entry script, the bundled Python
-     libraries (server/lib), our two packages, the slice files, the prompt and the SYNTHETIC SAP data.
-  2. Copies the sample contracts to build/sample_contracts (not inside the bundle: the user picks a folder).
+  1. Stages a clean folder (MCP-PlugIn/build/mcpb) with the manifest, a tiny entry script, the bundled
+     Python libraries (server/lib), our two packages, the slice files, the prompt and the SYNTHETIC SAP data.
+  2. Copies the sample contracts to MCP-PlugIn/build/sample_contracts (not inside the bundle: the user
+     picks a folder).
   3. Runs the MCPB command line tool (npx @anthropic-ai/mcpb) to validate and pack.
 
 Known limits (see MCP-PlugIn/docs/S0_spike_results.md): Python dependencies are platform and
@@ -23,8 +24,10 @@ import sys
 from pathlib import Path
 
 POC = Path(__file__).resolve().parents[2]
+PLUGIN = POC / "MCP-PlugIn"
 HERE = Path(__file__).resolve().parent
-BUILD = POC / "build"
+BUILD = PLUGIN / "build"
+SYNTHETIC = PLUGIN / "data" / "synthetic"
 STAGE = BUILD / "mcpb"
 DEPENDENCIES = ["mcp>=2.3,<3", "pydantic>=2.7", "pyyaml>=6", "pypdf>=4"]
 
@@ -87,11 +90,8 @@ def stage() -> None:
     )
     shutil.copytree(POC / "MCP-PlugIn" / "prompts", STAGE / "prompts")
     (STAGE / "data" / "sap").mkdir(parents=True)
-    shutil.copy2(
-        POC / "data" / "synthetic" / "sap" / "entities.json",
-        STAGE / "data" / "sap" / "entities.json",
-    )
-    shutil.copytree(POC / "data" / "synthetic" / "contracts", BUILD / "sample_contracts")
+    shutil.copy2(SYNTHETIC / "sap" / "entities.json", STAGE / "data" / "sap" / "entities.json")
+    shutil.copytree(SYNTHETIC / "contracts", BUILD / "sample_contracts")
 
     manifest = json.loads((STAGE / "manifest.json").read_text(encoding="utf-8"))
     manifest["compatibility"]["runtimes"]["python"] = (
@@ -103,7 +103,9 @@ def stage() -> None:
 def pack() -> None:
     npx = shutil.which("npx") or shutil.which("npx.cmd")
     if not npx:
-        print("npx not found: install Node.js, then run `npx @anthropic-ai/mcpb pack build/mcpb`.")
+        print(
+            "npx not found: install Node.js, then run `npx @anthropic-ai/mcpb pack MCP-PlugIn/build/mcpb`."
+        )
         return
     validate = run([npx, "--yes", "@anthropic-ai/mcpb", "validate", str(STAGE / "manifest.json")])
     print(validate.stdout, validate.stderr)

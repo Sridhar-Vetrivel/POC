@@ -10,8 +10,10 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-# .../POC/MCP-PlugIn/src/ingenus_plugin/core/config.py -> POC
+# .../POC/MCP-PlugIn/src/ingenus_plugin/core/config.py -> POC/MCP-PlugIn and POC
+_PLUGIN_DIR = Path(__file__).resolve().parents[3]
 _REPO_ROOT = Path(__file__).resolve().parents[4]
+_DATA = _PLUGIN_DIR / "data"
 
 
 @dataclass(frozen=True)
@@ -42,14 +44,10 @@ def load_settings() -> Settings:
         return Path(value).expanduser() if value else default
 
     return Settings(
-        contracts_dir=path(
-            "INGENUS_CONTRACTS_DIR", _REPO_ROOT / "data" / "synthetic" / "contracts"
-        ),
+        contracts_dir=path("INGENUS_CONTRACTS_DIR", _DATA / "synthetic" / "contracts"),
         slice_dir=path("INGENUS_SLICE_DIR", _REPO_ROOT / "slices" / "contract_to_sap_check"),
         sap_adapter=os.environ.get("INGENUS_SAP_ADAPTER", "mock"),
-        sap_mock_file=path(
-            "INGENUS_SAP_MOCK_FILE", _REPO_ROOT / "data" / "synthetic" / "sap" / "entities.json"
-        ),
-        log_path=path("INGENUS_LOG_PATH", _REPO_ROOT / "data" / "runtime" / "tool_calls.jsonl"),
-        prompts_dir=path("INGENUS_PROMPTS_DIR", _REPO_ROOT / "MCP-PlugIn" / "prompts"),
+        sap_mock_file=path("INGENUS_SAP_MOCK_FILE", _DATA / "synthetic" / "sap" / "entities.json"),
+        log_path=path("INGENUS_LOG_PATH", _DATA / "runtime" / "tool_calls.jsonl"),
+        prompts_dir=path("INGENUS_PROMPTS_DIR", _PLUGIN_DIR / "prompts"),
     )

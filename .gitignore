@@ -43,3 +43,6 @@ desktop.ini
 
 # Node dependencies (the Claude Desktop bridge); restored with npm ci from package-lock.json
 node_modules/
+
+# QA test-case workbooks (local, not committed)
+docs/QA/*.xlsx

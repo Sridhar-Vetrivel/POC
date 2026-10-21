@@ -65,6 +65,7 @@ class Settings:
     onedrive_folder: str = ""
     # V1-8: a shared folder reached by path (UNC such as \\\\server\\share\\contracts, or a mounted share).
     network_root: Path | None = None
+    network_timeout: float = 20.0  # seconds to wait for the share before failing the call
     exclude_patterns: tuple[str, ...] = ("~$*", "*.tmp", "Thumbs.db", "desktop.ini")
     # Decision 0005: copy every audit event to a central store (SQLite here), and keep check records.
     # Decision 0008: when Postgres is configured (INGENUS_PG_HOST), both go there unless set explicitly.
@@ -189,6 +190,7 @@ def load_settings() -> Settings:
         network_root=Path(os.environ["INGENUS_NETWORK_ROOT"])
         if os.environ.get("INGENUS_NETWORK_ROOT")
         else None,
+        network_timeout=float(os.environ.get("INGENUS_NETWORK_TIMEOUT", "20")),
         exclude_patterns=_patterns(os.environ.get("INGENUS_EXCLUDE_PATTERNS")),
         auth_mode=os.environ.get("INGENUS_AUTH", "off").strip().lower(),
         tenant_id=os.environ.get("INGENUS_TENANT_ID", "").strip(),

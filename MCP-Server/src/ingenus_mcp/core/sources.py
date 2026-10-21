@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import fnmatch
 import os
+import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from ingenus_mcp.core.config import Settings
 from ingenus_mcp.core.scope import ScopeError, resolve_inside
@@ -102,8 +104,9 @@ class NetworkShareSource(LocalFolderSource):
 
     revalidate_seconds = 10.0
 
-    def __init__(self, root: Path, exclude: tuple[str, ...] = ()):
+    def __init__(self, root: Path, exclude: tuple[str, ...] = (), timeout: float = 20.0):
         super().__init__(root)
+        self._timeout = timeout
         self.identity = f"network:{root}"
         self._exclude = tuple(p.casefold() for p in exclude)
         self.skipped: list[tuple[str, str]] = []  # (path, why) for find_contract_files to report
@@ -111,7 +114,43 @@ class NetworkShareSource(LocalFolderSource):
     def _excluded(self, name: str) -> bool:
         return any(fnmatch.fnmatchcase(name.casefold(), pattern) for pattern in self._exclude)
 
+    def _bounded(self, work: Callable[..., Any], *args: Any) -> Any:
+        """Run a file operation, and give up waiting after `timeout` seconds.
+
+        A share that hangs blocks the operating system call and Python cannot interrupt it, so the call
+        runs in a daemon thread that is abandoned if it overruns (it ends when the share answers or the
+        server stops). The tool call then fails with a clear message instead of hanging.
+        """
+        outcome: dict[str, Any] = {}
+
+        def run() -> None:
+            try:
+                outcome["value"] = work(*args)
+            except BaseException as exc:  # noqa: BLE001 - handed to the caller below
+                outcome["error"] = exc
+
+        worker = threading.Thread(target=run, daemon=True)
+        worker.start()
+        worker.join(self._timeout)
+        if worker.is_alive():
+            raise TimeoutError(
+                f"The network folder did not answer within {self._timeout:g} seconds. "
+                "Try again later, or ask your administrator whether the share is available."
+            )
+        if "error" in outcome:
+            raise outcome["error"]
+        return outcome["value"]
+
     def list_items(self) -> list[DocItem]:
+        return self._bounded(self._list_items)
+
+    def stat(self, rel_path: str) -> DocItem:
+        return self._bounded(self._stat, rel_path)
+
+    def read_bytes(self, item: DocItem) -> bytes:
+        return self._bounded(super().read_bytes, item)
+
+    def _list_items(self) -> list[DocItem]:
         if not self.root.is_dir():
             raise FileNotFoundError(
                 "The network folder is not available. Check the server settings."
@@ -149,7 +188,7 @@ class NetworkShareSource(LocalFolderSource):
                     self.skipped.append((rel, f"Could not be read: {type(exc).__name__}."))
         return sorted(items, key=lambda i: i.rel_path.casefold())
 
-    def stat(self, rel_path: str) -> DocItem:
+    def _stat(self, rel_path: str) -> DocItem:
         path = resolve_inside(self.root, rel_path)
         current = self.root.resolve()
         for part in Path(rel_path).parts:  # no link anywhere on the way down
@@ -170,7 +209,9 @@ def get_source(settings: Settings) -> DocumentSource:
     if settings.doc_source == "network":
         if settings.network_root is None:
             raise ValueError("INGENUS_DOC_SOURCE=network needs INGENUS_NETWORK_ROOT.")
-        return NetworkShareSource(settings.network_root, settings.exclude_patterns)
+        return NetworkShareSource(
+            settings.network_root, settings.exclude_patterns, settings.network_timeout
+        )
     if settings.doc_source == "onedrive":
         from ingenus_mcp.core import graph
 

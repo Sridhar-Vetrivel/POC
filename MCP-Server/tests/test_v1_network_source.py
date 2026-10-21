@@ -197,3 +197,31 @@ def test_start_up_needs_the_network_root(monkeypatch):
     monkeypatch.setenv("INGENUS_DOC_SOURCE", "network")
     with pytest.raises(SystemExit, match="INGENUS_NETWORK_ROOT"):
         check_startup(load_settings(), "127.0.0.1", "http")
+
+
+# --- a share that hangs --------------------------------------------------------------------------
+
+
+def test_a_hanging_share_fails_the_call_instead_of_hanging(tmp_path, monkeypatch):
+    import threading
+    import time
+
+    release = threading.Event()
+    monkeypatch.setattr(
+        NetworkShareSource, "_list_items", lambda self: release.wait(10) or []
+    )  # the share does not answer
+    source = NetworkShareSource(tmp_path, timeout=0.3)
+    started = time.monotonic()
+    with pytest.raises(TimeoutError, match="did not answer within 0.3 seconds"):
+        source.list_items()
+    assert time.monotonic() - started < 3
+    release.set()
+
+
+def test_stat_and_read_are_bounded_too_and_errors_pass_through(tmp_path):
+    (tmp_path / "a.pdf").write_bytes(b"x")
+    source = NetworkShareSource(tmp_path, timeout=5)
+    item = source.stat("a.pdf")
+    assert source.read_bytes(item) == b"x"
+    with pytest.raises(FileNotFoundError):
+        source.stat("missing.pdf")

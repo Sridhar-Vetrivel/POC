@@ -29,7 +29,7 @@ Depends on: **Aditya, who provisions the VM on AWS (SAID, 21 Oct 2026; decision 
 - [ ] Check the SDK's host-header protection accepts the VM's name (**UNKNOWN**: not tested; it protects loopback by default)
 - [ ] Bridge on a second laptop: Server URL = the HTTPS address, plus the three IDs; first sign-in works
 - [ ] **Done when:** a second person's Claude Desktop runs Q1 against the VM, and the log shows that person's name
-- [ ] **Purpose of the AWS VM (Sridhar, 21 Oct): QA of multiple users calling and the logging.** QA list: two or more people calling at the same time; each call logged under the right name; login events (accepted, refused); the hash chain verifies after concurrent writes (**not tested yet**: two processes or threads on one log); Postgres receives every event; check history seen across people; `audit ship` and `prune` against the real database
+- [ ] **Purpose of the AWS VM (Sridhar, 21 Oct): QA of multiple users calling and the logging.** QA list: two or more people calling at the same time; each call logged under the right name; login events (accepted, refused); the hash chain verifies after concurrent writes (**tested locally 21 Oct**: 6 threads, 4 processes; re-run on the VM with real requests); Postgres receives every event; check history seen across people; `audit ship` and `prune` against the real database
 
 - Unknown: whether Node (inside Claude Desktop) trusts the certificate chain; Psiog's Conditional Access policies; which Entra tenant the AWS-hosted POC signs people in against, and who creates the app registrations there (the dev tenant is for testing only)
 
@@ -82,7 +82,8 @@ Built (decision [0007](decisions/0007-v1-onedrive-and-network-share-sources.md))
 - [x] Office lock files and temp files are skipped; an unreadable or locked file is reported and does not stop the rest; re-checked every 10 s; never writes
 - [ ] A real UNC path: the `\\localhost\c$` admin share was not reachable on the developer laptop. Make a share on a machine you control (needs admin rights) or use IT's
 - [ ] Send the **second IT request**: a Windows file share with the synthetic contracts, a read-only service account, a Windows VM in the domain (draft: Appendix A of the proposal)
-- [ ] Test: paths longer than 260 characters, DFS namespaces, a share that hangs (no timeout is set yet), a large share (no metadata index yet)
+- [x] A share that hangs now fails the call after 20 s (`INGENUS_NETWORK_TIMEOUT`); tested with a simulated hang only
+- [ ] Test: paths longer than 260 characters, DFS namespaces, a real hanging share, a large share (no metadata index yet)
 - [ ] **Decide:** the server reads a share as ONE account, so every signed-in user sees what that account sees. If Ingenus's folder permissions differ by person (**UNKNOWN**), this is not enough
 - [ ] **Done when (live):** Q1 exact from the real share; a link or path outside the root is refused; a locked file is reported, not fatal
 
@@ -116,8 +117,7 @@ The apps, certificate, group and site were made in a developer tenant (`vvrzl`) 
 
 | Decision                                                             | Who                                               | Blocks                           |
 | -------------------------------------------------------------------- | ------------------------------------------------- | -------------------------------- |
-| Central log store, location, retention, readers, fail open or closed | Aditya, then Ingenus                              | 2.2, 2.3                         |
-| What "per-process memory" means                                      | Aditya                                            | 2.3                              |
+| Central log store: Postgres chosen; retention and readers assumed; fail open or closed; Ingenus to confirm | Aditya, then Ingenus | 2.2, 2.3 |
 | Ingenus on-prem or cloud for the store and the server (later; the POC VM is AWS) | Aditya, Ingenus                                   | 2.1, 2.2                         |
 | Per-person access or one shared server identity                      | Ingenus (do folder permissions differ by person?) | 2.5, the design in decision 0004 |
 | Does Ingenus's data policy allow storing contract-derived figures    | Ingenus                                           | 2.3                              |

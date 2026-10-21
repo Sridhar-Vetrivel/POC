@@ -144,6 +144,7 @@ fill it in. The server loads it at start-up; a variable already set in the shell
 | `INGENUS_NETWORK_ROOT` | The shared folder for `network`, UNC (`\\\\server\\share\\contracts`) or mounted; read as the account the server runs as | (empty) |
 | `INGENUS_EXCLUDE_PATTERNS` | File-name patterns skipped on a network share, comma separated | `~$*,*.tmp,Thumbs.db,desktop.ini` |
 | `INGENUS_AUDIT_STORE` | Path of the central audit store (SQLite reference); empty means off | (empty) |
+| `INGENUS_NETWORK_TIMEOUT` | Seconds to wait for a network share before the call fails | `20` |
 | `INGENUS_PG_HOST` | Postgres host; setting it sends the audit store AND the check history to Postgres (decision 0008) | (empty: SQLite files) |
 | `INGENUS_PG_PORT`, `INGENUS_PG_DB`, `INGENUS_PG_USER`, `INGENUS_PG_SCHEMA` | Postgres port, database, user, schema | `5432`, `ingenus_audit`, `postgres`, `public` |
 | `INGENUS_PG_PASSWORD_FILE` | File holding the Postgres password (relative to `MCP-Server/`); keep it under `secrets/` | (empty) |

@@ -21,6 +21,8 @@ reuse the document-source seam, so no tool changes.
    - Office lock files and temp files are skipped (`INGENUS_EXCLUDE_PATTERNS`, default `~$*,*.tmp,Thumbs.db,desktop.ini`);
    - a file that cannot be read (locked, permission) is reported as not checked and does not stop the rest;
    - the folder is re-checked every 10 seconds, not on every call (a stat over a network is slow);
+   - **a share that hangs fails the call after `INGENUS_NETWORK_TIMEOUT` seconds (default 20)** instead of hanging it; the stuck
+     read runs in a daemon thread that is abandoned (tested with a simulated hang, not a real one);
    - the source never writes.
 
 ## Consequences and limits
@@ -29,5 +31,5 @@ reuse the document-source seam, so no tool changes.
   to a share is not enforced; if Ingenus's folder permissions differ by person, N1 is not enough (**UNKNOWN**).
 - 21 offline tests (fake Graph for OneDrive; a temp folder, real junctions and a simulated lock for the share).
 - **Not verified:** a real OneDrive (needs the 30 PDFs uploaded to a folder), a real UNC share and service account (IT),
-  very long paths (>260 characters), DFS namespaces, behaviour when the share hangs (no timeout is set yet), and a large
+  very long paths (>260 characters), DFS namespaces, a real hanging share (only a simulated hang is tested), and a large
   share (there is no metadata index yet).

@@ -120,6 +120,24 @@ def _walk(suffixes: set[str] | None = None) -> list[Path]:
     return sorted(found)
 
 
+def _git_ignored(paths: list[Path]) -> set[Path]:
+    """The given paths that git ignores. An empty set if git is not available (so nothing is excused)."""
+    if not paths:
+        return set()
+    try:
+        result = subprocess.run(  # fixed argv, no shell
+            ["git", "check-ignore", "-z", "--stdin"],
+            cwd=ROOT,
+            input="\0".join(p.relative_to(ROOT).as_posix() for p in paths) + "\0",
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return set()
+    return {ROOT / name for name in result.stdout.split("\0") if name}
+
+
 def _rel(path: Path) -> str:
     return path.relative_to(ROOT).as_posix()
 
@@ -250,12 +268,17 @@ def run_client_material() -> bool:
     for client_dir in (ROOT / "data" / "client", ROOT / "MCP-PlugIn" / "data" / "client"):
         if client_dir.exists():
             offenders.append(f"{_rel(client_dir)}/ exists (client data must never be in this repo)")
+    flagged: list[tuple[Path, str]] = []
     for path in _walk():
         name = path.name.lower()
         if path.suffix.lower() in _CLIENT_SUFFIXES:
-            offenders.append(f"{_rel(path)}: Office or mail file (looks like client material)")
+            flagged.append((path, "Office or mail file (looks like client material)"))
         elif any(hint in name for hint in _CLIENT_NAME_HINTS):
-            offenders.append(f"{_rel(path)}: name suggests client material")
+            flagged.append((path, "name suggests client material"))
+    # A file git ignores can never be committed, so it cannot put client material into the repo
+    # (for example a local, git-ignored QA workbook). Everything git could commit is still flagged.
+    ignored = _git_ignored([path for path, _ in flagged])
+    offenders.extend(f"{_rel(path)}: {why}" for path, why in flagged if path not in ignored)
     return _report(
         "possible client material in the repo:",
         offenders,

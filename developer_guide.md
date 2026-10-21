@@ -128,6 +128,66 @@ Defaults point at the synthetic data in this repo. The desktop extension sets th
 
 Tests set their own temp log and user (`conftest.py`), so they never touch `MCP-PlugIn/data/runtime/`.
 
+### 5.1 Secrets and local settings (v1 server, `MCP-Server/`)
+
+The v1 server reads the same kind of environment variables (list below). On a developer laptop you can put
+them in **`MCP-Server/.env`** instead of setting them by hand: copy `MCP-Server/.env.example` to `.env` and
+fill it in. The server loads it at start-up; a variable already set in the shell wins. Tests never read it
+(`INGENUS_NO_ENV_FILE=1`), so your real settings cannot leak into a test run.
+
+| Variable | Meaning | Default |
+|---|---|---|
+| `INGENUS_DOC_SOURCE` | Where contracts come from: `local` or `sharepoint` | `local` |
+| `INGENUS_SP_SITE_URL` | `https://<tenant>.sharepoint.com/sites/<site>` | (empty) |
+| `INGENUS_SP_FOLDER` | Folder inside the site's default library, e.g. `General/synthetic/contracts` | (empty) |
+| `INGENUS_AUTH` | `off` (loopback only) or `entra` (every request needs a valid sign-in token) | `off` |
+| `INGENUS_TENANT_ID` | Directory (tenant) ID | (empty) |
+| `INGENUS_SERVER_CLIENT_ID` | Application (client) ID of the "Ingenus POC MCP Server" app | (empty) |
+| `INGENUS_CERT_KEY_FILE` | Path to the certificate's private key; a relative path is read from `MCP-Server/` | (empty) |
+| `INGENUS_CERT_THUMBPRINT` | SHA-1 thumbprint of the certificate uploaded to the server app (hex) | (empty) |
+| `INGENUS_CLIENT_ID` | Desktop client app id; only `scripts/signin_check.py` uses it | (empty) |
+| `INGENUS_PUBLIC_URL` | The URL clients use; named in the sign-in metadata | `http://127.0.0.1:8765/mcp` |
+
+**What is a secret and what is not.** Tenant ID, application IDs, thumbprints, the SharePoint URL and file paths
+are identifiers, not secrets; they still stay out of code and tests (use made-up values there). The **only real
+secret is the certificate's private key**. There are no passwords or client secrets in this project.
+
+**Create a secret (the certificate key pair) and put it in the repo folder**
+
+1. Make a key pair with OpenSSL (Git Bash has it). The private key goes straight into `MCP-Server/secrets/`:
+
+```bash
+mkdir -p MCP-Server/secrets
+cd MCP-Server/secrets
+export MSYS_NO_PATHCONV=1            # Git Bash on Windows: stops it rewriting the /CN= text
+openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 180   -keyout server_key.pem -out server_cert.pem -subj "/CN=ingenus-poc-mcp-server"
+openssl x509 -in server_cert.pem -outform DER -out ingenus-poc-mcp-server.cer
+openssl x509 -in server_cert.pem -noout -fingerprint -sha1     # SHA1 Fingerprint=13:D2:F4:... (remove the colons)
+```
+
+2. **Keep only `server_key.pem` in the repo folder.** `MCP-Server/secrets/` is git-ignored as a whole. Move
+   `server_cert.pem` and the `.cer` (public files, not secret) to a folder outside the repo, for example
+   `%USERPROFILE%\.ingenus-poc-secrets\`, and restrict that folder to your account.
+3. Upload the **`.cer`** (never the `.pem` key) to the server app in Entra: *App registrations > Ingenus POC MCP
+   Server > Certificates & secrets > Certificates > Upload certificate*. Check the thumbprint it shows equals the
+   one you printed.
+4. In `MCP-Server/.env` set `INGENUS_CERT_KEY_FILE=secrets/server_key.pem` and
+   `INGENUS_CERT_THUMBPRINT=<the fingerprint, no colons>`.
+5. Check git will never see it: `git check-ignore -v MCP-Server/secrets/server_key.pem` must print the
+   `.gitignore` rule, and `git status` must not list `secrets/` or `.env`.
+
+**Rules**
+
+- Never commit, paste into a chat, email or ticket a private key. Each person makes **their own** pair; Entra
+  accepts several certificates on one app, so upload each person's `.cer`.
+- If a key is shared or leaked by mistake: delete its certificate in the Entra portal, delete the file, make a
+  new pair.
+- The key sits inside the working folder, so editors, backup tools and AI assistants that read the folder can see
+  it. If that is a concern, keep the key outside the repo and point `INGENUS_CERT_KEY_FILE` at the absolute path.
+- On a VM there is no `.env`: set the same variable names as service environment variables, and put the key on the
+  VM only (make the key there; do not copy it from a laptop).
+- Certificates last 180 days here. Before expiry, make a new pair, upload the new `.cer`, update the thumbprint.
+
 ## 6. Everyday commands
 
 ```powershell

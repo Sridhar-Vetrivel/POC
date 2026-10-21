@@ -46,3 +46,9 @@ node_modules/
 
 # QA test-case workbooks (local, not committed)
 docs/QA/*.xlsx
+
+# Local server settings (ids and paths for a developer laptop); copy .env.example to .env to make one
+**/.env
+
+# Local secrets (the certificate private key): the whole folder is ignored
+MCP-Server/secrets/

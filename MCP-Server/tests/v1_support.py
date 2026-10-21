@@ -62,12 +62,22 @@ def isolated_env(tmp_path, monkeypatch):
     """Every test logs to its own temp file and never touches MCP-Server/data/runtime."""
     monkeypatch.setenv("INGENUS_LOG_PATH", str(tmp_path / "tool_calls.jsonl"))
     monkeypatch.setenv("INGENUS_USER", "tester")
+    monkeypatch.setenv("INGENUS_NO_ENV_FILE", "1")  # never read a developer's MCP-Server/.env
     for var in (
         "INGENUS_CONTRACTS_DIR",
         "INGENUS_SAP_MOCK_FILE",
         "INGENUS_SAP_ADAPTER",
         "INGENUS_MCP_HOST",
         "INGENUS_MCP_PORT",
+        "INGENUS_AUTH",
+        "INGENUS_DOC_SOURCE",
+        "INGENUS_SP_SITE_URL",
+        "INGENUS_SP_FOLDER",
+        "INGENUS_TENANT_ID",
+        "INGENUS_SERVER_CLIENT_ID",
+        "INGENUS_CERT_KEY_FILE",
+        "INGENUS_CERT_THUMBPRINT",
+        "INGENUS_JWKS_URI",
     ):
         monkeypatch.delenv(var, raising=False)
     return tmp_path

@@ -155,7 +155,9 @@ def find_contract_files(
 
     files: list[ContractFile] = []
     drafts: list[str] = []
-    not_checked: list[NotChecked] = []
+    not_checked: list[NotChecked] = [
+        NotChecked(item=rel, reason=why) for rel, why in getattr(source, "skipped", [])
+    ]
     for item in items:
         rel = item.rel_path
         suffix = Path(item.name).suffix.lower()

@@ -100,7 +100,7 @@ class OboTokenProvider:
 
 _OBO: OboTokenProvider | None = None
 _OBO_LOCK = threading.Lock()
-_DRIVES: dict[tuple[str, str], str] = {}  # (host, site path) -> default library drive id
+_DRIVES: dict[tuple[str, str], str] = {}  # (host, site path) or ('onedrive', user id) -> drive id
 
 
 def _obo(settings: Settings) -> OboTokenProvider:
@@ -130,7 +130,8 @@ def parse_site_url(url: str) -> tuple[str, str]:
 
 
 class GraphSource:
-    """The files under one folder of a SharePoint site's default library, read as one user."""
+    """The files under one folder of a SharePoint site's default library, or of the signed-in user's
+    own OneDrive, read as that user. Both are Microsoft Graph drives: only how the drive is found differs."""
 
     revalidate_seconds = 60.0  # a file's eTag is checked against SharePoint at most once a minute
 
@@ -141,13 +142,24 @@ class GraphSource:
         token: Callable[[], str],
         session: requests.Session | None = None,
         sleep: Callable[[float], None] = time.sleep,
+        location: str = "sharepoint",
     ):
-        self._host, self._site_path = parse_site_url(settings.sharepoint_site_url)
-        self._folder = settings.sharepoint_folder.strip("/")
+        self._location = location
+        if location == "onedrive":
+            self._label = "OneDrive"
+            self._drive_key = ("onedrive", user_id)  # each person has their own drive
+            self._folder = settings.onedrive_folder.strip("/")
+            self.identity = f"graph:{user_id}:onedrive/{self._folder}"
+        else:
+            self._label = "SharePoint"
+            host, site_path = parse_site_url(settings.sharepoint_site_url)
+            self._host, self._site_path = host, site_path
+            self._drive_key = (host, site_path)
+            self._folder = settings.sharepoint_folder.strip("/")
+            self.identity = f"graph:{user_id}:{host}{site_path}/{self._folder}"
         self._token = token
         self._session = session or requests.Session()
         self._sleep = sleep
-        self.identity = f"graph:{user_id}:{self._host}{self._site_path}/{self._folder}"
 
     # -- HTTP -----------------------------------------------------------------------------------
     def _get(self, url: str, *, stream: bool = False) -> requests.Response:
@@ -167,13 +179,18 @@ class GraphSource:
         assert response is not None
         if response.status_code in (401, 403):
             raise GraphAccessError(
-                "SharePoint refused access for this user. Check that they are a member of the site "
-                "and that admin consent was granted for the server's Graph permissions."
+                f"{self._label} refused access for this user. Check that "
+                + (
+                    "they are a member of the site and that "
+                    if self._location == "sharepoint"
+                    else ""
+                )
+                + "admin consent was granted for the server's Graph permissions."
             )
         if response.status_code == 404:
-            raise FileNotFoundError("Not found in SharePoint.")
+            raise FileNotFoundError(f"Not found in {self._label}.")
         if response.status_code >= 400:
-            raise GraphError(f"SharePoint returned HTTP {response.status_code}.")
+            raise GraphError(f"{self._label} returned HTTP {response.status_code}.")
         return response
 
     def _json(self, url: str) -> dict[str, Any]:
@@ -181,10 +198,13 @@ class GraphSource:
 
     # -- site and library -----------------------------------------------------------------------
     def _drive_id(self) -> str:
-        key = (self._host, self._site_path)
+        key = self._drive_key
         if key not in _DRIVES:
-            site = self._json(f"{GRAPH}/sites/{self._host}:{quote(self._site_path, safe='/')}")
-            drive = self._json(f"{GRAPH}/sites/{site['id']}/drive")
+            if self._location == "onedrive":
+                drive = self._json(f"{GRAPH}/me/drive")  # the signed-in user's own drive
+            else:
+                site = self._json(f"{GRAPH}/sites/{self._host}:{quote(self._site_path, safe='/')}")
+                drive = self._json(f"{GRAPH}/sites/{site['id']}/drive")
             _DRIVES[key] = drive["id"]
         return _DRIVES[key]
 
@@ -264,17 +284,27 @@ class GraphSource:
         return bytes(data)
 
 
-def sharepoint_source(settings: Settings) -> GraphSource:
-    """A source that reads SharePoint as the user whose token arrived with this request."""
+def _graph_source(settings: Settings, location: str) -> GraphSource:
     user = auth.current_token()
     if user is None:
         raise GraphAuthError(
-            "Reading SharePoint needs a signed-in user. Start the server with INGENUS_AUTH=entra "
-            "and connect through the sign-in bridge."
+            "Reading SharePoint or OneDrive needs a signed-in user. Start the server with "
+            "INGENUS_AUTH=entra and connect through the sign-in bridge."
         )
     provider = _obo(settings)
     return GraphSource(
         settings,
         user_id=user.user_id,
         token=lambda: provider.graph_token(user.token),
+        location=location,
     )
+
+
+def sharepoint_source(settings: Settings) -> GraphSource:
+    """A source that reads SharePoint as the user whose token arrived with this request."""
+    return _graph_source(settings, "sharepoint")
+
+
+def onedrive_source(settings: Settings) -> GraphSource:
+    """A source that reads a folder of the signed-in user's own OneDrive."""
+    return _graph_source(settings, "onedrive")

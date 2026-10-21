@@ -51,8 +51,15 @@ class FakeResponse:
 class FakeGraph:
     """Stands in for requests.Session. Answers like Graph, from a local folder."""
 
-    def __init__(self, root: Path = CONTRACTS, page_size: int = 7, status: int = 200):
+    def __init__(
+        self,
+        root: Path = CONTRACTS,
+        page_size: int = 7,
+        status: int = 200,
+        drive_id: str = "drive-1",
+    ):
         self.root = root
+        self.drive_id = drive_id
         self.page_size = page_size
         self.status = status  # a fixed failure for every call, e.g. 403
         self.throttle_first: int | None = None  # answer the first request with 429 once
@@ -93,14 +100,15 @@ class FakeGraph:
 
         if path.startswith("/v1.0/sites/contoso.sharepoint.com:/sites/poc"):
             return FakeResponse(payload={"id": "site-1"})
-        if path == "/v1.0/sites/site-1/drive":
-            return FakeResponse(payload={"id": "drive-1"})
+        if path in ("/v1.0/sites/site-1/drive", "/v1.0/me/drive"):
+            return FakeResponse(payload={"id": self.drive_id})
+        drive = re.escape(self.drive_id)
 
-        m = re.fullmatch(r"/v1\.0/drives/drive-1/items/(item-[0-9a-f]+)/content", path)
+        m = re.fullmatch(rf"/v1\.0/drives/{drive}/items/(item-[0-9a-f]+)/content", path)
         if m:
             return FakeResponse(content=self._by_id[m.group(1)].read_bytes())
 
-        m = re.fullmatch(r"/v1\.0/drives/drive-1/root:/(.+?):/children", path)
+        m = re.fullmatch(rf"/v1\.0/drives/{drive}/root:/(.+?):/children", path)
         if m:
             folder = self._local(m.group(1))
             if folder is None or not folder.is_dir():
@@ -115,7 +123,7 @@ class FakeGraph:
                 )
             return FakeResponse(payload=body)
 
-        m = re.fullmatch(r"/v1\.0/drives/drive-1/root:/([^:]+)", path)
+        m = re.fullmatch(rf"/v1\.0/drives/{drive}/root:/([^:]+)", path)
         if m:
             item = self._local(m.group(1))
             if item is None or not item.exists():

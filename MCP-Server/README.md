@@ -18,9 +18,13 @@ Nothing here uses Ingenus data: contracts and SAP are synthetic.
 | V1-3 | Guidance served by the server: skills `v2` in `guidance/v2/`, read through the `get_guide` tool (decision 0003); read fresh on every call, so a guide added on the server needs no restart | **Built, tested offline and tried in Claude Desktop** (`get_guide` is called first; see `docs/demo_guide.md`, section 8) |
 | V1-4 | Server sign-in (Entra token check on every request), bridge sign-in (browser, then silent), per-user log (decision 0004) | **Built; verified live in the dev tenant and in Claude Desktop (20 Oct 2026):** the log names the signed-in person. **Not done:** moving to the Psiog VM, HTTPS from another machine, the central audit and login store |
 | V1-6 | SharePoint through Microsoft Graph, read as the signed-in user (on-behalf-of, certificate, per-user cache, scope guard) | **Built; verified live (20 Oct 2026):** Chain X gives 8,500.00 / 17,000.00 from the 30 synthetic PDFs in the dev tenant's `mcp-sharepoint-test` site. The first call took 14.5 s (cold), later ones 12 to 69 ms |
-| V1-7 | OneDrive (same Graph code), upload script | Not started |
-| V1-8 | Network drive | Waits for a share and service account |
+| V1-7 | OneDrive (same Graph code, the signed-in user's own drive), decision 0007 | **Built and tested offline.** Needs the 30 PDFs uploaded to a OneDrive folder for the live test |
+| V1-8 | Network drive (UNC or mounted share, read-only, links never followed), decision 0007 | **Built and tested offline** (real junctions, locked files). A real share and a read-only service account wait for Psiog IT |
+| Audit | Audit log and login log: hash chain, login events, a central store (SQLite reference), `python -m ingenus_mcp.audit` (decision 0005) | **Built and tested offline.** The real central store is not chosen |
+| History | Check records and the `get_check_history` tool (the eighth tool; decision 0006) | **Built and tested offline.** Not tried with two real people; what Aditya means by "memory" is not confirmed |
 | V1-9 | Demo guide and runs | Not started |
+
+What is left, in order, with the decisions waiting on people: [`../docs/v1_open_items_checklist.md`](../docs/v1_open_items_checklist.md).
 
 ## Layout
 
@@ -44,8 +48,9 @@ MCP-Server/
 ```
 
 Contracts are read, read-only, from v0's synthetic folder (`MCP-PlugIn/data/synthetic/contracts`) by default, or from
-SharePoint with `INGENUS_DOC_SOURCE=sharepoint` (needs sign-in). The network-drive source is not built (V1-8). The log
-goes to `MCP-Server/data/runtime/` (git-ignored).
+SharePoint with `INGENUS_DOC_SOURCE=sharepoint`, from the signed-in user's OneDrive with `onedrive` (both need
+sign-in), or from a network share with `network`. The log, the check records and the optional central audit store
+live under `MCP-Server/data/runtime/` (git-ignored).
 
 ## Run
 
@@ -64,7 +69,11 @@ what is and is not a secret, and how to create the certificate key are in `../de
 Older ones: `INGENUS_CONTRACTS_DIR`, `INGENUS_SLICE_DIR`, `INGENUS_SAP_ADAPTER`, `INGENUS_SAP_MOCK_FILE`,
 `INGENUS_LOG_PATH`, `INGENUS_PROMPTS_DIR`, `INGENUS_MCP_HOST`, `INGENUS_MCP_PORT`. New: `INGENUS_DOC_SOURCE`,
 `INGENUS_SP_SITE_URL`, `INGENUS_SP_FOLDER`, `INGENUS_AUTH`, `INGENUS_TENANT_ID`, `INGENUS_SERVER_CLIENT_ID`,
-`INGENUS_CERT_KEY_FILE`, `INGENUS_CERT_THUMBPRINT`.
+`INGENUS_CERT_KEY_FILE`, `INGENUS_CERT_THUMBPRINT`, `INGENUS_OD_FOLDER`, `INGENUS_NETWORK_ROOT`,
+`INGENUS_EXCLUDE_PATTERNS`, `INGENUS_AUDIT_STORE`, `INGENUS_HISTORY_DB`, and for Postgres `INGENUS_PG_HOST`, `INGENUS_PG_PORT`, `INGENUS_PG_DB`, `INGENUS_PG_USER`, `INGENUS_PG_PASSWORD_FILE`, `INGENUS_PG_SCHEMA`, `INGENUS_RETENTION_DAYS`. `python -m ingenus_mcp.audit prune` deletes events and check records older than the retention.
+
+Audit commands: `python -m ingenus_mcp.audit verify` (is the log's hash chain intact), `ship` (copy the log's events
+to the central store; safe to repeat) and `query --user NAME --tool NAME --event login`.
 
 Live check against the dev tenant (server running in another terminal):
 `python MCP-Server\scripts\signin_check.py` signs you in in the browser, calls the server and runs the Chain X

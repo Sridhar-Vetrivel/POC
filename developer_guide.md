@@ -137,9 +137,18 @@ fill it in. The server loads it at start-up; a variable already set in the shell
 
 | Variable | Meaning | Default |
 |---|---|---|
-| `INGENUS_DOC_SOURCE` | Where contracts come from: `local` or `sharepoint` | `local` |
+| `INGENUS_DOC_SOURCE` | Where contracts come from: `local`, `sharepoint`, `onedrive` or `network` | `local` |
 | `INGENUS_SP_SITE_URL` | `https://<tenant>.sharepoint.com/sites/<site>` | (empty) |
 | `INGENUS_SP_FOLDER` | Folder inside the site's default library, e.g. `General/synthetic/contracts` | (empty) |
+| `INGENUS_OD_FOLDER` | A folder in the signed-in user's own OneDrive (required for `onedrive`; never the whole drive) | (empty) |
+| `INGENUS_NETWORK_ROOT` | The shared folder for `network`, UNC (`\\\\server\\share\\contracts`) or mounted; read as the account the server runs as | (empty) |
+| `INGENUS_EXCLUDE_PATTERNS` | File-name patterns skipped on a network share, comma separated | `~$*,*.tmp,Thumbs.db,desktop.ini` |
+| `INGENUS_AUDIT_STORE` | Path of the central audit store (SQLite reference); empty means off | (empty) |
+| `INGENUS_PG_HOST` | Postgres host; setting it sends the audit store AND the check history to Postgres (decision 0008) | (empty: SQLite files) |
+| `INGENUS_PG_PORT`, `INGENUS_PG_DB`, `INGENUS_PG_USER`, `INGENUS_PG_SCHEMA` | Postgres port, database, user, schema | `5432`, `ingenus_audit`, `postgres`, `public` |
+| `INGENUS_PG_PASSWORD_FILE` | File holding the Postgres password (relative to `MCP-Server/`); keep it under `secrets/` | (empty) |
+| `INGENUS_RETENTION_DAYS` | Age limit used by `python -m ingenus_mcp.audit prune` | `365` |
+| `INGENUS_HISTORY_DB` | Where check records are kept; `off` switches the history off | `MCP-Server/data/runtime/history.sqlite` |
 | `INGENUS_AUTH` | `off` (loopback only) or `entra` (every request needs a valid sign-in token) | `off` |
 | `INGENUS_TENANT_ID` | Directory (tenant) ID | (empty) |
 | `INGENUS_SERVER_CLIENT_ID` | Application (client) ID of the "Ingenus POC MCP Server" app | (empty) |

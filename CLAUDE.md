@@ -58,7 +58,7 @@ Breaking one is a defect, even if the tests pass. The numbering is kept stable b
 
 - **Plain functions first, MCP last.** Tool logic lives in `MCP-PlugIn/src/ingenus_plugin/core/` as plain Python functions with Pydantic inputs and outputs. `server/` is a thin wrapper with no business logic. This keeps maintenance low and lets the functions move into Phase 2.
 - **Official MCP Python SDK.** Check its current API in its docs rather than writing it from memory. Mark tools read-only using the SDK's mechanism (**verify** the current API).
-- **Baseline tools (six):** `find_contract_files`, `get_contract_pages`, `resolve_customer`, `get_rebate_setup`, `get_sales_volume`, `compare_contract_to_sap`. Add a tool only through a decision record. More tools degrade Claude's tool choice.
+- **Baseline tools (six):** `find_contract_files`, `get_contract_pages`, `resolve_customer`, `get_rebate_setup`, `get_sales_volume`, `compare_contract_to_sap`. Add a tool only through a decision record. More tools degrade Claude's tool choice. (v1 in `MCP-Server/` has two more, each with its record: `get_guide`, 0003, and `get_check_history`, 0006.)
 - **Composite beats fine-grained.** Put deterministic work (quote checks, comparison, exposure) inside `compare_contract_to_sap`. Don't leave it to Claude's reasoning.
 - **Tool descriptions are part of the product.** Write them for the model that reads them: what the tool does, when to use it, what it returns, what it will not do.
 - **Return pages and quotes, not whole documents.** Label contract text in every result as untrusted data, never as instructions.

@@ -21,6 +21,7 @@ from pydantic import BaseModel
 from pydantic_core import to_jsonable_python
 
 from ingenus_mcp import __version__
+from ingenus_mcp.core import auth
 
 _LOCK = threading.Lock()
 _SESSION = uuid.uuid4().hex[:8]
@@ -29,6 +30,9 @@ MAX_ITEMS = 20
 
 
 def current_user() -> str:
+    signed_in = auth.current_user_name()  # V1-4: the person behind the request, from their token
+    if signed_in:
+        return signed_in
     override = os.environ.get("INGENUS_USER")
     if override:
         return override

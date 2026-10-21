@@ -1,0 +1,32 @@
+{
+  "_label": "SYNTHETIC: invented for the Ingenus POC. Not Ingenus data. Customers, products and numbers are made up.",
+  "by_customer": {
+    "SYN-CUST-2001": {
+      "customer": "Chain C",
+      "terms_from": "Chain_C/Chain_C_Amendment_1_2026.pdf",
+      "gap": "750.00",
+      "exposure": "3750.00",
+      "statuses": {
+        "rebate:Product B": "variance",
+        "rebate:Product C": "match",
+        "admin_fee": "variance"
+      },
+      "story": "Amendment 1 (a table) lowers Product B from 3.5% to 3.0% (SAP over-reserved by 750.00 a month) and raises the fee from 1.0% to 1.75% (under-reserved by 1,500.00 a month): the lines go opposite ways and net to 750.00. Amendment 2 is an unsigned DRAFT.",
+      "as_of": "2026-08-31"
+    },
+    "SYN-CUST-2002": {
+      "customer": "Chain D",
+      "terms_from": "Chain_D/Chain_D_Amendment_1_2026.pdf",
+      "gap": "2100.00",
+      "exposure": "8400.00",
+      "statuses": {
+        "rebate:Product A": "match",
+        "rebate:Product B": "not_set_up_in_sap",
+        "rebate:Product D": "not_set_up_in_sap",
+        "admin_fee": "match"
+      },
+      "story": "Amendment 1 (1 May 2026) adds Product B at 2.5% with no SAP setup. Product D's SAP setup ended on 28 Feb 2026 (expired). The master has a blank page (a scanned page with no text).",
+      "as_of": "2026-08-31"
+    }
+  }
+}

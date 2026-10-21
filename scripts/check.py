@@ -306,6 +306,23 @@ def run_synthetic_label() -> bool:
         if "SYNTHETIC" not in text:
             offenders.append(f"{_rel(path)}: no SYNTHETIC footer in the text")
 
+    for dataset in _datasets():  # the Sharepoint, Onedrive and Network-Drive datasets
+        data_sap = dataset / "sap" / "entities.json"
+        if not data_sap.is_file():
+            offenders.append(f"{_rel(dataset)}: no sap/entities.json")
+        elif (
+            "SYNTHETIC"
+            not in str(json.loads(data_sap.read_text(encoding="utf-8")).get("_label", "")).upper()
+        ):
+            offenders.append(f"{_rel(data_sap)}: _label does not say SYNTHETIC")
+        for ontology in (dataset / "slice" / "ontology").glob("customers*.yaml"):
+            if "SYNTHETIC" not in ontology.read_text(encoding="utf-8").upper():
+                offenders.append(f"{_rel(ontology)}: no SYNTHETIC label")
+        for path in sorted((dataset / "contracts").rglob("*.pdf")):
+            text = " ".join((p.extract_text() or "") for p in PdfReader(str(path)).pages)
+            if "SYNTHETIC" not in text:
+                offenders.append(f"{_rel(path)}: no SYNTHETIC footer in the text")
+
     v1_sap = ROOT / V1_SAP_COPY
     if v1_sap.is_file() and sap.is_file():
         if json.loads(v1_sap.read_text(encoding="utf-8")) != json.loads(
@@ -315,6 +332,14 @@ def run_synthetic_label() -> bool:
                 f"{V1_SAP_COPY}: differs from {_rel(sap)} (copy the changed file across, or record why)"
             )
     return _report("synthetic data without a label:", offenders)
+
+
+def _datasets() -> list[Path]:
+    """The per-source datasets under the synthetic folder: each has contracts/ and slice/ (generate_datasets.py)."""
+    base = ROOT / SYNTHETIC
+    return sorted(
+        d for d in base.iterdir() if (d / "contracts").is_dir() and (d / "slice").is_dir()
+    )
 
 
 _VERSIONED = re.compile(r"\.v\d+\.[A-Za-z]+$")
@@ -367,10 +392,25 @@ def run_fixtures() -> bool:
     on_disk = {p.relative_to(contracts).as_posix() for p in contracts.rglob("*.pdf")}
     offenders = [f"{doc}: has a label but no file" for doc in sorted(set(labels) - on_disk)]
     offenders += [f"{doc}: file has no label" for doc in sorted(on_disk - set(labels))]
+    for dataset in _datasets():
+        labels_path = dataset / "slice" / "evals" / "golden" / "page_labels.json"
+        found = {
+            p.relative_to(dataset / "contracts").as_posix()
+            for p in (dataset / "contracts").rglob("*.pdf")
+        }
+        have = (
+            set(json.loads(labels_path.read_text(encoding="utf-8")))
+            if labels_path.is_file()
+            else set()
+        )
+        offenders += [
+            f"{dataset.name}/{doc}: has a label but no file" for doc in sorted(have - found)
+        ]
+        offenders += [f"{dataset.name}/{doc}: file has no label" for doc in sorted(found - have)]
     return _report(
         "contract fixtures and labels disagree:",
         offenders,
-        f"Regenerate with: python {SYNTHETIC}/generate_contracts.py",
+        f"Regenerate with: python {SYNTHETIC}/generate_contracts.py (and generate_datasets.py)",
     )
 
 

@@ -1,0 +1,40 @@
+{
+  "Chain_E/Chain_E_Amendment_1_2026.pdf": {
+    "category": "split_pages",
+    "term_pages": [
+      4
+    ]
+  },
+  "Chain_E/Chain_E_Amendment_2_DRAFT.pdf": {
+    "category": "draft",
+    "term_pages": [
+      1
+    ]
+  },
+  "Chain_E/Chain_E_Amendment_3_2026.pdf": {
+    "category": "control_no_terms",
+    "term_pages": []
+  },
+  "Chain_E/Chain_E_Master_Supply_Agreement_2025.pdf": {
+    "category": "easy",
+    "term_pages": [
+      4
+    ]
+  },
+  "Chain_F/Chain_F_Amendment_1_2026.pdf": {
+    "category": "easy",
+    "term_pages": [
+      2
+    ]
+  },
+  "Chain_F/Chain_F_Amendment_2_2026.pdf": {
+    "category": "control_no_terms",
+    "term_pages": []
+  },
+  "Chain_F/Chain_F_Master_Supply_Agreement_2025.pdf": {
+    "category": "easy",
+    "term_pages": [
+      4
+    ]
+  }
+}

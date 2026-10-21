@@ -33,6 +33,15 @@ Depends on: **Aditya, who provisions the VM on AWS (SAID, 21 Oct 2026; decision 
 
 - Unknown: whether Node (inside Claude Desktop) trusts the certificate chain; Psiog's Conditional Access policies; which Entra tenant the AWS-hosted POC signs people in against, and who creates the app registrations there (the dev tenant is for testing only)
 
+### 2.0 Per-source datasets (built 21 Oct 2026)
+
+Three datasets with their own chains, ontology, SAP mock and expected results: `MCP-PlugIn/data/synthetic/Sharepoint` (Chain_A, B), `Onedrive` (Chain_C, D) and `Network-Drive` (Chain_E, F); see [its README](../MCP-PlugIn/data/synthetic/README.md). Sridhar copies each `contracts/` folder's contents to the matching real location.
+
+- [x] Generated and tested locally (`test_v1_datasets.py`: figures worked out by hand match the engine)
+- [ ] Sridhar copies `Sharepoint/contracts/*` to the SharePoint folder, `Onedrive/contracts/*` to a OneDrive folder, `Network-Drive/contracts/*` to the share
+- [ ] For each live run, point `INGENUS_SLICE_DIR` and `INGENUS_SAP_MOCK_FILE` at the same dataset's `slice/` and `sap/entities.json` (the live source then replaces only the file reading)
+- [ ] Live Q1 per source: Chain_A gap 1,800.00 / exposure 12,600.00 (SharePoint); Chain_C 750.00 / 3,750.00 (OneDrive); Chain_E 1,100.00 / 8,800.00 (network)
+
 ### 2.2 Central audit log and login log (built and tested offline; the real store is not chosen)
 
 Built (decision [0005](decisions/0005-v1-audit-log-with-hash-chain-and-central-store.md)): one event stream, with `tool_call` and `login` events.

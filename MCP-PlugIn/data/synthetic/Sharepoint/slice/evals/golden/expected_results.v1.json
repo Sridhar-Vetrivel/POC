@@ -1,0 +1,32 @@
+{
+  "_label": "SYNTHETIC: invented for the Ingenus POC. Not Ingenus data. Customers, products and numbers are made up.",
+  "by_customer": {
+    "SYN-CUST-1001": {
+      "customer": "Chain A",
+      "terms_from": "Chain_A/Chain_A_Amendment_1_2026.pdf",
+      "gap": "1800.00",
+      "exposure": "12600.00",
+      "statuses": {
+        "rebate:Product A": "variance",
+        "rebate:Product B": "match",
+        "admin_fee": "match"
+      },
+      "story": "Amendment 1 raises the Product A rebate from 3.0% to 4.5% from 1 Feb 2026; SAP still has 3.0%. Amendment 2 is an unsigned DRAFT (Product A 5.5%) and must not be used.",
+      "as_of": "2026-08-31"
+    },
+    "SYN-CUST-1002": {
+      "customer": "Chain B",
+      "terms_from": "Chain_B/Chain_B_Amendment_1_2026.pdf",
+      "gap": "3800.00",
+      "exposure": "11400.00",
+      "statuses": {
+        "rebate:Product A": "match",
+        "rebate:Product C": "not_set_up_in_sap",
+        "rebate:Product D": "not_set_up_in_sap",
+        "admin_fee": "match"
+      },
+      "story": "Amendment 1 (1 Jun 2026) adds Product D at 3.5%, which SAP has no setup for. Product C's SAP setup ended on 31 Mar 2026 (expired) although the contract still pays 4.0%. Product A and the fee match.",
+      "as_of": "2026-08-31"
+    }
+  }
+}

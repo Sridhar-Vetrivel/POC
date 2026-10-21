@@ -2,18 +2,25 @@
   "manifest_version": "0.3",
   "name": "ingenus-mcp-bridge",
   "display_name": "Ingenus (POC)",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Connects Claude Desktop to the Ingenus MCP server: read-only contract and SAP checks. Proof of concept on synthetic data.",
-  "long_description": "A thin bridge with no tools of its own: it forwards Claude Desktop's requests to the central Ingenus MCP server, where the read-only tools and guidance live. It cannot change SAP or any file. Phase 1 v1 proof of concept by Psiog; synthetic data only.",
-  "author": { "name": "Psiog" },
+  "long_description": "A thin bridge with no tools of its own: it signs you in to Microsoft once, then forwards Claude Desktop requests to the central Ingenus MCP server, where the read-only tools and guidance live. It cannot change SAP or any file. Phase 1 v1 proof of concept by Psiog; synthetic data only.",
+  "author": {
+    "name": "Psiog"
+  },
   "server": {
     "type": "node",
     "entry_point": "server/index.js",
     "mcp_config": {
       "command": "node",
-      "args": ["${__dirname}/server/index.js"],
+      "args": [
+        "${__dirname}/server/index.js"
+      ],
       "env": {
-        "INGENUS_MCP_URL": "${user_config.server_url}"
+        "INGENUS_MCP_URL": "${user_config.server_url}",
+        "INGENUS_TENANT_ID": "${user_config.tenant_id}",
+        "INGENUS_CLIENT_ID": "${user_config.client_id}",
+        "INGENUS_SERVER_CLIENT_ID": "${user_config.server_client_id}"
       }
     }
   },
@@ -26,9 +33,33 @@
       "description": "The Ingenus MCP server address. For the local test: http://127.0.0.1:8765/mcp. A server on the network must use https://.",
       "default": "http://127.0.0.1:8765/mcp",
       "required": true
+    },
+    "tenant_id": {
+      "type": "string",
+      "title": "Tenant ID (sign-in)",
+      "description": "The directory (tenant) ID of the organisation that signs you in. Fill in all three sign-in fields, or leave all three empty for a local demo server that has sign-in off.",
+      "default": "",
+      "required": false
+    },
+    "client_id": {
+      "type": "string",
+      "title": "Desktop client app ID (sign-in)",
+      "description": "Application (client) ID of the Ingenus POC Desktop Client app registration.",
+      "default": "",
+      "required": false
+    },
+    "server_client_id": {
+      "type": "string",
+      "title": "Server app ID (sign-in)",
+      "description": "Application (client) ID of the Ingenus POC MCP Server app registration.",
+      "default": "",
+      "required": false
     }
   },
   "compatibility": {
-    "platforms": ["win32", "darwin"]
+    "platforms": [
+      "win32",
+      "darwin"
+    ]
   }
 }

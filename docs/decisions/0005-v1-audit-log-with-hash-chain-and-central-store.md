@@ -46,3 +46,10 @@ Ingenus will accept is unknown: Ingenus leaned towards on-prem on 8 Oct 2026 (**
 - `report.py` now ignores login events and prints how many were accepted and refused.
 - **Not verified:** behaviour with two server processes on one log; log growth and rotation; SQLite under heavy
   concurrent writes (fine for the POC's volume).
+
+## Update 21 Oct 2026: several writers
+
+Several threads and several server processes may write one log. A lock file (`<log>.lock`) serialises the processes and the previous
+hash is read from the log under that lock, so the chain cannot fork. Tested with 6 threads and 4 processes (`test_v1_concurrent_log.py`);
+the 4-process test failed before the lock (the chain forked at line 5). Not tested: a log on a network drive (file locks there are
+unreliable), more than a few processes, and a crash in the middle of a write.

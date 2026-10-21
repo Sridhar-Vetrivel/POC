@@ -14,6 +14,8 @@ import os
 import sys
 import threading
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -44,7 +46,33 @@ def current_user() -> str:
 
 
 GENESIS = "0" * 64
-_CHAIN: dict[str, str] = {}  # log path -> hash of the last event this process wrote
+
+
+@contextmanager
+def _file_lock(path: Path) -> Iterator[None]:
+    """Hold an exclusive lock on `<log>.lock`, so that only one PROCESS appends at a time.
+
+    The threads of one process are already serialised by `_LOCK`. The lock file is a separate empty file
+    (the log itself is opened and appended to, and a byte-range lock on it would block readers on Windows).
+    """
+    with path.with_name(path.name + ".lock").open("a+b") as handle:
+        handle.seek(0)
+        if os.name == "nt":
+            import msvcrt
+
+            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)  # waits, retrying for about 10 s
+        else:
+            import fcntl
+
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            handle.seek(0)
+            if os.name == "nt":
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 def _canonical(record: dict[str, Any]) -> str:
@@ -170,13 +198,13 @@ def summarise(result: Any) -> dict[str, Any]:
 def write_record(path: Path, record: dict[str, Any], store: Path | None = None) -> None:
     """Append one event to the log with its place in the hash chain, then copy it to the central
     store if there is one. The log comes first: it is the source of truth and the local buffer.
-    One server process writes a given log (a second writer would fork the chain).
+    Several threads and several server processes may write one log: a lock file serialises the processes,
+    and the previous hash is read from the log itself under that lock, so the chain cannot fork.
     """
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        with _LOCK:
-            key = str(path)
-            previous = _CHAIN.get(key) or _last_hash(path)
+        with _LOCK, _file_lock(path):
+            previous = _last_hash(path)
             record = {
                 **record,
                 "event": record.get("event", "tool_call"),
@@ -187,7 +215,6 @@ def write_record(path: Path, record: dict[str, Any], store: Path | None = None) 
             line = json.dumps(record, ensure_ascii=False, separators=(",", ":"))
             with path.open("a", encoding="utf-8") as handle:
                 handle.write(line + "\n")
-            _CHAIN[key] = record["hash"]
     except OSError as exc:
         print(f"[ingenus_mcp] could not write the tool-call log: {exc}", file=sys.stderr)
         return

@@ -93,7 +93,6 @@ def test_lines_cut_off_the_end_cannot_be_seen_and_that_is_documented():
 
 def test_the_chain_carries_on_after_a_restart():
     three_calls()
-    calllog._CHAIN.clear()  # a new server process knows nothing but the file
     three_calls()
     assert calllog.verify_chain(lines()).ok and len(lines()) == 6
 

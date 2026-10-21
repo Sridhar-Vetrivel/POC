@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
+import hashlib
+import io
 import re
-from functools import lru_cache
+import threading
+import time
+from collections import OrderedDict
+from dataclasses import dataclass
 from pathlib import Path
 
 from pypdf import PdfReader
+
+from ingenus_mcp.core.sources import DocItem, DocumentSource
 
 SUPPORTED = {".pdf", ".txt"}
 
@@ -32,12 +39,11 @@ def normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text.translate(_QUOTE_MAP)).strip()
 
 
-@lru_cache(maxsize=64)
-def _read_cached(path_str: str, mtime_ns: int, size: int) -> tuple[str | None, ...]:
-    path = Path(path_str)
-    suffix = path.suffix.lower()
+def parse_pages(data: bytes, suffix: str) -> tuple[str | None, ...]:
+    """Page texts, index 0 = page 1. ``""`` = no extractable text; ``None`` = page could not be read."""
+    suffix = suffix.lower()
     if suffix == ".pdf":
-        reader = PdfReader(str(path))
+        reader = PdfReader(io.BytesIO(data))
         pages: list[str | None] = []
         for page in reader.pages:
             try:
@@ -46,8 +52,7 @@ def _read_cached(path_str: str, mtime_ns: int, size: int) -> tuple[str | None, .
                 pages.append(None)
         return tuple(pages)
     if suffix == ".txt":
-        raw = path.read_text(encoding="utf-8")
-        parts = raw.split("\f")
+        parts = data.decode("utf-8").split("\f")
         if parts and not parts[-1].strip():
             parts = parts[:-1]
         return tuple(parts)
@@ -57,6 +62,59 @@ def _read_cached(path_str: str, mtime_ns: int, size: int) -> tuple[str | None, .
 
 
 def read_pages(path: Path) -> list[str | None]:
-    """Page texts, index 0 = page 1. ``""`` = no extractable text; ``None`` = page could not be read."""
-    stat = path.stat()
-    return list(_read_cached(str(path), stat.st_mtime_ns, stat.st_size))
+    """Page texts of a local file, for callers that already hold a path."""
+    return list(parse_pages(path.read_bytes(), path.suffix))
+
+
+@dataclass(frozen=True)
+class LoadedDoc:
+    item: DocItem
+    pages: tuple[str | None, ...]
+    sha12: str
+
+
+@dataclass
+class _Entry:
+    doc: LoadedDoc
+    checked: float
+
+
+# Parsed text of recently read files. The key starts with the source identity (who is reading what),
+# so text one user may read is never handed to another. Entries are small: page text only.
+_CACHE: OrderedDict[tuple[str, str], _Entry] = OrderedDict()
+_LOCK = threading.Lock()
+_MAX_ENTRIES = 128
+
+
+def clear_cache() -> None:
+    with _LOCK:
+        _CACHE.clear()
+
+
+def load_document(source: DocumentSource, rel_path: str, item: DocItem | None = None) -> LoadedDoc:
+    """Read one document through the source, re-using the parsed text while the file is unchanged."""
+    key = (source.identity, rel_path)
+    now = time.monotonic()
+    with _LOCK:
+        hit = _CACHE.get(key)
+        if hit and source.revalidate_seconds and now - hit.checked < source.revalidate_seconds:
+            _CACHE.move_to_end(key)
+            return hit.doc
+    item = item or source.stat(rel_path)
+    if hit and hit.doc.item.version == item.version:
+        with _LOCK:
+            hit.checked = now
+            _CACHE.move_to_end(key)
+        return hit.doc
+    data = source.read_bytes(item)
+    doc = LoadedDoc(
+        item=item,
+        pages=parse_pages(data, Path(item.name).suffix),
+        sha12=hashlib.sha256(data).hexdigest()[:12],
+    )
+    with _LOCK:
+        _CACHE[key] = _Entry(doc, now)
+        _CACHE.move_to_end(key)
+        while len(_CACHE) > _MAX_ENTRIES:
+            _CACHE.popitem(last=False)
+    return doc

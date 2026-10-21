@@ -6,9 +6,10 @@ import re
 from decimal import Decimal, InvalidOperation
 
 from ingenus_mcp.core.config import Settings
-from ingenus_mcp.core.documents import UnsupportedFormat, normalize, read_pages
+from ingenus_mcp.core.documents import UnsupportedFormat, load_document, normalize
 from ingenus_mcp.core.models import ExtractedTerm
-from ingenus_mcp.core.scope import ScopeError, resolve_inside
+from ingenus_mcp.core.scope import ScopeError
+from ingenus_mcp.core.sources import get_source
 
 MIN_QUOTE_CHARS = 8
 
@@ -17,13 +18,11 @@ def verify_term(term: ExtractedTerm, settings: Settings) -> str | None:
     """Return None if the citation holds, otherwise the reason it does not."""
     cite = term.citation
     try:
-        path = resolve_inside(settings.contracts_dir, cite.document)
+        pages = load_document(get_source(settings), cite.document).pages
     except ScopeError as exc:
         return f"Document id rejected: {exc}"
-    if not path.is_file():
+    except FileNotFoundError:
         return f"No such document: {cite.document}."
-    try:
-        pages = read_pages(path)
     except UnsupportedFormat as exc:
         return str(exc)
     if cite.page > len(pages):

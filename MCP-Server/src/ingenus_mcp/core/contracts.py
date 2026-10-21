@@ -6,10 +6,8 @@ did not show. Source files are only ever opened for reading.
 
 from __future__ import annotations
 
-import hashlib
 import re
 import typing
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +15,7 @@ import yaml
 
 from ingenus_mcp.core import customers
 from ingenus_mcp.core.config import Settings
-from ingenus_mcp.core.documents import SUPPORTED, read_pages
+from ingenus_mcp.core.documents import SUPPORTED, load_document
 from ingenus_mcp.core.models import (
     ContractFile,
     ContractPagesResult,
@@ -26,7 +24,7 @@ from ingenus_mcp.core.models import (
     PageText,
     TopicName,
 )
-from ingenus_mcp.core.scope import resolve_inside
+from ingenus_mcp.core.sources import get_source
 
 MAX_FILES = 200
 DEFAULT_TOPICS = ["rebates", "fees", "effective_date"]
@@ -115,16 +113,8 @@ def _kind(filename: str) -> str:
     return "other"
 
 
-def _sha12(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(65536), b""):
-            digest.update(chunk)
-    return digest.hexdigest()[:12]
-
-
-def _is_draft(path: Path, first_page: str | None) -> bool:
-    if "draft" in path.name.casefold():
+def _is_draft(name: str, first_page: str | None) -> bool:
+    if "draft" in name.casefold():
         return True
     head = (first_page or "")[:300]
     return any(word.strip(".,:;()[]").upper() == "DRAFT" for word in head.split())
@@ -133,9 +123,8 @@ def _is_draft(path: Path, first_page: str | None) -> bool:
 def find_contract_files(
     settings: Settings, customer: str | None, kind: str | None
 ) -> FindContractFilesResult:
-    root = settings.contracts_dir
-    if not root.is_dir():
-        raise FileNotFoundError("The contract folder is not available. Check the plug-in settings.")
+    source = get_source(settings)
+    items = source.list_items()  # a missing local folder raises FileNotFoundError here
 
     tokens: list[str] = []
     note_parts: list[str] = []
@@ -167,14 +156,15 @@ def find_contract_files(
     files: list[ContractFile] = []
     drafts: list[str] = []
     not_checked: list[NotChecked] = []
-    for path in sorted(p for p in root.rglob("*") if p.is_file() and not p.name.startswith(".")):
-        rel = path.relative_to(root).as_posix()
+    for item in items:
+        rel = item.rel_path
+        suffix = Path(item.name).suffix.lower()
         if tokens:
             hay = f" {customers.norm(rel.replace('/', ' '))} "
             if not any(f" {t} " in hay for t in tokens if t):
                 continue
-        if path.suffix.lower() not in SUPPORTED:
-            if path.suffix.lower() in {".docx", ".doc", ".png", ".jpg", ".jpeg", ".tif", ".tiff"}:
+        if suffix not in SUPPORTED:
+            if suffix in {".docx", ".doc", ".png", ".jpg", ".jpeg", ".tif", ".tiff"}:
                 not_checked.append(
                     NotChecked(
                         item=rel, reason="Unsupported format in phase 1 (text PDFs and .txt only)."
@@ -187,26 +177,26 @@ def find_contract_files(
             )
             break
         try:
-            pages = read_pages(path)
+            doc = load_document(source, rel, item)
+            pages = doc.pages
         except Exception as exc:  # noqa: BLE001 - one unreadable file must not hide the rest
             not_checked.append(
                 NotChecked(item=rel, reason=f"Could not be read: {type(exc).__name__}.")
             )
             continue
-        if _is_draft(path, pages[0] if pages else None):
+        if _is_draft(item.name, pages[0] if pages else None):
             drafts.append(rel)
             continue
-        file_kind = _kind(path.name)
+        file_kind = _kind(item.name)
         if kind and file_kind != kind:
             continue
-        stat = path.stat()
         files.append(
             ContractFile(
                 document_id=rel,
-                filename=path.name,
+                filename=item.name,
                 kind=file_kind,  # type: ignore[arg-type]
-                modified=datetime.fromtimestamp(stat.st_mtime, UTC).isoformat(timespec="seconds"),
-                sha256_12=_sha12(path),
+                modified=item.modified,
+                sha256_12=doc.sha12,
                 pages=len(pages),
             )
         )
@@ -228,11 +218,8 @@ def find_contract_files(
 def get_contract_pages(
     settings: Settings, document_id: str, topics: list[str] | None
 ) -> ContractPagesResult:
-    path = resolve_inside(settings.contracts_dir, document_id)
-    if not path.is_file():
-        raise FileNotFoundError(
-            f"No such document: {document_id}. Use a document_id from find_contract_files."
-        )
+    # Raises ScopeError for an id outside the folder and FileNotFoundError for a missing file.
+    doc = load_document(get_source(settings), document_id)
 
     config = _load_topics(settings.topics_file)
     known = config["topics"]
@@ -243,7 +230,7 @@ def get_contract_pages(
     if unknown:
         raise ValueError(f"Unknown topic(s) {unknown}. Valid topics: {sorted(known)}.")
 
-    pages = read_pages(path)
+    pages = doc.pages
     total = len(pages)
     not_checked: list[NotChecked] = []
     readable: dict[int, str] = {}

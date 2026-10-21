@@ -182,6 +182,25 @@ questions in new chats and compare with section 7.
 | Listed `not_checked` and the caveats? | Caveats yes | Yes: Not checked (none), Warnings (none), four caveats, exposure period stated |
 | Did Claude fetch a guide (`get_guide` in the log)? | n/a | **Yes, first call**, several guides in one call |
 
+## 8a. Run with sign-in and SharePoint (V1-4, V1-6; 20 Oct 2026)
+
+Setup: server started with `INGENUS_AUTH=entra`, `INGENUS_DOC_SOURCE=sharepoint` (from `MCP-Server/.env`), dev tenant
+`vvrzl` (apps, certificate, group and the `mcp-sharepoint-test` site made by the repo owner); bridge `0.3.0` installed
+unpacked with the three IDs filled in; Claude Desktop signed in to Claude as `sridhar.vetrivel@psiog.com` and to the bridge
+as `develop.admin@vvrzl.onmicrosoft.com`. These are two different logins.
+
+| Check | Result |
+|---|---|
+| `scripts/signin_check.py` (live, no Claude) | **Pass.** No token gives HTTP 401; browser sign-in as `develop.admin@vvrzl.onmicrosoft.com`; 3 Chain X files listed with the draft left out; monthly gap 8,500.00, exposure 17,000.00, nothing not checked |
+| Q1 in Claude Desktop (new chat) | **Pass.** Same numbers; four quotes shown under the table with page; "Warnings: none"; "Not checked: nothing"; exposure period stated (1 Jul to 31 Aug); "I can't make changes to SAP myself"; a person to review |
+| Tool order in the call log | `get_guide`, `resolve_customer`, `find_contract_files`, `get_guide`, `get_contract_pages` x3, `compare_contract_to_sap`: no errors, `not_checked` 0 |
+| Who the log names | `develop.admin@vvrzl.onmicrosoft.com` on every call (not the Windows user, not the Claude account) |
+| Speed | First `find_contract_files` after start took **14.5 s** (SharePoint listing and download of the matching files); the following calls took 12 to 69 ms |
+| Sign-in cache | `%LOCALAPPDATA%\Ingenus\bridge\msal-cache.json` created at the first sign-in |
+
+Not recorded: how long Desktop waited at the first sign-in, and whether it showed a timeout. Note it on the next fresh install
+(delete the cache file first).
+
 ## 9. v1-specific tests
 
 These test what is new in v1: the server is central and the laptop holds nothing.
@@ -264,14 +283,16 @@ Severity: **blocker** (cannot demo), **wrong answer**, **risk**, **polish**.
 | 1 | The packed `ingenus-bridge.mcpb` left Install disabled; only "Install unpacked extension" worked (19 Oct 2026) | blocker (for handing a file to Ingenus) | Install | Not the Python requirement (the bridge has none). Unknown: unsigned file, a plan or policy setting, or a Desktop bug | Try signing the `.mcpb`; check Desktop's main log when Install is disabled; check whether a Team Owner can install or allow extensions for users (verify) |
 | 2 | Cowork and Code sessions failed to start: "Session not found" | blocker (fixed) | Install, 19 Oct | Desktop's probe sends a request before any handshake; a stateful server rejected it with 400 "Missing session ID" | **Fixed:** the server is stateless by default; regression test added. Retest showed no start errors |
 | 3 | Q1 answer did not say it cannot change SAP, and showed no exact quotes | risk / polish | Q1, without guidance | Same as v0 run A: nothing asks Claude to state these | V1-3 (server-served guidance); measure in section 8 |
-| 4 | | | | | |
+| 4 | First call after start: `find_contract_files` took 14.5 s against SharePoint (30 files, 12 folders); later calls 12 to 69 ms (20 Oct 2026) | risk | Q1, SharePoint source | The listing walks every folder one request at a time, and the matching files are downloaded and parsed once | Measure with a larger library; list folders in parallel; keep the cache across restarts if needed. Desktop tool timeouts are unknown |
+| 5 | The bridge's sign-in cache is a plain file in the user's profile folder (readable by that user only) | risk | Bridge | POC choice: simplest | Encrypt with Windows DPAPI before any real use |
+| 6 | | | | | |
 
 ## 14. Sign-off
 
 | Question | Answer |
 |---|---|
 | Did the bridge install, and by which route? | Unpacked only (19 Oct 2026) |
-| Did question 1 give the exact numbers through bridge and server? | Yes, in Chat (19 Oct 2026) |
+| Did question 1 give the exact numbers through bridge and server? | Yes, in Chat (19 Oct 2026). Again with per-user sign-in and contracts read from SharePoint (20 Oct 2026, section 8a) |
 | Did a server-only change reach Claude Desktop (9.1)? | |
 | Did Cowork behave like Chat? | |
 | Was the hostile-text page flagged and ignored (Q9)? | |

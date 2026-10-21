@@ -15,9 +15,10 @@ Nothing here uses Ingenus data: contracts and SAP are synthetic.
 | V1-1 | [`mock_sap.md`](../MCP-PlugIn/docs/mock_sap.md) | Done |
 | V1-2 | This skeleton: core copied from v0, one module per tool, HTTP server, Claude Code demo folder | **Built and tested offline** (HTTP end-to-end test gives 8,500.00 / 17,000.00). Not yet tried from a Claude client |
 | V1-5 | **Claude Desktop bridge** (primary client): Node-only extension, forwards to the server | **Installed in Claude Desktop 19 Oct 2026; Chat connects.** Desktop ran it with its **built-in Node** (its log says so), so the laptop needs no Node or Python. Cowork and Code sessions failed ("Session not found"): their probe sends a request before any handshake, which a stateful server rejects. Fixed by making the server stateless by default (`INGENUS_MCP_STATELESS`). **Retested 19 Oct 2026: no start errors; the Chain X question in Chat gave 8,500.00 a month and 17,000.00 exposure** through bridge and server. Install route: **only "Install unpacked extension" worked**; the packed `.mcpb` again left Install disabled, although the bridge has no Python requirement, so that was not the cause (cause still unknown) |
-| V1-3 | Guidance served by the server: skills `v2` in `guidance/v2/`, read through the `get_guide` tool (decision 0003); read fresh on every call, so a guide added on the server needs no restart | **Built and tested offline** (guides travel through HTTP and the bridge). Not yet tried in Claude Desktop |
-| V1-4 | Psiog VM, server sign-in, per-user log | Waits for Psiog IT |
-| V1-6, V1-7 | SharePoint and OneDrive (Graph), upload script. Site: `https://psiog0.sharepoint.com/sites/INGENUS` | Waits for the app registration |
+| V1-3 | Guidance served by the server: skills `v2` in `guidance/v2/`, read through the `get_guide` tool (decision 0003); read fresh on every call, so a guide added on the server needs no restart | **Built, tested offline and tried in Claude Desktop** (`get_guide` is called first; see `docs/demo_guide.md`, section 8) |
+| V1-4 | Server sign-in (Entra token check on every request), bridge sign-in (browser, then silent), per-user log (decision 0004) | **Built; verified live in the dev tenant and in Claude Desktop (20 Oct 2026):** the log names the signed-in person. **Not done:** moving to the Psiog VM, HTTPS from another machine, the central audit and login store |
+| V1-6 | SharePoint through Microsoft Graph, read as the signed-in user (on-behalf-of, certificate, per-user cache, scope guard) | **Built; verified live (20 Oct 2026):** Chain X gives 8,500.00 / 17,000.00 from the 30 synthetic PDFs in the dev tenant's `mcp-sharepoint-test` site. The first call took 14.5 s (cold), later ones 12 to 69 ms |
+| V1-7 | OneDrive (same Graph code), upload script | Not started |
 | V1-8 | Network drive | Waits for a share and service account |
 | V1-9 | Demo guide and runs | Not started |
 
@@ -26,7 +27,7 @@ Nothing here uses Ingenus data: contracts and SAP are synthetic.
 ```
 MCP-Server/
 ├── src/ingenus_mcp/
-│   ├── core/        copied from v0 (tag v0) and owned by v1 from here on: registry, log, quote check, compare, SAP access
+│   ├── core/        copied from v0 (tag v0) and owned by v1 from here on: registry, log, quote check, compare, SAP access; plus auth.py (sign-in check), sources.py and graph.py (document sources)
 │   ├── tools/       one module per tool; discover() imports them all at start-up
 │   ├── server/      HTTP (default) and stdio entry points
 │   ├── report.py    usage report from the tool-call log
@@ -34,13 +35,17 @@ MCP-Server/
 ├── guidance/v2/     the guides (skills v2) served by get_guide; add a folder with a SKILL.md to add a guide
 ├── prompts/         contract_check.v1.md (MCP prompt)
 ├── data/sap/        entities.json: synthetic mock SAP (a copy of v0's; a check gate keeps them equal)
-├── bridge/          Claude Desktop bridge extension: manifest.json, server/index.js (Node), build_bridge.py
+├── bridge/          Claude Desktop bridge extension: manifest.json, server/ (index.js, bridge.js, auth.js), test/ (Node tests), build_bridge.py
+├── scripts/         signin_check.py: live check against the dev tenant (run by hand)
+├── secrets/         git-ignored; the certificate's private key (see developer_guide.md, section 5.1)
+├── .env.example     the settings, with blanks; copy to .env (git-ignored)
 ├── demo/            start Claude Code here: .mcp.json and deny rules, no data
 └── tests/           test_v1_*.py, offline; helpers in v1_support.py
 ```
 
-Contracts are read, read-only, from v0's synthetic folder (`MCP-PlugIn/data/synthetic/contracts`) until the
-SharePoint and network-drive sources exist. The log goes to `MCP-Server/data/runtime/` (git-ignored).
+Contracts are read, read-only, from v0's synthetic folder (`MCP-PlugIn/data/synthetic/contracts`) by default, or from
+SharePoint with `INGENUS_DOC_SOURCE=sharepoint` (needs sign-in). The network-drive source is not built (V1-8). The log
+goes to `MCP-Server/data/runtime/` (git-ignored).
 
 ## Run
 
@@ -50,11 +55,20 @@ python -m ingenus_mcp.server --transport stdio   # stdio, for local tools
 python -m ingenus_mcp.report --log MCP-Server\data\runtime\tool_calls.jsonl
 ```
 
-The server binds to **loopback only** by default. Do not set `INGENUS_MCP_HOST` to a network address until
-server sign-in exists (V1-4): an open port without sign-in lets anyone on the network call the tools.
+The server binds to **loopback only** by default, and refuses to start on a network address with sign-in off
+(`INGENUS_AUTH=off`): an open port without sign-in lets anyone on the network call the tools. With
+`INGENUS_AUTH=entra` every request needs a valid Entra token.
 
-Settings (environment variables): `INGENUS_CONTRACTS_DIR`, `INGENUS_SLICE_DIR`, `INGENUS_SAP_ADAPTER`,
-`INGENUS_SAP_MOCK_FILE`, `INGENUS_LOG_PATH`, `INGENUS_PROMPTS_DIR`, `INGENUS_MCP_HOST`, `INGENUS_MCP_PORT`.
+Settings are environment variables, or `MCP-Server/.env` on a developer laptop (copy `.env.example`). The full list,
+what is and is not a secret, and how to create the certificate key are in `../developer_guide.md`, section 5.1.
+Older ones: `INGENUS_CONTRACTS_DIR`, `INGENUS_SLICE_DIR`, `INGENUS_SAP_ADAPTER`, `INGENUS_SAP_MOCK_FILE`,
+`INGENUS_LOG_PATH`, `INGENUS_PROMPTS_DIR`, `INGENUS_MCP_HOST`, `INGENUS_MCP_PORT`. New: `INGENUS_DOC_SOURCE`,
+`INGENUS_SP_SITE_URL`, `INGENUS_SP_FOLDER`, `INGENUS_AUTH`, `INGENUS_TENANT_ID`, `INGENUS_SERVER_CLIENT_ID`,
+`INGENUS_CERT_KEY_FILE`, `INGENUS_CERT_THUMBPRINT`.
+
+Live check against the dev tenant (server running in another terminal):
+`python MCP-Server\scripts\signin_check.py` signs you in in the browser, calls the server and runs the Chain X
+comparison from SharePoint.
 
 ## Connect Claude Desktop (primary)
 
@@ -79,7 +93,10 @@ Use it:
    and pick `MCP-Server\build\ingenus-bridge.mcpb`. If Install stays disabled (as with v0's `.mcpb`), use
    **Install unpacked extension** with `MCP-Server\build\bridge`, and record which one worked.
 3. Set **Server URL** to `http://127.0.0.1:8765/mcp` (the default). A server on the network must use `https://`;
-   the bridge refuses plain `http://` to another machine.
+   the bridge refuses plain `http://` to another machine. If the server has sign-in on (`INGENUS_AUTH=entra`), also
+   fill in **Tenant ID**, **Desktop client app ID** and **Server app ID** (all three, or none for a server with
+   sign-in off). The first chat opens a browser to sign in with an account of that tenant (not your Claude account);
+   later starts are silent. The sign-in cache is `%LOCALAPPDATA%\Ingenus\bridge\msal-cache.json`: delete it to sign out.
 4. Disable v0's extension while testing, so Claude does not see two sets of the same tools.
 5. New chat: "Check Chain X's contract against SAP as of 31 Aug 2026." Expected: 8,500.00 a month, 17,000.00.
 

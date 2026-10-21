@@ -13,13 +13,15 @@ written. Tags: **SAID** = someone stated it; **ASSUMED** = my reading, not confi
 
 ## 2. Next up (suggested order)
 
-### 2.1 Put the server on a VM and reach it from another machine (rest of V1-4)
+**Order locked 21 Oct 2026 (Sridhar):** build the project end to end on the local machine first, then host it at the end. So 2.1 (the AWS VM) is the last item, and every other item below is worked locally.
+
+### 2.1 Put the server on a VM and reach it from another machine (rest of V1-4) — **LAST: build and test everything locally first, host at the end (Sridhar, 21 Oct 2026)**
 
 Why: so a second person (Aditya, a tester) can use it. Today it listens on `127.0.0.1` of one laptop.
-Depends on: Psiog IT (VM, DNS name, HTTPS certificate). Send steps 5 and 6 of [`psiog_it_steps_v1-4_v1-6.md`](psiog_it_steps_v1-4_v1-6.md) now, since lead time is unknown.
+Depends on: **Aditya, who provisions the VM on AWS (SAID, 21 Oct 2026; decision [0009](decisions/0009-v1-poc-vm-on-aws-provisioned-by-aditya.md)).** Psiog IT is not on this path, so steps 5 and 6 of [`psiog_it_steps_v1-4_v1-6.md`](psiog_it_steps_v1-4_v1-6.md) are not sent to them.
 
-- [ ] Send the VM and HTTPS request to Psiog IT (steps 5 and 6)
-- [ ] IT delivers: VM, internal DNS name, HTTPS certificate (public CA, or internal CA plus its root `.cer`)
+- [ ] **Ask Aditya:** AWS account and region, OS (Windows or Linux; Linux is untested), who provides the DNS name and HTTPS certificate, who may reach the port, Postgres on the VM or managed (all **UNKNOWN**)
+- [ ] Aditya delivers: the AWS VM, a DNS name, an HTTPS certificate (public CA, or a private CA plus its root `.cer`)
 - [ ] Install Python and the server on the VM; run it as a service account (no admin rights)
 - [ ] Make a **new** certificate key pair **on the VM** (do not copy the laptop's key); upload its `.cer` to the server app; set the thumbprint and key path as service environment variables, with no `.env` file ([`developer_guide.md`](../developer_guide.md) section 5.1)
 - [ ] Put HTTPS in front of the server (the bridge refuses plain `http://` to another machine)
@@ -27,8 +29,9 @@ Depends on: Psiog IT (VM, DNS name, HTTPS certificate). Send steps 5 and 6 of [`
 - [ ] Check the SDK's host-header protection accepts the VM's name (**UNKNOWN**: not tested; it protects loopback by default)
 - [ ] Bridge on a second laptop: Server URL = the HTTPS address, plus the three IDs; first sign-in works
 - [ ] **Done when:** a second person's Claude Desktop runs Q1 against the VM, and the log shows that person's name
+- [ ] **Purpose of the AWS VM (Sridhar, 21 Oct): QA of multiple users calling and the logging.** QA list: two or more people calling at the same time; each call logged under the right name; login events (accepted, refused); the hash chain verifies after concurrent writes (**not tested yet**: two processes or threads on one log); Postgres receives every event; check history seen across people; `audit ship` and `prune` against the real database
 
-- Unknown: whether Node (inside Claude Desktop) trusts the certificate chain; Psiog's Conditional Access policies
+- Unknown: whether Node (inside Claude Desktop) trusts the certificate chain; Psiog's Conditional Access policies; which Entra tenant the AWS-hosted POC signs people in against, and who creates the app registrations there (the dev tenant is for testing only)
 
 ### 2.2 Central audit log and login log (built and tested offline; the real store is not chosen)
 
@@ -41,7 +44,7 @@ Built (decision [0005](decisions/0005-v1-audit-log-with-hash-chain-and-central-s
 Still open:
 - [~] **Real store, partly decided (21 Oct 2026):**
   - **SAID** (Aditya suggested a custom database; Sridhar chose **Postgres**).
-  - **Where, SAID by Sridhar:** local for the POC, Psiog Azure once the VM exists, then Ingenus on-prem or Azure by a later decision (Ingenus leaned on-prem on 8 Oct, SAID).
+  - **Where, SAID by Sridhar:** local for the POC, the AWS VM Aditya provisions for the POC only (SAID, relayed 21 Oct; replaces "Psiog Azure"), then Ingenus's choice, possibly Azure or on-prem, by a later decision (Ingenus leaned on-prem on 8 Oct, SAID).
   - **ASSUMED for the POC, Ingenus to confirm:** keep audit log 12 months; keep check history 12 months; audit database read by admins only (Sridhar, Aditya); history shows other people's names.
   - **Built and tested (decision 0008):** a Postgres back end for the audit store and the check history (`INGENUS_PG_HOST`), tested on a local Postgres 17 (12 tests), and `python -m ingenus_mcp.audit prune` for the 12-month delete (a command to schedule; no timer yet).
   - **Not built or not verified:** separate Postgres roles (write-only for the server, read-only for reviewers), TLS to a remote database, the VM copy, and pruning the local log.
@@ -106,7 +109,7 @@ Built (decision [0007](decisions/0007-v1-onedrive-and-network-share-sources.md))
 The apps, certificate, group and site were made in a developer tenant (`vvrzl`) by the repo owner. Its lifetime is **UNKNOWN**: check the expiry in the developer programme. For Psiog's tenant, and later Ingenus's, the same steps repeat with their admins ([`psiog_it_steps_v1-4_v1-6.md`](psiog_it_steps_v1-4_v1-6.md)); the IDs and the site URL are settings, not code. What was done in the dev tenant, step by step: [`dev_tenant_setup_steps.md`](dev_tenant_setup_steps.md).
 
 - [ ] Check when the developer tenant expires
-- [ ] Update the Psiog IT request: the app, group and SharePoint parts are proven in the dev tenant; what still needs IT is the VM and HTTPS (and the later file share)
+- [ ] Update the Psiog IT request: the app, group and SharePoint parts are proven in the dev tenant; the VM and HTTPS no longer go to Psiog IT (AWS, Aditya; decision 0009); what may still need IT is the app registration in the real tenant and, later, the file share
 - [ ] Before any real data: Ingenus's data policy signed off (CLAUDE.md rule 9); until then synthetic only
 
 ## 5. Decisions waiting on people
@@ -115,6 +118,6 @@ The apps, certificate, group and site were made in a developer tenant (`vvrzl`) 
 | -------------------------------------------------------------------- | ------------------------------------------------- | -------------------------------- |
 | Central log store, location, retention, readers, fail open or closed | Aditya, then Ingenus                              | 2.2, 2.3                         |
 | What "per-process memory" means                                      | Aditya                                            | 2.3                              |
-| Psiog Azure or Ingenus on-prem for the store and the server          | Aditya, Ingenus                                   | 2.1, 2.2                         |
+| Ingenus on-prem or cloud for the store and the server (later; the POC VM is AWS) | Aditya, Ingenus                                   | 2.1, 2.2                         |
 | Per-person access or one shared server identity                      | Ingenus (do folder permissions differ by person?) | 2.5, the design in decision 0004 |
 | Does Ingenus's data policy allow storing contract-derived figures    | Ingenus                                           | 2.3                              |

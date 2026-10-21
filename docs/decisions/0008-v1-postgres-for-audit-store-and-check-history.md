@@ -27,8 +27,8 @@ custom database for the real store (**SAID**, relayed by Sridhar, 21 Oct 2026). 
 - Keep the audit log and the check history **12 months**.
 - The audit database is read by **admins only** (Sridhar, Aditya).
 - The history shows other people's names.
-- Where it runs: local for the POC, Psiog Azure once the VM exists (**SAID** by Sridhar), then Ingenus on-prem or Azure by a
-  later decision.
+- Where it runs: local for the POC, then the AWS VM that Aditya provisions for the POC only (**SAID**, relayed 21 Oct 2026; decision 0009), then Ingenus's choice
+  (possibly Azure or on-prem) by a later decision.
 
 ## Not built or not verified
 

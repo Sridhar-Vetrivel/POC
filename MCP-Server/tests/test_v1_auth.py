@@ -344,8 +344,12 @@ def test_a_good_token_reaches_the_tools_and_the_log_names_the_person(
 
     log = isolated_env / "tool_calls.jsonl"
     records = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
-    assert [r["tool"] for r in records] == ["resolve_customer"]
+    calls = [r for r in records if r["event"] == "tool_call"]
+    assert [r["tool"] for r in calls] == ["resolve_customer"]
     assert (
-        records[0]["user"] == USER
+        calls[0]["user"] == USER
     )  # the person from the token, not INGENUS_USER or the Windows user
+    # Two requests with the same token are ONE login event, and it names the person.
+    logins = [r for r in records if r["event"] == "login"]
+    assert [(r["outcome"], r["user"]) for r in logins] == [("accepted", USER)]
     assert token not in log.read_text(encoding="utf-8")

@@ -188,6 +188,48 @@ class Guide(GuideSummary):
     content: str = Field(description="The guide's full text (Markdown). Follow it.")
 
 
+class CheckLine(BaseModel):
+    kind: TermKind
+    product: str | None
+    status: Literal["variance", "match", "not_set_up_in_sap"]
+    contract_rate_pct: str
+    sap_rate_pct: str | None
+    monthly_gap: str
+    document: str = Field(description="The file the contract rate came from.")
+    page: int
+
+
+class CheckedDocument(BaseModel):
+    document_id: str
+    version_checked: str = Field(description="The file version the earlier check relied on.")
+    changed_since: bool = Field(
+        description="True if the file has changed since that check, so its figures may be out of date."
+    )
+
+
+class CheckRecord(BaseModel):
+    when: str = Field(description="When the check ran (UTC, ISO).")
+    who: str = Field(description="The sign-in name of the person who ran it.")
+    is_you: bool
+    customer_id: str
+    as_of: str
+    total_monthly_gap: str
+    total_indicative_exposure: str
+    not_checked_count: int
+    lines: list[CheckLine]
+    documents: list[CheckedDocument]
+    summary: str
+
+
+class CheckHistoryResult(BaseModel):
+    available: bool
+    records: list[CheckRecord]
+    hidden_count: int = Field(
+        description="Records not shown because they used a file you cannot open."
+    )
+    note: str
+
+
 class GuideResult(BaseModel):
     available: list[GuideSummary] = Field(description="Every guide the server has.")
     guides: list[Guide] = Field(

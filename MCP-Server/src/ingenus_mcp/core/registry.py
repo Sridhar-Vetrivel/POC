@@ -58,7 +58,8 @@ def tool(*, read_only: bool) -> Callable[[Callable[..., Any]], Callable[..., Any
                     int((time.perf_counter() - started) * 1000),
                     error,
                 )
-                calllog.write_record(load_settings().log_path, record)
+                settings = load_settings()
+                calllog.write_record(settings.log_path, record, settings.audit_store)
 
         TOOLS[func.__name__] = ToolSpec(
             name=func.__name__,

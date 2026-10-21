@@ -27,6 +27,7 @@ BASELINE_TOOLS = {
     "get_sales_volume",
     "compare_contract_to_sap",
     "get_guide",  # decision 0003
+    "get_check_history",  # decision 0006
 }
 
 
@@ -115,13 +116,19 @@ def _violations(path: Path) -> list[str]:
     return found
 
 
-def test_no_code_outside_the_log_module_can_write_files():
+# The log, the two stores and the storage layer they share (CLAUDE.md rule 5; decisions 0005, 0006, 0008). Nothing else.
+WRITER_MODULES = {"calllog.py", "auditstore.py", "history.py", "db.py"}
+
+
+def test_no_code_outside_the_log_and_store_modules_can_write_files():
     offences: list[str] = []
     for path in SRC.rglob("*.py"):
-        if path.name == "calllog.py":
+        if path.name in WRITER_MODULES:
             continue
         offences += _violations(path)
-    assert not offences, "Write operations outside calllog.py:\n" + "\n".join(offences)
+    assert not offences, "Write operations outside the log and store modules:\n" + "\n".join(
+        offences
+    )
 
 
 def test_the_scan_would_catch_a_write(tmp_path):

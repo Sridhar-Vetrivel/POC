@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -47,6 +48,8 @@ class EntraTokenVerifier:
     def __init__(self, settings: Settings, jwks_client: Any | None = None):
         self._settings = settings
         self._jwks = jwks_client or jwt.PyJWKClient(settings.jwks_uri, cache_keys=True)
+        self._seen: set[tuple[str, int]] = set()  # (user, token expiry): one login event per token
+        self._last_refused: dict[str, float] = {}  # reason -> when it was last logged
 
     async def verify_token(self, token: str) -> AccessToken | None:
         # The first call fetches the tenant's keys over the network, so keep it off the event loop.
@@ -69,19 +72,19 @@ class EntraTokenVerifier:
             log.info(
                 "token rejected: %s", type(exc).__name__
             )  # the reason class only, never the token
-            return None
+            return self._refused(type(exc).__name__)
         except Exception as exc:  # noqa: BLE001 - e.g. the key set could not be fetched: refuse, say why
             log.warning("token check failed: %s", type(exc).__name__)
-            return None
+            return self._refused(f"keys unavailable ({type(exc).__name__})")
 
         if claims.get("tid") != s.tenant_id:
             log.info("token rejected: wrong tenant")
-            return None
+            return self._refused("wrong tenant")
         scopes = str(claims.get("scp", "")).split()
         if s.required_scope not in scopes:
             log.info("token rejected: missing scope %s", s.required_scope)
-            return None
-        return AccessToken(
+            return self._refused("missing scope")
+        access = AccessToken(
             token=token,
             client_id=str(claims.get("azp") or claims.get("appid") or ""),
             scopes=scopes,
@@ -90,6 +93,42 @@ class EntraTokenVerifier:
             subject=str(claims.get("oid") or claims.get("sub") or ""),
             claims={k: claims[k] for k in _CLAIMS_KEPT if k in claims},
         )
+        self._accepted(claims)
+        return access
+
+    # -- login events (decision 0005): one per accepted token, rate-limited when refused -------
+    def _log_login(self, outcome: str, reason: str, claims: dict | None = None) -> None:
+        try:
+            from ingenus_mcp.core import calllog  # imported here: calllog imports this module
+
+            claims = claims or {}
+            event = calllog.make_event(
+                "login",
+                outcome=outcome,
+                reason=reason,
+                user=claims.get("preferred_username"),
+                user_id=claims.get("oid"),
+                client_id=claims.get("azp"),
+            )
+            calllog.write_record(self._settings.log_path, event, self._settings.audit_store)
+        except Exception as exc:  # noqa: BLE001 - a log problem must never refuse a good user
+            log.warning("could not write a login event: %s", type(exc).__name__)
+
+    def _accepted(self, claims: dict) -> None:
+        key = (str(claims.get("oid") or claims.get("sub") or ""), int(claims["exp"]))
+        if key in self._seen:
+            return
+        if len(self._seen) > 2000:
+            self._seen.clear()
+        self._seen.add(key)
+        self._log_login("accepted", "valid token", claims)
+
+    def _refused(self, reason: str) -> None:
+        now = time.monotonic()
+        if now - self._last_refused.get(reason, -1e9) >= 10:  # at most one per reason per 10 s
+            self._last_refused[reason] = now
+            self._log_login("refused", reason)
+        return None
 
 
 def current_token() -> SignedInUser | None:
@@ -103,6 +142,12 @@ def current_token() -> SignedInUser | None:
         return None
     name = str(claims.get("preferred_username") or claims.get("name") or user_id)
     return SignedInUser(user_id=user_id, name=name, token=access.token)
+
+
+def current_user_id() -> str | None:
+    """The stable id (oid) of the caller, for the log."""
+    user = current_token()
+    return user.user_id if user else None
 
 
 def current_user_name() -> str | None:

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import sys
 from datetime import date
 from decimal import Decimal
 from typing import Annotated
 
 from pydantic import Field
 
+from ingenus_mcp.core import auth, calllog, history
 from ingenus_mcp.core import sap as sap_access
 from ingenus_mcp.core.compare import compare
 from ingenus_mcp.core.config import load_settings
@@ -17,6 +19,7 @@ from ingenus_mcp.core.models import (
     NotChecked,
 )
 from ingenus_mcp.core.registry import tool
+from ingenus_mcp.core.sources import get_source
 
 
 @tool(read_only=True)
@@ -69,4 +72,20 @@ def compare_contract_to_sap(
         start = f"{as_of.year}-{as_of.month:02d}"
     end = f"{as_of.year}-{as_of.month:02d}"
     volumes = sap_access.sales_volume(reader, customer_id, min(start, end), end)
-    return compare(terms, customer_id, as_of, setup, volumes, settings)
+    result = compare(terms, customer_id, as_of, setup, volumes, settings)
+    _leave_a_record(settings, result)
+    return result
+
+
+def _leave_a_record(settings, result: CompareResult) -> None:
+    """Keep what this check found for the next person (decision 0006). Never fails the check."""
+    try:
+        history.record_check(
+            settings,
+            calllog.current_user(),
+            auth.current_user_id(),
+            result,
+            get_source(settings),
+        )
+    except Exception as exc:  # noqa: BLE001 - the answer matters more than the record
+        print(f"[ingenus_mcp] check record not saved ({type(exc).__name__})", file=sys.stderr)

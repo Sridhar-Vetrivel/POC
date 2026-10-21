@@ -7,6 +7,7 @@ needs from here, and always `isolated_env` (test_v1_support_guard.py checks this
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import socket
@@ -57,11 +58,35 @@ def chain_x_terms() -> list[ExtractedTerm]:
     ]
 
 
+@contextlib.contextmanager
+def signed_in_as(name: str, oid: str):
+    """Make the code under test think `name` is the signed-in caller (as the server does per request)."""
+    from mcp.server.auth.middleware.auth_context import auth_context_var
+    from mcp.server.auth.middleware.bearer_auth import AuthenticatedUser
+    from mcp.server.auth.provider import AccessToken
+
+    access = AccessToken(
+        token="t-" + oid,
+        client_id="test-app",
+        scopes=["access_as_user"],
+        expires_at=None,
+        resource="test",
+        subject=oid,
+        claims={"preferred_username": name, "oid": oid},
+    )
+    marker = auth_context_var.set(AuthenticatedUser(access))
+    try:
+        yield
+    finally:
+        auth_context_var.reset(marker)
+
+
 @pytest.fixture(autouse=True)
 def isolated_env(tmp_path, monkeypatch):
     """Every test logs to its own temp file and never touches MCP-Server/data/runtime."""
     monkeypatch.setenv("INGENUS_LOG_PATH", str(tmp_path / "tool_calls.jsonl"))
     monkeypatch.setenv("INGENUS_USER", "tester")
+    monkeypatch.setenv("INGENUS_HISTORY_DB", str(tmp_path / "history.sqlite"))
     monkeypatch.setenv("INGENUS_NO_ENV_FILE", "1")  # never read a developer's MCP-Server/.env
     for var in (
         "INGENUS_CONTRACTS_DIR",
@@ -78,6 +103,10 @@ def isolated_env(tmp_path, monkeypatch):
         "INGENUS_CERT_KEY_FILE",
         "INGENUS_CERT_THUMBPRINT",
         "INGENUS_JWKS_URI",
+        "INGENUS_AUDIT_STORE",
+        "INGENUS_OD_FOLDER",
+        "INGENUS_NETWORK_ROOT",
+        "INGENUS_EXCLUDE_PATTERNS",
     ):
         monkeypatch.delenv(var, raising=False)
     return tmp_path

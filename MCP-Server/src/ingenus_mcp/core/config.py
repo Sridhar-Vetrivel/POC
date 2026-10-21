@@ -12,6 +12,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from ingenus_mcp.core.db import PgTarget, Target
+
 # .../POC/MCP-Server/src/ingenus_mcp/core/config.py -> POC/MCP-Server and POC
 _SERVER_DIR = Path(__file__).resolve().parents[3]
 _REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -59,6 +61,18 @@ class Settings:
     sharepoint_folder: str = (
         ""  # folder inside the site's default library, e.g. General/synthetic/contracts
     )
+    # V1-7: a folder in the signed-in user's own OneDrive (required: never the whole drive).
+    onedrive_folder: str = ""
+    # V1-8: a shared folder reached by path (UNC such as \\\\server\\share\\contracts, or a mounted share).
+    network_root: Path | None = None
+    exclude_patterns: tuple[str, ...] = ("~$*", "*.tmp", "Thumbs.db", "desktop.ini")
+    # Decision 0005: copy every audit event to a central store (SQLite here), and keep check records.
+    # Decision 0008: when Postgres is configured (INGENUS_PG_HOST), both go there unless set explicitly.
+    audit_store: Target | None = None
+    history_db: Target | None = None
+    retention_days: int = (
+        365  # default age limit for `python -m ingenus_mcp.audit prune` (assumed, to confirm)
+    )
     # V1-4: server sign-in. "off" (loopback only) or "entra" (every request needs a valid Entra token).
     auth_mode: str = "off"
     tenant_id: str = ""
@@ -98,6 +112,37 @@ class Settings:
         return self.slice_dir / "rules" / "compare.v1.yaml"
 
 
+def _postgres() -> PgTarget | None:
+    """The Postgres store, if INGENUS_PG_HOST is set. The password stays in a file (relative: MCP-Server/)."""
+    host = os.environ.get("INGENUS_PG_HOST", "").strip()
+    if not host:
+        return None
+    return PgTarget(
+        host=host,
+        port=int(os.environ.get("INGENUS_PG_PORT", "5432")),
+        dbname=os.environ.get("INGENUS_PG_DB", "ingenus_audit").strip(),
+        user=os.environ.get("INGENUS_PG_USER", "postgres").strip(),
+        password_file=_key_file(os.environ.get("INGENUS_PG_PASSWORD_FILE", "")),
+        schema=os.environ.get("INGENUS_PG_SCHEMA", "public").strip(),
+    )
+
+
+def _history_db(value: str | None, postgres: PgTarget | None) -> Target | None:
+    """Where check records are kept: Postgres if set, else under data/runtime; "off" switches the history off."""
+    if value is None or not value.strip():
+        return postgres or _DATA / "runtime" / "history.sqlite"
+    if value.strip().lower() == "off":
+        return None
+    return Path(value).expanduser()
+
+
+def _patterns(value: str | None) -> tuple[str, ...]:
+    """File-name patterns to skip on a network share. Default: Office lock files and temp files."""
+    if value is None:
+        return ("~$*", "*.tmp", "Thumbs.db", "desktop.ini")
+    return tuple(p.strip() for p in value.split(",") if p.strip())
+
+
 def _key_file(value: str) -> Path | None:
     """The certificate key path from INGENUS_CERT_KEY_FILE; a relative path is read from MCP-Server/."""
     if not value:
@@ -107,6 +152,8 @@ def _key_file(value: str) -> Path | None:
 
 
 def load_settings() -> Settings:
+    postgres = _postgres()
+
     def path(var: str, default: Path) -> Path:
         value = os.environ.get(var)
         return Path(value).expanduser() if value else default
@@ -133,6 +180,16 @@ def load_settings() -> Settings:
         doc_source=os.environ.get("INGENUS_DOC_SOURCE", "local").strip().lower(),
         sharepoint_site_url=os.environ.get("INGENUS_SP_SITE_URL", "").strip(),
         sharepoint_folder=os.environ.get("INGENUS_SP_FOLDER", "").strip().strip("/"),
+        onedrive_folder=os.environ.get("INGENUS_OD_FOLDER", "").strip().strip("/"),
+        audit_store=path("INGENUS_AUDIT_STORE", Path())
+        if os.environ.get("INGENUS_AUDIT_STORE")
+        else postgres,
+        history_db=_history_db(os.environ.get("INGENUS_HISTORY_DB"), postgres),
+        retention_days=int(os.environ.get("INGENUS_RETENTION_DAYS", "365")),
+        network_root=Path(os.environ["INGENUS_NETWORK_ROOT"])
+        if os.environ.get("INGENUS_NETWORK_ROOT")
+        else None,
+        exclude_patterns=_patterns(os.environ.get("INGENUS_EXCLUDE_PATTERNS")),
         auth_mode=os.environ.get("INGENUS_AUTH", "off").strip().lower(),
         tenant_id=os.environ.get("INGENUS_TENANT_ID", "").strip(),
         server_client_id=os.environ.get("INGENUS_SERVER_CLIENT_ID", "").strip(),

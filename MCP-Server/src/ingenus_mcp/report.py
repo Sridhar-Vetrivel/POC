@@ -33,6 +33,10 @@ def load_records(path: Path) -> list[dict[str, Any]]:
 
 
 def summarise_usage(records: list[dict[str, Any]]) -> dict[str, Any]:
+    logins: Counter[str] = Counter(
+        r.get("outcome", "?") for r in records if r.get("event") == "login"
+    )
+    records = [r for r in records if r.get("event", "tool_call") == "tool_call"]
     per_tool: Counter[str] = Counter(r["tool"] for r in records)
     per_user: Counter[str] = Counter(r["user"] for r in records)
     per_day: Counter[str] = Counter(r["ts"][:10] for r in records)
@@ -50,6 +54,8 @@ def summarise_usage(records: list[dict[str, Any]]) -> dict[str, Any]:
         "calls_per_day": dict(sorted(per_day.items())),
         "calls_with_errors": errors,
         "items_reported_not_checked": not_checked,
+        "logins_accepted": logins.get("accepted", 0),
+        "logins_refused": logins.get("refused", 0),
     }
 
 
@@ -76,6 +82,7 @@ def main() -> None:
             print(f"  {name:32} {count}")
     print(f"\nCalls with errors: {summary['calls_with_errors']}")
     print(f"Items reported as not checked: {summary['items_reported_not_checked']}")
+    print(f"Logins accepted: {summary['logins_accepted']}   refused: {summary['logins_refused']}")
 
 
 if __name__ == "__main__":

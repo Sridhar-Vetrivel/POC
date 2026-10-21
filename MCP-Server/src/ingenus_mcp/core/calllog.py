@@ -8,6 +8,7 @@ Never print to stdout here: on stdio, stdout is the protocol channel.
 from __future__ import annotations
 
 import getpass
+import hashlib
 import json
 import os
 import sys
@@ -15,13 +16,13 @@ import threading
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from pydantic import BaseModel
 from pydantic_core import to_jsonable_python
 
 from ingenus_mcp import __version__
-from ingenus_mcp.core import auth
+from ingenus_mcp.core import auditstore, auth
 
 _LOCK = threading.Lock()
 _SESSION = uuid.uuid4().hex[:8]
@@ -40,6 +41,87 @@ def current_user() -> str:
         return getpass.getuser()
     except Exception:  # noqa: BLE001 - no user name available; the log still works
         return "unknown"
+
+
+GENESIS = "0" * 64
+_CHAIN: dict[str, str] = {}  # log path -> hash of the last event this process wrote
+
+
+def _canonical(record: dict[str, Any]) -> str:
+    return json.dumps(record, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def chain_hash(record: dict[str, Any]) -> str:
+    """Hash of an event, over everything except its own `hash` (so prev_hash is covered)."""
+    body = {k: v for k, v in record.items() if k != "hash"}
+    return hashlib.sha256(_canonical(body).encode("utf-8")).hexdigest()
+
+
+def _last_hash(path: Path) -> str:
+    if not path.is_file():
+        return GENESIS
+    with path.open("rb") as handle:
+        handle.seek(max(0, path.stat().st_size - 65536))
+        lines = handle.read().decode("utf-8", errors="replace").splitlines()
+    for line in reversed(lines):
+        if line.strip():
+            try:
+                return str(json.loads(line).get("hash") or GENESIS)
+            except json.JSONDecodeError:
+                return GENESIS
+    return GENESIS
+
+
+class ChainReport(NamedTuple):
+    ok: bool
+    hashed: int  # events that carry a hash
+    legacy: int  # events from before the chain existed (not covered)
+    problem: str | None
+
+
+def verify_chain(lines: list[str]) -> ChainReport:
+    """Check a log: every hashed event must hash to its own `hash` and point at the one before."""
+    hashed = legacy = 0
+    previous = GENESIS
+    for number, line in enumerate(lines, start=1):
+        if not line.strip():
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            return ChainReport(
+                False, hashed, legacy, f"line {number} is not valid JSON (cut off or edited)"
+            )
+        if "hash" not in record:
+            if hashed:
+                return ChainReport(
+                    False, hashed, legacy, f"line {number} has no hash after chained events"
+                )
+            legacy += 1
+            continue
+        if record.get("prev_hash") != previous:
+            return ChainReport(
+                False,
+                hashed,
+                legacy,
+                f"line {number}: an event before it was removed, reordered or changed",
+            )
+        if chain_hash(record) != record["hash"]:
+            return ChainReport(False, hashed, legacy, f"line {number} was edited")
+        previous = record["hash"]
+        hashed += 1
+    return ChainReport(True, hashed, legacy, None)
+
+
+def make_event(event: str, **fields: Any) -> dict[str, Any]:
+    """The common part of a non-tool event (for example a login): time, kind, session, version."""
+    return {
+        "ts": datetime.now(UTC).isoformat(timespec="milliseconds"),
+        "event": event,
+        "session": _SESSION,
+        "plugin_version": __version__,
+        **fields,
+    }
 
 
 def _trim(value: Any) -> Any:
@@ -85,14 +167,31 @@ def summarise(result: Any) -> dict[str, Any]:
     return out
 
 
-def write_record(path: Path, record: dict[str, Any]) -> None:
+def write_record(path: Path, record: dict[str, Any], store: Path | None = None) -> None:
+    """Append one event to the log with its place in the hash chain, then copy it to the central
+    store if there is one. The log comes first: it is the source of truth and the local buffer.
+    One server process writes a given log (a second writer would fork the chain).
+    """
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        line = json.dumps(record, ensure_ascii=False, separators=(",", ":"))
-        with _LOCK, path.open("a", encoding="utf-8") as handle:
-            handle.write(line + "\n")
+        with _LOCK:
+            key = str(path)
+            previous = _CHAIN.get(key) or _last_hash(path)
+            record = {
+                **record,
+                "event": record.get("event", "tool_call"),
+                "event_id": record.get("event_id") or uuid.uuid4().hex,
+                "prev_hash": previous,
+            }
+            record["hash"] = chain_hash(record)
+            line = json.dumps(record, ensure_ascii=False, separators=(",", ":"))
+            with path.open("a", encoding="utf-8") as handle:
+                handle.write(line + "\n")
+            _CHAIN[key] = record["hash"]
     except OSError as exc:
         print(f"[ingenus_mcp] could not write the tool-call log: {exc}", file=sys.stderr)
+        return
+    auditstore.emit(store, record)
 
 
 def build_record(
@@ -105,7 +204,9 @@ def build_record(
     not_checked = getattr(result, "not_checked", None)
     return {
         "ts": datetime.now(UTC).isoformat(timespec="milliseconds"),
+        "event": "tool_call",
         "user": current_user(),
+        "user_id": auth.current_user_id(),
         "session": _SESSION,
         "plugin_version": __version__,
         "tool": tool,

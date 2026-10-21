@@ -15,6 +15,7 @@ dependencies = [
     "msal>=1.31",           # Microsoft sign-in library: swaps the user's token for a Graph token (V1-6)
     "requests>=2.32",       # Microsoft Graph calls (sync, like the tools)
     "pyjwt[crypto]>=2.8",   # checks the Entra sign-in token (V1-4)
+    "psycopg[binary]>=3.2",  # talks to Postgres, the audit store and check history (decision 0008)
 ]
 
 [project.optional-dependencies]

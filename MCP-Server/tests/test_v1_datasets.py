@@ -1,7 +1,7 @@
 """The three source datasets (Sharepoint, Onedrive, Network-Drive) give the numbers written in their expected results.
 
-Each dataset is read as a local folder here (the real drive only changes WHERE the files are read from, never
-the files), with its own slice (ontology, rules, topics) and its own mock SAP. The expected figures were worked
+Each source's PDFs are read from a local folder here (the real drive only changes WHERE the files are read from),
+against the ONE shared ontology, rules and mock SAP. The expected figures were worked
 out by hand from the contracts and SAP rows in generate_datasets.py, not copied from the engine's output.
 """
 
@@ -20,18 +20,16 @@ from ingenus_mcp.tools.find_contract_files import find_contract_files
 from ingenus_mcp.tools.resolve_customer import resolve_customer
 
 SYNTHETIC = REPO / "MCP-PlugIn" / "data" / "synthetic"
+GOLDEN = REPO / "slices" / "contract_to_sap_check" / "evals" / "golden" / "source_datasets.v1.json"
 SOURCES = ["Sharepoint", "Onedrive", "Network-Drive"]
 
 
 def golden(source):
-    folder = SYNTHETIC / source / "slice" / "evals" / "golden"
-    expected = json.loads((folder / "expected_results.v1.json").read_text(encoding="utf-8"))[
-        "by_customer"
-    ]
-    terms = json.loads((folder / "expected_terms.v1.json").read_text(encoding="utf-8"))[
-        "terms_by_customer"
-    ]
-    return expected, terms
+    chains = json.loads(GOLDEN.read_text(encoding="utf-8"))["datasets"][source]["chains"]
+    return (
+        {cid: c["expected"] | {"customer": c["customer"]} for cid, c in chains.items()},
+        {cid: c["terms"] for cid, c in chains.items()},
+    )
 
 
 def as_terms(raw):
@@ -49,12 +47,11 @@ def as_terms(raw):
 
 @pytest.fixture
 def use(monkeypatch):
+    """Read one source's PDFs from a local folder. The ontology, rules and mock SAP are the ONE shared set."""
+
     def _use(source):
-        base = SYNTHETIC / source
         monkeypatch.setenv("INGENUS_DOC_SOURCE", "local")
-        monkeypatch.setenv("INGENUS_CONTRACTS_DIR", str(base / "contracts"))
-        monkeypatch.setenv("INGENUS_SLICE_DIR", str(base / "slice"))
-        monkeypatch.setenv("INGENUS_SAP_MOCK_FILE", str(base / "sap" / "entities.json"))
+        monkeypatch.setenv("INGENUS_CONTRACTS_DIR", str(SYNTHETIC / source))
 
     return _use
 
@@ -89,10 +86,15 @@ def test_names_resolve_and_the_shared_alias_is_ambiguous(source, use):
     expected, _ = golden(source)
     for customer_id, e in expected.items():
         assert resolve_customer(name=e["customer"]).resolved.sap_customer_id == customer_id
-    ontology = (SYNTHETIC / source / "slice" / "ontology" / "customers.v1.yaml").read_text(
-        encoding="utf-8"
+    import yaml
+
+    ontology = yaml.safe_load(
+        (REPO / "slices" / "contract_to_sap_check" / "ontology" / "customers.v1.yaml").read_text(
+            encoding="utf-8"
+        )
     )
-    shared = next(a for a in ("Metro Stores", "Harbour Stores", "Valley Stores") if a in ontology)
+    aliases = [set(c["aliases"]) for c in ontology["customers"] if c["sap_customer_id"] in expected]
+    (shared,) = aliases[0] & aliases[1]  # the one name both chains of this source answer to
     result = resolve_customer(name=shared)
     assert result.resolved is None and len(result.candidates) == 2
 
@@ -121,7 +123,26 @@ def test_the_datasets_do_not_share_customer_ids_or_chains():
     assert len(set(ids)) == len(ids) == 6 and len(set(chains)) == 6
 
 
-def test_the_slice_files_never_go_on_the_drive():
+def test_a_source_folder_holds_only_pdfs_in_chain_folders():
     for source in SOURCES:
-        on_drive = {p.suffix for p in (SYNTHETIC / source / "contracts").rglob("*") if p.is_file()}
-        assert on_drive == {".pdf"}, source
+        files = [p for p in (SYNTHETIC / source).rglob("*") if p.is_file()]
+        assert files and {p.suffix for p in files} == {".pdf"}, source
+        assert all(p.parent.name.startswith("Chain_") for p in files), source
+
+
+def test_the_ontology_and_mock_sap_exist_once_and_hold_every_customer():
+    import yaml
+
+    ontology = yaml.safe_load(
+        (REPO / "slices" / "contract_to_sap_check" / "ontology" / "customers.v1.yaml").read_text(
+            encoding="utf-8"
+        )
+    )
+    sap = json.loads((SYNTHETIC / "sap" / "entities.json").read_text(encoding="utf-8"))
+    ids = {c["sap_customer_id"] for c in ontology["customers"]}
+    assert ids == {c["customer_id"] for c in sap["customers"]}
+    for source in SOURCES:
+        assert set(golden(source)[0]) <= ids
+    assert (
+        not list(SYNTHETIC.glob("*/slice")) and not list(SYNTHETIC.glob("*/sap"))[1:]
+    )  # no per-source copies

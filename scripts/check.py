@@ -306,19 +306,8 @@ def run_synthetic_label() -> bool:
         if "SYNTHETIC" not in text:
             offenders.append(f"{_rel(path)}: no SYNTHETIC footer in the text")
 
-    for dataset in _datasets():  # the Sharepoint, Onedrive and Network-Drive datasets
-        data_sap = dataset / "sap" / "entities.json"
-        if not data_sap.is_file():
-            offenders.append(f"{_rel(dataset)}: no sap/entities.json")
-        elif (
-            "SYNTHETIC"
-            not in str(json.loads(data_sap.read_text(encoding="utf-8")).get("_label", "")).upper()
-        ):
-            offenders.append(f"{_rel(data_sap)}: _label does not say SYNTHETIC")
-        for ontology in (dataset / "slice" / "ontology").glob("customers*.yaml"):
-            if "SYNTHETIC" not in ontology.read_text(encoding="utf-8").upper():
-                offenders.append(f"{_rel(ontology)}: no SYNTHETIC label")
-        for path in sorted((dataset / "contracts").rglob("*.pdf")):
+    for dataset in _datasets():  # the Sharepoint, Onedrive and Network-Drive PDFs
+        for path in sorted(dataset.rglob("*.pdf")):
             text = " ".join((p.extract_text() or "") for p in PdfReader(str(path)).pages)
             if "SYNTHETIC" not in text:
                 offenders.append(f"{_rel(path)}: no SYNTHETIC footer in the text")
@@ -335,10 +324,15 @@ def run_synthetic_label() -> bool:
 
 
 def _datasets() -> list[Path]:
-    """The per-source datasets under the synthetic folder: each has contracts/ and slice/ (generate_datasets.py)."""
+    """The per-source folders under the synthetic folder (Sharepoint, Onedrive, Network-Drive): PDFs only.
+
+    Their ontology, SAP records, page labels and expected results are the shared ones (generate_datasets.py).
+    """
     base = ROOT / SYNTHETIC
     return sorted(
-        d for d in base.iterdir() if (d / "contracts").is_dir() and (d / "slice").is_dir()
+        d
+        for d in base.iterdir()
+        if d.is_dir() and d.name != "contracts" and any(d.glob("Chain_*/*.pdf"))
     )
 
 
@@ -392,17 +386,15 @@ def run_fixtures() -> bool:
     on_disk = {p.relative_to(contracts).as_posix() for p in contracts.rglob("*.pdf")}
     offenders = [f"{doc}: has a label but no file" for doc in sorted(set(labels) - on_disk)]
     offenders += [f"{doc}: file has no label" for doc in sorted(on_disk - set(labels))]
+    sources_file = labels_file.parent / "source_datasets.v1.json"
+    sources = (
+        json.loads(sources_file.read_text(encoding="utf-8")).get("datasets", {})
+        if sources_file.is_file()
+        else {}
+    )
     for dataset in _datasets():
-        labels_path = dataset / "slice" / "evals" / "golden" / "page_labels.json"
-        found = {
-            p.relative_to(dataset / "contracts").as_posix()
-            for p in (dataset / "contracts").rglob("*.pdf")
-        }
-        have = (
-            set(json.loads(labels_path.read_text(encoding="utf-8")))
-            if labels_path.is_file()
-            else set()
-        )
+        found = {p.relative_to(dataset).as_posix() for p in dataset.rglob("*.pdf")}
+        have = set(sources.get(dataset.name, {}).get("page_labels", {}))
         offenders += [
             f"{dataset.name}/{doc}: has a label but no file" for doc in sorted(have - found)
         ]

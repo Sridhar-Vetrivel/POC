@@ -168,10 +168,12 @@ def test_a_change_on_the_share_is_seen_after_the_revalidation_time(tmp_path):
     assert source.revalidate_seconds > 0  # a stat over a network is slow, so not on every call
     path = "Acme/Acme_Master.txt"
     assert documents.load_document(source, path).pages == ("Rebate 5%",)
-    (root / path).write_text("Rebate 9%", encoding="utf-8")
+    # A different length, so the file's version (modified time and size) changes even when the clock
+    # has not ticked between the two writes: the same length was a flaky test on Windows (23 Oct 2026).
+    (root / path).write_text("Rebate 9.5%", encoding="utf-8")
     assert documents.load_document(source, path).pages == ("Rebate 5%",)  # still the cached copy
     source.revalidate_seconds = 0
-    assert documents.load_document(source, path).pages == ("Rebate 9%",)
+    assert documents.load_document(source, path).pages == ("Rebate 9.5%",)
 
 
 def test_the_source_never_writes(tmp_path):

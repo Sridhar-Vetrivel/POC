@@ -37,9 +37,16 @@
    or OneDrive text is never given to another.
 7. **Start-up checks each switched-on source** (SharePoint and OneDrive need sign-in and their settings; the network source needs
    its path) and refuses an unknown name in the list.
-8. **Guidance `v3`** (`MCP-Server/guidance/v3/`, served by default; `v2` kept unchanged because the demo results refer to it):
+8. **Guidance `v3`, then `v4`** (`MCP-Server/guidance/v3/`, served by default; `v2` kept unchanged because the demo results refer to it):
    name each file's source; if `complete` is false say the check is incomplete and which source failed, and never read "no file
    found" as "no contract exists"; if `conflicts` is not empty ask which copy is right.
+
+**Update, 23 Oct 2026 (after the live QA, demo guide section 8b):** the first live runs used guidance v3 and showed wording faults and one
+engine fault, fixed in a **guidance `v4`** (served by default; v2 and v3 are kept unchanged) and in `compare.py`: a line that
+**matches** SAP but has no SAP sales in its period is now a match with no sales base (`monthly_base` null) and a caveat, not "not
+checked"; a variance with no sales stays not checked. The same QA found and fixed a thread bug (sources must be built in the
+request thread so SharePoint and OneDrive see the signed-in user). Source-down behaviour passed: the answer said the check was
+incomplete and named the failed source, and gave no "no contract" claim.
 
 ## Options considered
 

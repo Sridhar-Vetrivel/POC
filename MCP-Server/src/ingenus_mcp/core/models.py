@@ -58,7 +58,12 @@ class ContractFile(BaseModel):
 class SourceInfo(BaseModel):
     source: str
     ok: bool
-    files: int
+    files: int = Field(
+        description=(
+            "How many files this source holds in total, for ALL customers (not this customer's files, "
+            "and not files shared with other sources)."
+        )
+    )
     seconds: float
     reason: str | None = Field(default=None, description="Why the source could not be read.")
 
@@ -181,8 +186,12 @@ class Finding(BaseModel):
     contract_rate_pct: Decimal
     sap_rate_pct: Decimal | None
     effective_date: date
-    monthly_base: Decimal = Field(
-        description="Net sales the rate applies to, in the latest month that has SAP sales."
+    monthly_base: Decimal | None = Field(
+        description=(
+            "Net sales the rate applies to, in the latest month that has SAP sales. Null for a line that "
+            "matches SAP when SAP has no sales at all in its period: the rates agree, so there is no gap, "
+            "but there is no base to show."
+        )
     )
     monthly_gap: Decimal = Field(
         description=(

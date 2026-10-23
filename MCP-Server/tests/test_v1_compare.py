@@ -154,6 +154,70 @@ def test_no_sales_at_all_for_a_line_is_not_checked(make_world):
     assert any("SAP sales missing for 2026-07" in n.reason for n in result.not_checked)
 
 
+def test_a_matching_line_with_no_sales_in_its_period_is_a_match_not_unchecked(make_world):
+    # Seen live (Chain E, 23 Oct 2026): the master's rates matched SAP but SAP had no sales for 2025, so
+    # three lines were reported as not checked and Claude suggested the exposure could be higher.
+    doc = make_world(
+        [
+            "Widget rebate: 4.0% of net sales of Widget.",
+            "Widget rebate: 5.0% of net sales of Widget.",
+        ],
+        [{"kind": "rebate", "product": "Widget", "rate_pct": "4.0", "basis": "product_net_sales"}],
+        [
+            {"month": "2026-01", "product": "Widget", "net_sales": "100000.00"},
+            {"month": "2026-02", "product": "Widget", "net_sales": "100000.00"},
+        ],
+    )
+    master = term(
+        "rebate",
+        "Widget",
+        "4",
+        "Widget rebate: 4.0% of net sales of Widget.",
+        document=doc,
+        page=1,
+        effective=date(2025, 2, 1),
+    )
+    amendment = term(
+        "rebate",
+        "Widget",
+        "5",
+        "Widget rebate: 5.0% of net sales of Widget.",
+        document=doc,
+        page=2,
+        effective=date(2026, 1, 1),
+    )
+    result = run([master, amendment], as_of=date(2026, 2, 28), customer="T-1")
+    assert result.not_checked == []
+    by_date = {f.effective_date: f for f in result.findings}
+    earlier = by_date[date(2025, 2, 1)]
+    assert earlier.status == "match" and earlier.monthly_base is None
+    assert earlier.monthly_gap == Decimal("0.00") and earlier.indicative_exposure == Decimal("0.00")
+    assert by_date[date(2026, 1, 1)].status == "variance"
+    assert result.total_monthly_gap == Decimal("1000.00")  # 1% of 100,000
+    assert result.total_indicative_exposure == Decimal("2000.00")  # January and February
+    assert any("no sales base is shown" in c for c in result.caveats)
+
+
+def test_a_variance_with_no_sales_in_its_period_is_still_not_checked(make_world):
+    doc = make_world(
+        ["Widget rebate: 5.0% of net sales of Widget."],
+        [{"kind": "rebate", "product": "Widget", "rate_pct": "4.0", "basis": "product_net_sales"}],
+        [{"month": "2026-05", "product": "Widget", "net_sales": "100000.00"}],
+    )
+    t = term(
+        "rebate",
+        "Widget",
+        "5",
+        "Widget rebate: 5.0% of net sales of Widget.",
+        document=doc,
+        page=1,
+        effective=date(2025, 2, 1),
+    )
+    result = run([t], as_of=date(2025, 12, 31), customer="T-1")  # a year with no sales at all
+    assert result.findings == []  # a gap that cannot be sized is never guessed
+    assert any("SAP sales missing" in n.reason for n in result.not_checked)
+
+
 def test_unknown_customer_is_reported():
     result = run(chain_x_terms(), customer="SYN-CUST-9999")
     assert result.findings == []

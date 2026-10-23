@@ -136,6 +136,7 @@ def compare(
     # 4. Compare each term over the months it applies.
     findings: list[Finding] = []
     partial = False
+    no_base: list[str] = []  # lines that match SAP but have no SAP sales in their period
     for term, end in sorted(
         usable,
         key=lambda x: (_KIND_ORDER[x[0].kind], norm(x[0].product or ""), x[0].effective_date),
@@ -194,6 +195,26 @@ def compare(
         bases = {m: base_for(m) for m, _ in months}
         with_sales = [(m, f) for m, f in months if bases[m] is not None]
         if not with_sales:
+            if status == "match":
+                # The rates agree, so there is no gap whatever the sales were: only the base is unknown.
+                # This is an earlier term that a later amendment replaced, or a new line with no sales yet.
+                # It is not "not checked": the rate status never depends on sales.
+                no_base.append(f"{label} ({months[0][0]} to {months[-1][0]})")
+                findings.append(
+                    Finding(
+                        kind=term.kind,
+                        product=term.product,
+                        status="match",
+                        contract_rate_pct=term.rate_pct,
+                        sap_rate_pct=sap_rate,
+                        effective_date=term.effective_date,
+                        monthly_base=None,
+                        monthly_gap=_money(Decimal(0), places),
+                        indicative_exposure=_money(Decimal(0), places),
+                        citation=term.citation,
+                    )
+                )
+                continue
             not_checked.append(
                 NotChecked(
                     item=label,
@@ -277,6 +298,11 @@ def compare(
         caveats.append(
             "Some months have no SAP sales yet. The exposure counts only the months that do, so the "
             "true exposure to the as_of date is likely larger. Do not present it as complete."
+        )
+    if no_base:
+        caveats.append(
+            "These lines match SAP, but SAP has no sales for their period, so no sales base is shown. "
+            "There is no gap and no exposure from them: " + "; ".join(no_base) + "."
         )
     for label in sorted(set(ignored_fee_labels)):
         caveats.append(

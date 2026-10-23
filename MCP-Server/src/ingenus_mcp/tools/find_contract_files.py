@@ -33,6 +33,7 @@ def find_contract_files(
     The server may read several sources (SharePoint, OneDrive, a network drive): each file says which
     one it is in. If `complete` is false a source could not be read: say which, do not treat a missing
     file as a missing contract, and do not present the check as complete. If `conflicts` is not empty,
-    ask the user which copy is right.
+    ask the user which copy is right. Each entry in `sources` says how many files that source holds in
+    total (all customers): it does not mean the sources hold the same files.
     """
     return contracts.find_contract_files(load_settings(), customer, kind)

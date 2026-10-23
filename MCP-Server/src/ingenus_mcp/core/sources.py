@@ -311,10 +311,9 @@ class RoutedSource:
         kind, _ = split_document_id(document_id, self.kinds)
         return self._source(kind).revalidate_seconds
 
-    def _list_one(self, kind: str, out: dict[str, Any]) -> None:
+    def _list_one(self, kind: str, source: DocumentSource, out: dict[str, Any]) -> None:
         started = time.monotonic()
         try:
-            source = self._source(kind)
             items = source.list_items()
             out[kind] = (
                 SourceStatus(kind, True, len(items), time.monotonic() - started),
@@ -330,10 +329,23 @@ class RoutedSource:
 
     def list_items(self) -> list[DocItem]:
         results: dict[str, Any] = {}
-        workers = [
-            threading.Thread(target=self._list_one, args=(kind, results), daemon=True)
-            for kind in self.kinds
-        ]
+        # Build every source HERE, in the thread that serves the request: SharePoint and OneDrive take
+        # the signed-in user from the request's context, which a new thread does not have.
+        workers = []
+        for kind in self.kinds:
+            started = time.monotonic()
+            try:
+                source = self._source(kind)
+            except BaseException as exc:  # noqa: BLE001 - reported for this source only
+                results[kind] = (
+                    SourceStatus(kind, False, 0, time.monotonic() - started, _reason(exc)),
+                    [],
+                    [],
+                )
+                continue
+            workers.append(
+                threading.Thread(target=self._list_one, args=(kind, source, results), daemon=True)
+            )
         for worker in workers:
             worker.start()
         deadline = time.monotonic() + self._settings.sources_timeout

@@ -9,7 +9,7 @@ from __future__ import annotations
 import time
 
 import pytest
-from v1_support import isolated_env, term  # noqa: F401  (pytest fixtures)
+from v1_support import isolated_env, signed_in_as, term  # noqa: F401  (pytest fixtures)
 
 from ingenus_mcp.core import citations, contracts, documents
 from ingenus_mcp.core.config import load_settings
@@ -334,3 +334,37 @@ def test_the_synthetic_chains_give_their_expected_numbers_through_two_sources(
         assert result.not_checked == [], result.not_checked
         assert result.total_monthly_gap == Decimal(e["gap"])
         assert result.total_indicative_exposure == Decimal(e["exposure"])
+
+
+def test_each_source_is_built_in_the_request_thread_so_it_can_see_the_signed_in_user(isolated_env):
+    """SharePoint and OneDrive read the user from the request context, which a worker thread lacks.
+
+    Seen live on 23 Oct 2026: both were reported as 'needs a signed-in user' although the user was signed in.
+    """
+    from ingenus_mcp.core import auth
+
+    def builder(_settings, kind):
+        if auth.current_token() is None:
+            raise PermissionError("Reading SharePoint or OneDrive needs a signed-in user.")
+        return FakeSource(kind, {f"{kind}/x.pdf": "1"})
+
+    src = RoutedSource(load_settings(), ("sharepoint", "onedrive"), builder=builder)
+    with signed_in_as("tester@example.com", "oid-1"):
+        items = src.list_items()
+    assert sorted(i.rel_path for i in items) == [
+        "onedrive:onedrive/x.pdf",
+        "sharepoint:sharepoint/x.pdf",
+    ]
+    assert all(s.ok for s in src.statuses), [s.reason for s in src.statuses]
+
+
+def test_a_source_that_cannot_be_built_is_reported_and_the_others_still_list(isolated_env):
+    def builder(_settings, kind):
+        if kind == "sharepoint":
+            raise PermissionError("no sign-in")
+        return FakeSource(kind, {"E/e.pdf": "1"})
+
+    src = RoutedSource(load_settings(), ("sharepoint", "network"), builder=builder)
+    assert [i.rel_path for i in src.list_items()] == ["network:E/e.pdf"]
+    bad = next(s for s in src.statuses if s.source == "sharepoint")
+    assert bad.ok is False and bad.reason == "no sign-in"

@@ -4,6 +4,10 @@ A checklist and results sheet for trying v1 for real: Claude Desktop with the br
 central MCP server, asked questions by a person, with the answers checked against known numbers. Everything uses
 **synthetic data and a mock SAP**. Nothing here touches Ingenus systems or data.
 
+> **Status (23 Oct 2026).** Section 8b (all three sources at once, with Postgres for the audit log and check history) was run live and
+> passed after three fixes (findings 6 to 13). Guidance now served: **v4** (v2 and v3 are kept). The older note below is the
+> state on 19 Oct.
+>
 > **Status (19 Oct 2026).** The bridge is installed in Claude Desktop (unpacked) and the Chain X question gave the
 > exact numbers in Chat. The other golden questions, the server-side update test and the break-it tests have not
 > been run yet. The guidance (skills) is not served by the server yet (V1-3), so every run below is a **run without
@@ -216,10 +220,10 @@ in place. **Nothing here touches real Ingenus data.**
   user would work: nobody should have to change a setting per question.
 - **Mode B, after the source-routing build:** the server is set up with all three sources at once
   (`INGENUS_SOURCES=sharepoint,onedrive,network`) and finds a customer's files in whichever source holds them, with no
-  restart and no setting to change. **It cannot be run yet**: it is a proposal, see
-  [the source routing proposal](../../docs/proposal/multi_source_routing_impact_analysis_and_proposal.md) and
-  [the records and search index proposal](../../docs/proposal/records_and_search_index_impact_analysis_and_proposal.md).
-  Its expected results are written below so the QA is ready when the build is.
+  restart and no setting to change. **Built and run live on 23 Oct 2026 (results below).** The design is in
+  [the source routing proposal](../../docs/proposal/multi_source_routing_impact_analysis_and_proposal.md), the
+  [records and search index proposal](../../docs/proposal/records_and_search_index_impact_analysis_and_proposal.md) (what comes next)
+  and [decision 0010](../../docs/decisions/0010-v1-several-contract-sources-at-once.md).
 
 **Putting the files in place (steps 1 to 3) is the same for both modes. Do it once.**
 
@@ -345,7 +349,7 @@ A folder on the **same laptop** has no real network delay and no separate permis
 The realistic version is a share on another machine or an Azure file share, read as a service account. What Ingenus's
 real share is (file server, DFS, permissions) is **unknown**: ask Harish.
 
-### Mode B: all three sources at once (after the build; not runnable today)
+### Mode B: all three sources at once (run live on 23 Oct 2026)
 
 Set once in `MCP-Server\.env`, restart once, then ask in any order with **no further change**:
 
@@ -374,6 +378,14 @@ INGENUS_SOURCES=sharepoint,onedrive,network
 
 **Pass rule for Mode B:** the same figures as Mode A for every chain, with no setting changed and no restart; every file names
 its source; a source that fails is reported and the answer is never presented as complete.
+
+**Mode B result (23 Oct 2026): pass.** Run as `develop.admin@vvrzl.onmicrosoft.com` on branch `feature/multi-source-routing`, with Postgres 18 switched on for the audit store and check history (role `ingenus_server`, database `ingenus_audit`). Six questions and three source-down tests passed; MB-3 passed on the numbers and failed strictly, and was **re-run after the fixes**:
+
+| Re-run | When | Result |
+|---|---|---|
+| MB-3 (Chain E) after the engine fix and guidance v4 | 23 Oct 2026, 10:55 UTC | **✅** 1,100.00 / 8,800.00; `compare_contract_to_sap not_checked=0` (was 3); six findings (1 variance, 5 match); a quote for every line; the source system named ("network"); no "exposure could be higher" claim; draft left out; cannot change SAP |
+
+What Postgres held after the run: the audit `events` (one row per login and tool call, each naming the signed-in user), `checks` (one row per comparison with its gap, exposure and documents) and `check_docs` (the files each check relied on, with their source in the id, for example `onedrive:Chain_C/...`). Not re-asked after the v4 guidance: MB-2 (Product C quote, "same 7 files") and MB-4 ("no customer named Chain X"); the tests cover the new wording, but only a live run shows Claude following it.
 
 ### Per-user tests (optional, needs a second dev-tenant user)
 
@@ -497,6 +509,7 @@ Severity: **blocker** (cannot demo), **wrong answer**, **risk**, **polish**.
 | Did a server-only change reach Claude Desktop (9.1)? | |
 | Did Cowork behave like Chat? | |
 | Was the hostile-text page flagged and ignored (Q9)? | |
+| Did all three sources work at once, with nothing changed per question (8b, Mode B)? | Yes (23 Oct 2026): SharePoint, OneDrive and the network folder in one server run. When the network folder was taken away, the answer said the check was incomplete and named the failed source |
 | Any wrong answers that sounded confident? | |
 | How would Ingenus users install the bridge? | Open (finding 1) |
 | Next steps | |

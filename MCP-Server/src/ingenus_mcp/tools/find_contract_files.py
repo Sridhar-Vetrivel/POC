@@ -30,5 +30,9 @@ def find_contract_files(
     Use this to see which files exist before reading pages. Draft files are left out on purpose and
     listed by name in `excluded_drafts`; mention them if relevant. Returns file names, kind, date and
     hash only, not the contents. Read-only. Never opens a file outside the configured contract folder.
+    The server may read several sources (SharePoint, OneDrive, a network drive): each file says which
+    one it is in. If `complete` is false a source could not be read: say which, do not treat a missing
+    file as a missing contract, and do not present the check as complete. If `conflicts` is not empty,
+    ask the user which copy is right.
     """
     return contracts.find_contract_files(load_settings(), customer, kind)

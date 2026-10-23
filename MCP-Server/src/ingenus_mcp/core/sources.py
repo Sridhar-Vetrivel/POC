@@ -9,12 +9,14 @@ from __future__ import annotations
 import fnmatch
 import os
 import threading
+import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
+from ingenus_mcp.core import auth
 from ingenus_mcp.core.config import Settings
 from ingenus_mcp.core.scope import ScopeError, resolve_inside
 
@@ -202,26 +204,172 @@ class NetworkShareSource(LocalFolderSource):
         return self._item(path)
 
 
-def get_source(settings: Settings) -> DocumentSource:
-    """The source for the current request. For SharePoint this needs the signed-in user's token."""
-    if settings.doc_source == "local":
+SOURCE_KINDS = ("local", "sharepoint", "onedrive", "network")
+
+
+def build_source(settings: Settings, kind: str) -> DocumentSource:
+    """One source of the given kind. For SharePoint and OneDrive this needs the signed-in user's token."""
+    if kind == "local":
         return LocalFolderSource(settings.contracts_dir)
-    if settings.doc_source == "network":
+    if kind == "network":
         if settings.network_root is None:
             raise ValueError("INGENUS_DOC_SOURCE=network needs INGENUS_NETWORK_ROOT.")
         return NetworkShareSource(
             settings.network_root, settings.exclude_patterns, settings.network_timeout
         )
-    if settings.doc_source == "onedrive":
+    if kind == "onedrive":
         from ingenus_mcp.core import graph
 
         return graph.onedrive_source(settings)
-    if settings.doc_source == "sharepoint":
+    if kind == "sharepoint":
         # Imported here: the local route needs no Microsoft libraries.
         from ingenus_mcp.core import graph
 
         return graph.sharepoint_source(settings)
     raise ValueError(
-        f"Unknown INGENUS_DOC_SOURCE '{settings.doc_source}'. "
-        "Use 'local', 'sharepoint', 'onedrive' or 'network'."
+        f"Unknown INGENUS_DOC_SOURCE '{kind}'. Use 'local', 'sharepoint', 'onedrive' or 'network'."
     )
+
+
+def get_source(settings: Settings) -> DocumentSource:
+    """The source for the current request: one source, or all the sources in INGENUS_SOURCES."""
+    if settings.sources:
+        return RoutedSource(settings, settings.sources)
+    return build_source(settings, settings.doc_source)
+
+
+# --- several sources at once -----------------------------------------------------------------
+
+
+class SourceUnavailable(RuntimeError):
+    """Every source failed, so there is nothing to list."""
+
+
+@dataclass(frozen=True)
+class SourceStatus:
+    source: str
+    ok: bool
+    files: int
+    seconds: float
+    reason: str | None = None
+
+
+def split_document_id(document_id: str, kinds: tuple[str, ...]) -> tuple[str, str]:
+    """('sharepoint', 'Chain_A/x.pdf') from 'sharepoint:Chain_A/x.pdf'. Anything else is refused."""
+    kind, sep, path = document_id.partition(":")
+    if not sep or kind not in kinds or not path:
+        raise ScopeError(
+            "The document id does not name one of this server's sources. "
+            "Use a document_id exactly as returned by find_contract_files."
+        )
+    return kind, path
+
+
+def _reason(exc: BaseException) -> str:
+    text = str(exc).strip() or type(exc).__name__
+    return text if len(text) <= 200 else text[:197] + "..."
+
+
+class RoutedSource:
+    """All the enabled sources behind the one DocumentSource interface.
+
+    A document_id is `<source>:<path>`; the part after the colon is checked by that source exactly as when
+    it is the only source. Listing asks every source at once, each in its own thread, and gives up on a
+    slow one after `sources_timeout` seconds. A source that fails does not hide the others: it is
+    recorded in `statuses`, so the caller can say that the list may be incomplete. Only when every source
+    fails is an error raised. Read-only, like the sources it wraps.
+    """
+
+    revalidate_seconds = 0.0  # the real window is per source: see revalidate_for
+
+    def __init__(
+        self,
+        settings: Settings,
+        kinds: tuple[str, ...],
+        builder: Callable[[Settings, str], DocumentSource] = build_source,
+    ):
+        self._settings = settings
+        self.kinds = tuple(kinds)
+        self._builder = builder
+        self._built: dict[str, DocumentSource] = {}
+        self._lock = threading.Lock()
+        self.statuses: list[SourceStatus] = []
+        self.skipped: list[tuple[str, str]] = []
+
+    @property
+    def identity(self) -> str:
+        # Who is reading, and from which sources: SharePoint and OneDrive text is per person.
+        return f"multi:{auth.current_user_id() or '-'}:{','.join(self.kinds)}"
+
+    def _source(self, kind: str) -> DocumentSource:
+        with self._lock:
+            if kind not in self._built:
+                self._built[kind] = self._builder(self._settings, kind)
+            return self._built[kind]
+
+    def revalidate_for(self, document_id: str) -> float:
+        kind, _ = split_document_id(document_id, self.kinds)
+        return self._source(kind).revalidate_seconds
+
+    def _list_one(self, kind: str, out: dict[str, Any]) -> None:
+        started = time.monotonic()
+        try:
+            source = self._source(kind)
+            items = source.list_items()
+            out[kind] = (
+                SourceStatus(kind, True, len(items), time.monotonic() - started),
+                items,
+                list(getattr(source, "skipped", [])),
+            )
+        except BaseException as exc:  # noqa: BLE001 - one source failing must not hide the others
+            out[kind] = (
+                SourceStatus(kind, False, 0, time.monotonic() - started, _reason(exc)),
+                [],
+                [],
+            )
+
+    def list_items(self) -> list[DocItem]:
+        results: dict[str, Any] = {}
+        workers = [
+            threading.Thread(target=self._list_one, args=(kind, results), daemon=True)
+            for kind in self.kinds
+        ]
+        for worker in workers:
+            worker.start()
+        deadline = time.monotonic() + self._settings.sources_timeout
+        for worker in workers:
+            worker.join(max(0.0, deadline - time.monotonic()))
+
+        statuses: list[SourceStatus] = []
+        items: list[DocItem] = []
+        skipped: list[tuple[str, str]] = []
+        for kind in self.kinds:
+            if kind in results:
+                status, found, skips = results[kind]
+                items.extend(replace(i, rel_path=f"{kind}:{i.rel_path}") for i in found)
+                skipped.extend((f"{kind}:{rel}", why) for rel, why in skips)
+            else:  # still running: abandoned (a daemon thread), reported as failed
+                status = SourceStatus(
+                    kind,
+                    False,
+                    0,
+                    self._settings.sources_timeout,
+                    f"Did not answer within {self._settings.sources_timeout:g} seconds.",
+                )
+            statuses.append(status)
+        self.statuses, self.skipped = statuses, skipped
+        if not any(st.ok for st in statuses):
+            raise SourceUnavailable(
+                "No contract source could be read. "
+                + " ".join(f"{st.source}: {st.reason}" for st in statuses)
+            )
+        return sorted(items, key=lambda i: i.rel_path.casefold())
+
+    def stat(self, rel_path: str) -> DocItem:
+        kind, path = split_document_id(rel_path, self.kinds)
+        item = self._source(kind).stat(path)
+        return replace(item, rel_path=f"{kind}:{item.rel_path}")
+
+    def read_bytes(self, item: DocItem) -> bytes:
+        kind, path = split_document_id(item.rel_path, self.kinds)
+        return self._source(kind).read_bytes(replace(item, rel_path=path))

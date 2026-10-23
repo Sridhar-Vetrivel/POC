@@ -57,6 +57,10 @@ class Settings:
     stateless: bool
     # V1-6: where the contracts are read from. "local" (contracts_dir) or "sharepoint" (Graph).
     doc_source: str = "local"
+    # Several sources at once (INGENUS_SOURCES=sharepoint,onedrive,network). Empty: the single
+    # doc_source above, as before. With several, a file's document_id starts with its source.
+    sources: tuple[str, ...] = ()
+    sources_timeout: float = 45.0  # seconds to wait for all sources to list their files
     sharepoint_site_url: str = ""  # e.g. https://<tenant>.sharepoint.com/sites/<site>
     sharepoint_folder: str = (
         ""  # folder inside the site's default library, e.g. General/synthetic/contracts
@@ -144,6 +148,13 @@ def _patterns(value: str | None) -> tuple[str, ...]:
     return tuple(p.strip() for p in value.split(",") if p.strip())
 
 
+def _source_list(value: str | None) -> tuple[str, ...]:
+    """The sources named in INGENUS_SOURCES, in order, without repeats. Unset or blank: none."""
+    if not value:
+        return ()
+    return tuple(dict.fromkeys(p.strip().lower() for p in value.split(",") if p.strip()))
+
+
 def _key_file(value: str) -> Path | None:
     """The certificate key path from INGENUS_CERT_KEY_FILE; a relative path is read from MCP-Server/."""
     if not value:
@@ -179,6 +190,8 @@ def load_settings() -> Settings:
         # server rejects that ("Missing session ID"; seen 19 Oct 2026). Our tools keep no state.
         stateless=os.environ.get("INGENUS_MCP_STATELESS", "1") != "0",
         doc_source=os.environ.get("INGENUS_DOC_SOURCE", "local").strip().lower(),
+        sources=_source_list(os.environ.get("INGENUS_SOURCES")),
+        sources_timeout=float(os.environ.get("INGENUS_SOURCES_TIMEOUT", "45")),
         sharepoint_site_url=os.environ.get("INGENUS_SP_SITE_URL", "").strip(),
         sharepoint_folder=os.environ.get("INGENUS_SP_FOLDER", "").strip().strip("/"),
         onedrive_folder=os.environ.get("INGENUS_OD_FOLDER", "").strip().strip("/"),

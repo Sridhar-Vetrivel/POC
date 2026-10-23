@@ -107,6 +107,8 @@ def isolated_env(tmp_path, monkeypatch):
         "INGENUS_OD_FOLDER",
         "INGENUS_NETWORK_ROOT",
         "INGENUS_EXCLUDE_PATTERNS",
+        "INGENUS_SOURCES",
+        "INGENUS_SOURCES_TIMEOUT",
     ):
         monkeypatch.delenv(var, raising=False)
     return tmp_path

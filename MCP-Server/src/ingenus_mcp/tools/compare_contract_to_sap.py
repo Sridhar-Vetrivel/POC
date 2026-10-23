@@ -9,7 +9,7 @@ from typing import Annotated
 
 from pydantic import Field
 
-from ingenus_mcp.core import auth, calllog, history
+from ingenus_mcp.core import auth, calllog, history, records
 from ingenus_mcp.core import sap as sap_access
 from ingenus_mcp.core.compare import compare
 from ingenus_mcp.core.config import load_settings
@@ -74,6 +74,9 @@ def compare_contract_to_sap(
     volumes = sap_access.sales_volume(reader, customer_id, min(start, end), end)
     result = compare(terms, customer_id, as_of, setup, volumes, settings)
     _leave_a_record(settings, result)
+    records.save_verified(
+        settings, get_source(settings), customer_id, terms, calllog.current_user()
+    )
     return result
 
 

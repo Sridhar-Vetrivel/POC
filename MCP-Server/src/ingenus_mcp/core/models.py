@@ -279,3 +279,56 @@ class GuideResult(BaseModel):
         default_factory=list, description="Names asked for that do not exist."
     )
     note: str
+
+
+# --- get_contract_terms ----------------------------------------------------------------------
+class StoredTerm(BaseModel):
+    term: ExtractedTerm = Field(
+        description=(
+            "The term, with its exact quote, page and document. Pass it unchanged in `terms` of "
+            "compare_contract_to_sap, which checks the quote against the page again."
+        )
+    )
+    status: Literal["verified"] = Field(
+        default="verified",
+        description="Verified by code (the quote was found on the page and holds the rate). Not reviewed by a person.",
+    )
+    verified_at: str
+    verified_by: str
+
+
+class DocumentTerms(BaseModel):
+    document_id: str
+    filename: str
+    kind: Literal["master", "amendment", "other"]
+    source: str | None = None
+    sha256_12: str
+    stored_terms: int = Field(
+        description="How many stored terms this file has, still good for this content."
+    )
+    action: Literal["use_stored_terms", "read_pages"] = Field(
+        description=(
+            "use_stored_terms: its terms are in `stored`, do not read it again. read_pages: no stored terms "
+            "for this content; read it with get_contract_pages and extract the terms as usual (a file with "
+            "no rebate or fee terms, such as one that changes payment terms only, also shows read_pages)."
+        )
+    )
+
+
+class ContractTermsResult(BaseModel):
+    customer_id: str | None
+    customer_name: str | None = None
+    stored: list[StoredTerm]
+    documents: list[DocumentTerms]
+    set_aside: int = Field(
+        description="Stored terms set aside because their file changed since they were stored."
+    )
+    excluded_drafts: list[str] = Field(default_factory=list)
+    sources: list[SourceInfo] = Field(default_factory=list)
+    complete: bool = True
+    conflicts: list[str] = Field(default_factory=list)
+    not_checked: list[NotChecked] = Field(default_factory=list)
+    storing_enabled: bool = Field(
+        description="False if this server keeps no stored terms (then every file shows read_pages)."
+    )
+    note: str

@@ -2,14 +2,14 @@
 
     python -m ingenus_mcp.audit verify [--log PATH]
     python -m ingenus_mcp.audit ship   [--log PATH] [--store PATH]
-    python -m ingenus_mcp.audit prune  [--days N] [--store PATH] [--history PATH]
+    python -m ingenus_mcp.audit prune  [--days N] [--store PATH] [--history PATH] [--records PATH]
     python -m ingenus_mcp.audit query  [--store PATH] [--user NAME] [--tool NAME] [--event tool_call|login]
                                        [--since ISO_TIME] [--limit N]
 
 `verify` shows whether any line of the log was edited, removed or reordered. It cannot see lines cut off
 the END of the file (nothing later points back at them); keep a copy of the last hash somewhere else for
 that. Reads the log and the store only, except `ship` (adds missing events to the store) and `prune`
-(deletes events and check records older than N days, default INGENUS_RETENTION_DAYS = 365, from the
+(deletes events, check records and stored terms older than N days (terms: not used for N days), default INGENUS_RETENTION_DAYS = 365, from the
 store and the history; the local log is never touched). With Postgres configured (INGENUS_PG_HOST) the
 store and the history are the Postgres database and --store/--history are not needed.
 Prints to stdout (this is a command, not the MCP server).
@@ -23,7 +23,7 @@ import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from ingenus_mcp.core import auditstore, calllog, history
+from ingenus_mcp.core import auditstore, calllog, history, records
 from ingenus_mcp.core.config import load_env_file, load_settings
 
 
@@ -40,6 +40,7 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--store", type=Path, default=settings.audit_store)
         if name == "prune":
             p.add_argument("--history", type=Path, default=settings.history_db)
+            p.add_argument("--records", type=Path, default=settings.records_db)
             p.add_argument("--days", type=int, default=settings.retention_days)
         if name == "query":
             p.add_argument("--user")
@@ -73,6 +74,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.history is not None:
             print(
                 f"Deleted {history.prune(args.history, before)} check record(s) older than {args.days} days from {args.history}."
+            )
+            pruned = True
+        if args.records is not None:
+            print(
+                f"Deleted {records.prune(args.records, before)} stored term(s) not used for {args.days} days from {args.records}."
             )
             pruned = True
         if not pruned:

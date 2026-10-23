@@ -35,9 +35,9 @@ def run_over_http(url: str) -> dict:
 
 def check_demo(out: dict) -> None:
     assert out["server"] == "ingenus"
-    assert len(out["tools"]) == 8 and all(
+    assert len(out["tools"]) == 9 and all(
         out["tools"].values()
-    )  # six + get_guide (0003) + get_check_history (0006)
+    )  # six + get_guide (0003) + get_check_history (0006) + get_contract_terms (0011)
     assert "get_guide" in out["tools"]
     assert out["guides"] == ["contract-check-playbook", "report-format"]
     assert out["guide_chars"] > 1000  # the full guide text travelled, not just the names

@@ -2,6 +2,8 @@
 
 **Date:** 21 Oct 2026 · **Status:** built and tested offline; not yet tried on a real OneDrive or share · **Phase:** 1, v1, steps V1-7 and V1-8
 
+> **Update, 23 Oct 2026:** the server can now read several sources at once, so "one source per server run" no longer holds. See [0010](0010-v1-several-contract-sources-at-once.md). The OneDrive and network readers and their guards below are unchanged.
+
 ## Context
 
 Ingenus's contracts sit in SharePoint, OneDrive and a network drive. SharePoint is built (decision 0004). The other two

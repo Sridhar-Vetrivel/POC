@@ -30,16 +30,44 @@ def _write_guide(folder: Path, name: str, description: str, body: str = "Do the 
     )
 
 
-def test_the_server_serves_the_eight_v2_guides():
+GUIDANCE = Path(__file__).resolve().parents[1] / "guidance"
+UNCHANGED_IN_V3 = ("reading-amendments", "rebate-and-fee-terms", "untrusted-text-handling")
+
+
+def test_the_server_serves_the_eight_guides():
     assert set(load_guides(load_settings().guidance_dir)) == V2
 
 
-def test_the_served_guides_are_an_exact_copy_of_skills_v2():
-    served = load_settings().guidance_dir
+def test_the_default_guidance_is_v3():
+    assert load_settings().guidance_dir.name == "v3"
+
+
+def test_guidance_v2_is_still_an_exact_copy_of_skills_v2():
+    # v2 is what the demo results refer to: it must not be edited in place.
     for name in V2:
-        assert (served / name / "SKILL.md").read_bytes() == (
+        assert (GUIDANCE / "v2" / name / "SKILL.md").read_bytes() == (
             V0_SKILLS / name / "SKILL.md"
         ).read_bytes(), f"{name} differs from MCP-PlugIn/skills/v2"
+
+
+def test_guidance_v3_changes_only_the_guides_that_know_about_sources():
+    for name in V2:
+        same = (GUIDANCE / "v3" / name / "SKILL.md").read_bytes() == (
+            GUIDANCE / "v2" / name / "SKILL.md"
+        ).read_bytes()
+        assert same == (name in UNCHANGED_IN_V3), name
+
+
+def test_guidance_v3_tells_claude_what_to_do_when_a_source_is_down():
+    served = load_settings().guidance_dir
+    text = {n: (served / n / "SKILL.md").read_text(encoding="utf-8") for n in V2}
+    assert "complete" in text["contract-check-playbook"]
+    assert "no contract exists" in text["contract-check-playbook"]
+    assert "the check is incomplete" in text["report-format"]
+    assert "Sources" in text["report-format"]
+    assert "conflicts" in text["when-to-stop-and-ask"]
+    assert "source <name>" in text["not-checked-rules"]
+    assert "source name before the colon" in text["extraction-schema"]
 
 
 def test_no_names_returns_the_index_only():

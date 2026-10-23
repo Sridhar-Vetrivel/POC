@@ -294,3 +294,43 @@ def test_start_up_accepts_a_complete_three_source_setup(isolated_env, monkeypatc
         INGENUS_NETWORK_ROOT=str(tmp_path),
     )
     check_startup(settings, "127.0.0.1", "http")  # does not raise
+
+
+# --- the synthetic chains, read through two sources at once -----------------------------------
+
+
+@pytest.mark.parametrize(
+    ("dataset", "kind", "chains"),
+    [
+        ("Sharepoint", "local", ("Chain_A", "Chain_B")),
+        ("Network-Drive", "network", ("Chain_E", "Chain_F")),
+    ],
+)
+def test_the_synthetic_chains_give_their_expected_numbers_through_two_sources(
+    dataset, kind, chains, monkeypatch
+):
+    """Chain A and B stand in for SharePoint (as the local source), E and F for the network drive."""
+    from datetime import date
+    from decimal import Decimal
+
+    from test_v1_datasets import SYNTHETIC, as_terms, golden
+
+    from ingenus_mcp.tools.compare_contract_to_sap import compare_contract_to_sap
+
+    monkeypatch.setenv("INGENUS_SOURCES", "local,network")
+    monkeypatch.setenv("INGENUS_CONTRACTS_DIR", str(SYNTHETIC / "Sharepoint"))
+    monkeypatch.setenv("INGENUS_NETWORK_ROOT", str(SYNTHETIC / "Network-Drive"))
+    expected, terms = golden(dataset)
+    for customer_id, e in expected.items():
+        raw = terms[customer_id]
+        for t in raw:  # the same terms, with the source in front of each document id
+            t["document"] = f"{kind}:{t['document'].split(':', 1)[-1]}"
+        found = contracts.find_contract_files(load_settings(), e["customer"], None)
+        assert found.files and {f.source for f in found.files} == {kind}
+        assert found.complete
+        result = compare_contract_to_sap(
+            customer_id=customer_id, as_of=date.fromisoformat(e["as_of"]), terms=as_terms(raw)
+        )
+        assert result.not_checked == [], result.not_checked
+        assert result.total_monthly_gap == Decimal(e["gap"])
+        assert result.total_indicative_exposure == Decimal(e["exposure"])

@@ -201,6 +201,198 @@ as `develop.admin@vvrzl.onmicrosoft.com`. These are two different logins.
 Not recorded: how long Desktop waited at the first sign-in, and whether it showed a timeout. Note it on the next fresh install
 (delete the cache file first).
 
+## 8b. Source QA: SharePoint, OneDrive and the network drive (six synthetic chains)
+
+**Goal.** Show that the server reads contracts from each of the three places and gives the right numbers, using the six
+chains made for this (Chain A to F). The mock SAP and the customer names already hold them; only the PDFs need to be put
+in place. **Nothing here touches real Ingenus data.**
+
+**Two ways to run this QA.**
+
+- **Mode A, today: one source per server run.** The server reads one source (`INGENUS_DOC_SOURCE`), and reads the settings at
+  start. You run the three sources one after another: put the PDFs in place, set `MCP-Server\.env`, restart the server, ask
+  the questions. Each source holds only its own two chains, so a question about a chain from another source must find
+  **no files**: that is how you know which source answered. This is a **stop-gap for testing the connections**, not how a
+  user would work: nobody should have to change a setting per question.
+- **Mode B, after the source-routing build:** the server is set up with all three sources at once
+  (`INGENUS_SOURCES=sharepoint,onedrive,network`) and finds a customer's files in whichever source holds them, with no
+  restart and no setting to change. **It cannot be run yet**: it is a proposal, see
+  [the source routing proposal](../../docs/proposal/multi_source_routing_impact_analysis_and_proposal.md) and
+  [the records and search index proposal](../../docs/proposal/records_and_search_index_impact_analysis_and_proposal.md).
+  Its expected results are written below so the QA is ready when the build is.
+
+**Putting the files in place (steps 1 to 3) is the same for both modes. Do it once.**
+
+| Source | PDFs to put there (from `MCP-PlugIn\data\synthetic\`) | Chains | Customer ids |
+|---|---|---|---|
+| SharePoint | `Sharepoint\Chain_A`, `Chain_B` | A, B | SYN-CUST-1001, 1002 |
+| OneDrive | `Onedrive\Chain_C`, `Chain_D` | C, D | SYN-CUST-2001, 2002 |
+| Network drive | `Network-Drive\Chain_E`, `Chain_F` | E, F | SYN-CUST-3001, 3002 |
+
+Put the **`Chain_*` folders themselves** (with the PDFs inside) in the target folder, not the PDFs loose. Each chain folder
+has a master agreement, signed amendments and (for A, C, E) an unsigned `_DRAFT` amendment that must be left out.
+
+### Before you start (once)
+
+- [ ] `python scripts/check.py --fast` ends with `0 failed` (the six chains in the mock SAP and the customer file must
+      match the generator).
+- [ ] In `MCP-Server\.env`, note your current lines (SharePoint settings for Chain X). Copy them somewhere so you can
+      restore them in section 11.
+- [ ] The bridge and sign-in work as in section 8a (`INGENUS_AUTH=entra`, the dev tenant `vvrzl`).
+- [ ] Ask every question in a **new chat**, as of **31 Aug 2026**. After each, show the log (command in section 7).
+
+### Step 1: SharePoint (Chain A and B)
+
+1. Open the `mcp-sharepoint-test` site in the dev tenant, **Documents** library, folder `General` > `synthetic`.
+2. Create a folder `sharepoint_set` (a separate folder, so Chain X's folder stays as it was).
+3. Upload the two folders `Chain_A` and `Chain_B` into it (drag them from
+   `MCP-PlugIn\data\synthetic\Sharepoint`). Wait until every spinner has gone and open one PDF in the browser to check.
+4. In `MCP-Server\.env`:
+
+   ```
+   INGENUS_DOC_SOURCE=sharepoint
+   INGENUS_SP_SITE_URL=https://vvrzl.sharepoint.com/sites/mcp-sharepoint-test
+   INGENUS_SP_FOLDER=General/synthetic/sharepoint_set
+   ```
+
+5. Stop the server (Ctrl+C) and start it again: `python -m ingenus_mcp.server`. Open a new chat in Claude Desktop (sign
+   in to the bridge as `develop.admin@vvrzl.onmicrosoft.com` if asked).
+6. Ask the SharePoint questions below.
+
+| # | Ask Claude | Expected | Result | Tools called | Seconds for the first call / What Claude said |
+|---|---|---|---|---|---|
+| SP-1 | Check Chain A against SAP as of 31 Aug 2026. | Product A **variance** (contract 4.5% from 1 Feb 2026, SAP 3.0%); Product B match; admin fee match. **Monthly gap 1,800.00; exposure 12,600.00**. The unsigned Amendment 2 DRAFT is left out. Nothing not checked | | | |
+| SP-2 | Check Chain B against SAP as of 31 Aug 2026. | Product A match; Product C **not set up** in SAP (its setup ended 31 Mar 2026; contract still pays 4.0%); Product D **not set up** (new from 1 Jun 2026 at 3.5%); fee match. **Monthly gap 3,800.00; exposure 11,400.00** | | | |
+| SP-3 | Check Metro Stores against SAP as of 31 Aug 2026. | Same as SP-1 (alias "Metro Stores" = Chain A) | | | |
+| SP-4 | Is there a draft amendment for Chain A? | Yes: Amendment 2 (DRAFT) exists and was left out on purpose | | | |
+| SP-5 | Check Chain C against SAP as of 31 Aug 2026. | *(Mode A only)* Chain C is a known customer but **no contract file is found** in this source. Says so, asks for the name or location, **gives no figures** | | | |
+| SP-6 | Check Chain X against SAP as of 31 Aug 2026. | *(Mode A only)* Also **no files** (Chain X lives in the other SharePoint folder, not this one) | | | |
+
+Also note: the time of the first `find_contract_files` (section 8a measured 14.5 s for 30 files), and whether the second
+question is fast.
+
+### Step 2: OneDrive (Chain C and D)
+
+The server reads the **signed-in user's own OneDrive** (`develop.admin@vvrzl.onmicrosoft.com`), through Microsoft Graph.
+
+1. Sign in to <https://www.office.com> (or OneDrive) as `develop.admin@vvrzl.onmicrosoft.com`. If OneDrive says it is being
+   set up, wait a few minutes. If the account has **no OneDrive at all** (no licence), stop and note it as a finding;
+   the licence is a tenant setting (verify).
+2. In OneDrive create `Ingenus_POC` > `contracts`.
+3. Upload `Chain_C` and `Chain_D` (from `MCP-PlugIn\data\synthetic\Onedrive`) into `contracts`. Wait for the sync to finish.
+4. In `MCP-Server\.env` (comment out the SharePoint lines):
+
+   ```
+   INGENUS_DOC_SOURCE=onedrive
+   INGENUS_OD_FOLDER=Ingenus_POC/contracts
+   ```
+
+5. Restart the server, new chat, ask:
+
+| # | Ask Claude | Expected | Result | Tools called | Seconds for the first call / What Claude said |
+|---|---|---|---|---|---|
+| OD-1 | Check Chain C against SAP as of 31 Aug 2026. | The lines go **opposite ways**: Product B **variance** (contract 3.0%, SAP 3.5%: SAP **over**-reserved by 750.00 a month); admin fee **variance** (contract 1.75%, SAP 1.0%: **under**-reserved by 1,500.00); Product C match. Amendment 1 is a **table**. **Net monthly gap 750.00; exposure 3,750.00**. DRAFT Amendment 2 left out | | | |
+| OD-2 | Check Chain D against SAP as of 31 Aug 2026. | Product A match; Product B **not set up** (contract 2.5% from 1 May 2026); Product D **not set up** (SAP ended 28 Feb 2026); fee match. **Monthly gap 2,100.00; exposure 8,400.00**. The master agreement has a **blank page**: reported as unreadable / not checked, not guessed | | | |
+| OD-3 | Check Harbour Stores against SAP as of 31 Aug 2026. | Same as OD-1 (alias) | | | |
+| OD-4 | Check Chain A against SAP as of 31 Aug 2026. | *(Mode A only)* **No files** (Chain A is on SharePoint). No figures | | | |
+
+### Step 3: Network drive (Chain E and F)
+
+The server reads a folder **as the account the server runs as**. On an organisation laptop you cannot make a real
+Windows share (that needs an administrator), and you do not need one: the server accepts any folder path, a UNC path
+or a mounted one. For this POC use a normal folder, and optionally a drive letter to look like a mounted share.
+
+1. Make the folder and copy the chains in (a normal PowerShell, no administrator; it stays inside your user folder):
+
+   ```powershell
+   $root = "$env:USERPROFILE\IngenusPOC\network_contracts"
+   New-Item -ItemType Directory -Force $root | Out-Null
+   Copy-Item MCP-PlugIn\data\synthetic\Network-Drive\Chain_E, MCP-PlugIn\data\synthetic\Network-Drive\Chain_F $root -Recurse
+   Get-ChildItem $root -Recurse | Select-Object -First 12
+   ```
+
+   The last command must list `Chain_E` and `Chain_F` with PDFs.
+2. Optional, to look like a mounted drive (no administrator): `subst N: "$root"`, then check `Get-ChildItem N:\`. It lasts
+   until you sign out or run `subst N: /d`. If policy blocks it, skip it and use the folder path.
+3. In `MCP-Server\.env` (comment out the others):
+
+   ```
+   INGENUS_DOC_SOURCE=network
+   INGENUS_NETWORK_ROOT=C:\Users\sridhar.vetrivel\IngenusPOC\network_contracts
+   INGENUS_NETWORK_TIMEOUT=20
+   ```
+
+   (Or `INGENUS_NETWORK_ROOT=N:\` if you used `subst`.)
+
+4. Restart the server, new chat, ask:
+
+| # | Ask Claude | Expected | Result | Tools called | Seconds for the first call / What Claude said |
+|---|---|---|---|---|---|
+| NW-1 | Check Chain E against SAP as of 31 Aug 2026. | Product A **variance** (contract 3.5% from 1 Jan 2026, SAP 2.5%); Product B match; fee match. The terms are on **page 4** (after two pages of background): the page finder must reach it. **Monthly gap 1,100.00; exposure 8,800.00** (eight months). DRAFT Amendment 2 left out | | | |
+| NW-2 | Check Chain F against SAP as of 31 Aug 2026. | Product A **not set up** (contract 2.0% from 1 Jul 2026); Product C match; Product D **not set up** (SAP ended 30 Apr 2026); fee match. **Monthly gap 1,900.00; exposure 3,800.00** | | | |
+| NW-3 | Check Valley Stores against SAP as of 31 Aug 2026. | Same as NW-1 (alias) | | | |
+| NW-4 | Check Chain B against SAP as of 31 Aug 2026. | *(Mode A only)* **No files** (Chain B is on SharePoint). No figures | | | |
+
+**Network-only tests**
+
+| Test | What to do | Expected | Result |
+|---|---|---|---|
+| Share unavailable | Rename the folder: `Rename-Item "$env:USERPROFILE\IngenusPOC\network_contracts" network_contracts_off` (or `subst N: /d` if you used it). Ask NW-1 in a new chat | An error in plain words within about 20 seconds (the timeout), such as "The network folder is not available. Check the server settings." No made-up figures, no hang | |
+| Share back | Rename it back (or `subst` again) and ask NW-1 | The numbers return, with no server restart (verify; if not, restart and note it) | |
+| Links not followed | Optional: put a junction inside the share that points outside it (`New-Item -ItemType Junction`) and ask for a file through it | Refused: "Links are not followed on a network folder" | |
+
+A folder on the **same laptop** has no real network delay and no separate permissions, so it proves the code path only.
+The realistic version is a share on another machine or an Azure file share, read as a service account. What Ingenus's
+real share is (file server, DFS, permissions) is **unknown**: ask Harish.
+
+### Mode B: all three sources at once (after the build; not runnable today)
+
+Set once in `MCP-Server\.env`, restart once, then ask in any order with **no further change**:
+
+```
+INGENUS_SOURCES=sharepoint,onedrive,network
+# the three sets of settings from steps 1 to 3 stay as they are
+```
+
+| # | Ask Claude | Expected | Result | Tools called | What Claude said |
+|---|---|---|---|---|---|
+| MB-1 | Check Chain A against SAP as of 31 Aug 2026. | Same figures as SP-1 (1,800.00 / 12,600.00). Each file is named with its source (SharePoint) | | | |
+| MB-2 | Check Chain C against SAP as of 31 Aug 2026. | Same figures as OD-1 (750.00 / 3,750.00), files from **OneDrive**, with no change to any setting and no restart | | | |
+| MB-3 | Check Chain E against SAP as of 31 Aug 2026. | Same figures as NW-1 (1,100.00 / 8,800.00), files from the **network drive** | | | |
+| MB-4 | Check Chain X against SAP as of 31 Aug 2026. | Chain X's files are not in any of the three test sources: **no files found**, and it says which sources it looked in. No figures | | | |
+| MB-5 | Which contract files do you have for Chain D, and where are they? | Lists the files with their source (OneDrive); the master's blank page is mentioned as unreadable | | | |
+| MB-6 | Is there a draft amendment for Chain E? | Yes, in the network drive; left out on purpose | | | |
+
+**Source-down tests (the most important new tests):**
+
+| Test | What to do | Expected | Result |
+|---|---|---|---|
+| One source down | Rename the network folder (as in the network tests). Ask MB-1 (Chain A, SharePoint) | Still gives the Chain A figures, but says the **network drive could not be read** and the answer is **not complete**; it must not say the check is complete | |
+| The down source holds the chain | Same state; ask MB-3 (Chain E) | **Not "no contracts found"**: it says the network drive could not be read, gives no figures, and asks to retry | |
+| Source back | Rename back; ask MB-3 | The Chain E figures return, with no restart | |
+| One customer split across sources | **Needs a new synthetic chain** (a master on one source, an amendment on another); not made yet | One check over both documents, each citation naming its source | |
+
+**Pass rule for Mode B:** the same figures as Mode A for every chain, with no setting changed and no restart; every file names
+its source; a source that fails is reported and the answer is never presented as complete.
+
+### Per-user tests (optional, needs a second dev-tenant user)
+
+| Test | Expected | Result |
+|---|---|---|
+| SharePoint: a user who is **not** a member of the site asks SP-1 | Refused or no files; sees nothing (the server reads as each user) | |
+| OneDrive: a second user asks OD-1 | **No files**: it is that user's own, empty OneDrive | |
+
+### Summary of this QA
+
+| Source | Settings used | First-call time | Questions passed (of) | Wrong or odd answers | Finding # (section 13) |
+|---|---|---|---|---|---|
+| SharePoint | `sharepoint_set` | | /6 | | |
+| OneDrive | `Ingenus_POC/contracts` | | /4 | | |
+| Network drive | `%USERPROFILE%\IngenusPOC\network_contracts` | | /4 (+3 tests) | | |
+
+**Pass rule (Mode A):** every "Expected" figure matches the tool output exactly; a chain from another source gives no files and
+no figures; the unsigned DRAFTs are never used; the call log shows no errors except in the "share unavailable" test.
+
 ## 9. v1-specific tests
 
 These test what is new in v1: the server is central and the laptop holds nothing.
@@ -259,6 +451,8 @@ Ask question 1 again after each change. All changes are on the server side.
 - [ ] Restore the SAP file: `Copy-Item MCP-Server\data\sap\entities.json.bak MCP-Server\data\sap\entities.json -Force`,
       then delete the `.bak`
 - [ ] Ask question 1 once more: 8,500.00 and 17,000.00 are back
+- [ ] After section 8b: restore the source lines in `MCP-Server\.env` (SharePoint folder `General/synthetic/contracts`),
+      delete `%USERPROFILE%\IngenusPOC` (and `subst N: /d` if used); the `sharepoint_set` and OneDrive `Ingenus_POC` folders may stay (synthetic) or be deleted
 - [ ] Server URL in the extension is back to `http://127.0.0.1:8765/mcp`
 - [ ] `python scripts/check.py` ends with `0 failed` (once, at the end)
 - [ ] Do not commit the log or the `build` folder (both git-ignored; check `git status`)

@@ -149,13 +149,18 @@ _COLUMNS = (
 
 
 def lookup(
-    settings: Settings, customer_id: str, files: list[ContractFile]
+    settings: Settings,
+    customer_id: str,
+    files: list[ContractFile],
+    changed: set[str] | None = None,
 ) -> tuple[list[StoredTerm], int]:
     """The stored terms that are still good for the files this person can see, and how many were set aside.
 
     A term is returned only if its document is in `files` (this person's own listing) and the file's
     fingerprint is the one the term was stored with. A term whose file is listed but has changed is set
     aside. A term whose file is not listed is left alone and not shown: it may belong to someone else's view.
+    If `changed` is given, it is filled with the listed files that have terms stored for other content (so the
+    caller can say which file changed, also on the calls after the terms were set aside).
     """
     target = settings.records_db
     if target is None:
@@ -166,16 +171,35 @@ def lookup(
     used_ids: list[str] = []
     with _session(target) as conn:
         rows = conn.execute(
-            f"SELECT {_COLUMNS} FROM term WHERE customer_id = %(customer)s AND status = 'verified'"
-            " ORDER BY document_id, page, term_id",
+            f"SELECT {_COLUMNS}, status FROM term WHERE customer_id = %(customer)s"
+            " AND status IN ('verified', 'stale') ORDER BY document_id, page, term_id",
             {"customer": customer_id},
         ).fetchall()
         for r in rows:
-            (tid, kind, product, rate, effective, document, sha12, page, clause, quote, at, by) = r
+            (
+                tid,
+                kind,
+                product,
+                rate,
+                effective,
+                document,
+                sha12,
+                page,
+                clause,
+                quote,
+                at,
+                by,
+                state,
+            ) = r
             if document not in current:
                 continue
             if current[document] != sha12:
-                stale_ids.append(tid)
+                if changed is not None:
+                    changed.add(document)
+                if state == "verified":
+                    stale_ids.append(tid)
+                continue
+            if state != "verified":
                 continue
             used_ids.append(tid)
             fresh.append(

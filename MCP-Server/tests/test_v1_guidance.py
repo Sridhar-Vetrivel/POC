@@ -189,4 +189,5 @@ def test_guidance_v5_tells_claude_to_use_the_stored_terms_first():
     assert "**unchanged**" in playbook
     assert "not reviewed by a person" in playbook
     report = (served / "report-format" / "SKILL.md").read_text(encoding="utf-8")
-    assert "stored terms" in report and "`set_aside`" in report
+    assert "stored terms" in report and "`changed_since_stored`" in report
+    assert "Never read a `use_stored_terms` file again" in playbook

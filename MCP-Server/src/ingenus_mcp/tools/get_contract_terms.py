@@ -39,7 +39,8 @@ def get_contract_terms(
         )
     who = resolved.resolved
     found = contracts.find_contract_files(settings, who.name, None)
-    stored, set_aside = records.lookup(settings, who.sap_customer_id, found.files)
+    changed: set[str] = set()
+    stored, set_aside = records.lookup(settings, who.sap_customer_id, found.files, changed)
     per_document: dict[str, int] = {}
     for item in stored:
         per_document[item.term.citation.document] = (
@@ -53,6 +54,7 @@ def get_contract_terms(
             source=f.source,
             sha256_12=f.sha256_12,
             stored_terms=per_document.get(f.document_id, 0),
+            changed_since_stored=f.document_id in changed and not per_document.get(f.document_id),
             action="use_stored_terms" if per_document.get(f.document_id) else "read_pages",
         )
         for f in found.files
@@ -62,6 +64,9 @@ def get_contract_terms(
         f"{who.name} ({who.sap_customer_id}): {len(documents)} file(s); {reuse} with stored terms, "
         f"{len(documents) - reuse} to read. "
     )
+    changed_names = [d.filename for d in documents if d.changed_since_stored]
+    if changed_names:
+        note += f"Changed since its terms were stored, so read again: {', '.join(changed_names)}. "
     if set_aside:
         note += f"{set_aside} stored term(s) were set aside because their file changed. "
     note += found.note

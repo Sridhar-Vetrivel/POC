@@ -90,6 +90,9 @@ def test_a_changed_file_sets_its_terms_aside_and_is_read_again(make_world, tmp_p
     again = records.lookup(load_settings(), "T-1", _files(doc))
     assert again[0] == [] and again[1] == 1  # set aside, not returned
     assert records.lookup(load_settings(), "T-1", _files(doc)) == ([], 0)  # and stays set aside
+    changed: set[str] = set()
+    records.lookup(load_settings(), "T-1", _files(doc), changed)
+    assert changed == {_files(doc)[0].document_id}  # still named as changed on the next call
 
 
 def _files(doc):

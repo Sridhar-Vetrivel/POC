@@ -306,6 +306,13 @@ class DocumentTerms(BaseModel):
     stored_terms: int = Field(
         description="How many stored terms this file has, still good for this content."
     )
+    changed_since_stored: bool = Field(
+        default=False,
+        description=(
+            "True when terms were stored for an earlier version of this file: the file changed, so it is "
+            "read again. Say which file changed."
+        ),
+    )
     action: Literal["use_stored_terms", "read_pages"] = Field(
         description=(
             "use_stored_terms: its terms are in `stored`, do not read it again. read_pages: no stored terms "

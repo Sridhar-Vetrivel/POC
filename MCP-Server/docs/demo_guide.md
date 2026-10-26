@@ -405,6 +405,24 @@ What Postgres held after the run: the audit `events` (one row per login and tool
 **Pass rule (Mode A):** every "Expected" figure matches the tool output exactly; a chain from another source gives no files and
 no figures; the unsigned DRAFTs are never used; the call log shows no errors except in the "share unavailable" test.
 
+## 8c. Stored terms QA (decision 0011; guidance v5; not yet run live)
+
+**Goal:** the second check of a customer does not read the files again, gives the same figures, and a changed file is read again.
+**Before:** `git checkout feature/records-store`, restart the server (guidance v5 is the default), start a **new chat** for every row. Postgres must be on (`INGENUS_PG_HOST`); `INGENUS_RECORDS_DB` is left unset so the terms go to Postgres.
+
+| # | Do | Expected | Result |
+|---|---|---|---|
+| SR-1 | New chat: "Check Chain A against SAP as of 31 Aug 2026" | `get_guide`, then `get_contract_terms` (not `find_contract_files`). Every file says `read_pages`. Claude reads the files and the figures match the Chain A result in section 8b. Log: `get_contract_terms`, `get_contract_pages` per file, `compare_contract_to_sap` | |
+| SR-2 | In pgAdmin: `SELECT customer_id, kind, product, rate_pct, document_id, page, status, verified_by FROM term ORDER BY document_id;` | One row per verified term, `status = verified`, your user in `verified_by`, quote filled | |
+| SR-3 | New chat, same question as SR-1 | `get_contract_terms` shows `use_stored_terms` for the files that had terms. The log has **no** `get_contract_pages` for those files. **Same figures as SR-1.** The report says which terms came from an earlier check and that they are checked by code, not by a person | |
+| SR-4 | Change the rate in one stored file in the source (use a copy of the synthetic file; put it back after). New chat, same question | That file shows `read_pages` and `set_aside` is 1 or more; Claude says a file changed and reads it again; the figures follow the new rate. In pgAdmin the old rows show `stale` | |
+| SR-5 | Put the file back. New chat, same question | The old rows are still `stale`, so the file shows `read_pages` once; Claude reads it, and after the check the same rows go back to `verified` (same content gives the same term id; no new rows) | |
+| SR-6 | Rename the network folder, ask for Chain E | `complete` false; stored terms of network files are not used; Claude says the check is incomplete | |
+
+**Pass rule:** SR-3 figures equal SR-1 figures exactly; no `get_contract_pages` call for a file marked `use_stored_terms`; Claude never says a person confirmed a stored term.
+**Note:** Chain E's Amendment 3 (payment terms only) has no stored terms and shows `read_pages` every time; that is expected (ADR 0011).
+**Unverified:** SR-5 follows from the code (the stored id includes the file fingerprint, and saving sets a matching row back to `verified`); record what you see.
+
 ## 9. v1-specific tests
 
 These test what is new in v1: the server is central and the laptop holds nothing.

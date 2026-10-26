@@ -35,6 +35,20 @@ The repo's virtual environment is `.venv`; the system Python has no pytest.
 
 Stored terms are kept 90 days from last use (decision 0011). `prune` uses one number for all three stores.
 
+## Is Postgres on? (PowerShell)
+
+| Check | Command | On means |
+|---|---|---|
+| Windows service | `Get-Service -Name "postgresql*"` | `Status` is `Running`. The name is likely `postgresql-x64-18` **(verify)** |
+| Port open | `Test-NetConnection localhost -Port 5432` | `TcpTestSucceeded : True` |
+| Ready check | `& "C:\Program Files\PostgreSQL\18\bin\pg_isready.exe" -h localhost -p 5432` | `accepting connections` (path **verify**) |
+| Login works | `& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -h localhost -U ingenus_server -d ingenus_audit -c "SELECT 1"` | Asks for the password, then returns `1` (path **verify**) |
+| pgAdmin | Servers, right-click the server, Connect | The tree opens. A password prompt means it is running |
+
+Is the **MCP server using it**? Look at `MCP-Server\.env`: `INGENUS_PG_HOST` must be present and not commented out (`#`). Then ask one question in Claude Desktop and run `SELECT count(*) FROM events;` in pgAdmin twice: the number should go up. If it does not, the server is writing to local files instead.
+
+If Postgres is off while `INGENUS_PG_HOST` is set, the check history and stored terms cannot be saved; the contract check itself should still answer **(verify: not tested with Postgres stopped)**. Start it with `Start-Service <name from the first row>` (needs admin rights, which your laptop may not give; ask IT).
+
 ## Postgres (pgAdmin Query Tool, database `ingenus_audit`, role `ingenus_server`)
 
 Read-only looks. Column names come from the tables; `SELECT *` is safest.

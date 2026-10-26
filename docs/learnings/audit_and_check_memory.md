@@ -1,7 +1,7 @@
 # Audit log, login log and shared check memory: how they work and what we learned
 
 **Status (26 Oct 2026):** built and live-tested on a laptop with a local Postgres 18 and synthetic data. **Not** on the VM (Aditya provisions it, decision 0009) and **not** accepted by Ingenus (unknown).
-**Diagram:** ![Audit log, login log and shared check memory](images/audit_and_check_memory.png) (source: [make_audit_memory_diagram.py](images/make_audit_memory_diagram.py); a copy of the PNG is in `2026/Solution_Approach/Audit_and_Check_Memory.png`).
+**Diagram:** ![Audit log, login log and shared check memory](../images/audit_and_check_memory.png) (a copy of the PNG is in `2026/Solution_Approach/Audit_and_Check_Memory.png`).
 
 **What "per-process memory" means here.** Aditya asked for a shared memory: one person checks a file on Day 1, another on Day 3, and a third sees what was found. **What he means exactly is not confirmed** (decision 0006). Our reading: the server keeps what passed through its tools. It cannot share anyone's Claude chat.
 
@@ -42,4 +42,4 @@
 - On the VM and at Ingenus (a later step). Ingenus's acceptance of stored quotes and figures is **unknown**; so is whether 21 CFR Part 11 applies.
 - No accept or reject step for stored terms; no search index yet (next build).
 
-**Evidence:** [demo_guide.md](../MCP-Server/docs/demo_guide.md), sections 8b (sources) and 8c (stored terms, SR-1 to SR-6). Decisions: [0005](decisions/0005-v1-audit-log-with-hash-chain-and-central-store.md), [0006](decisions/0006-v1-shared-check-history-tool.md), [0008](decisions/0008-v1-postgres-for-audit-store-and-check-history.md), [0011](decisions/0011-v1-stored-contract-terms.md).
+**Evidence:** [demo_guide.md](../../MCP-Server/docs/demo_guide.md), sections 8b (sources) and 8c (stored terms, SR-1 to SR-6). Decisions: [0005](../decisions/0005-v1-audit-log-with-hash-chain-and-central-store.md), [0006](../decisions/0006-v1-shared-check-history-tool.md), [0008](../decisions/0008-v1-postgres-for-audit-store-and-check-history.md), [0011](../decisions/0011-v1-stored-contract-terms.md).

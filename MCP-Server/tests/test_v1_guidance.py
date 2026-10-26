@@ -186,6 +186,7 @@ def test_guidance_v5_tells_claude_to_use_the_stored_terms_first():
     playbook = (served / "contract-check-playbook" / "SKILL.md").read_text(encoding="utf-8")
     assert "Call `get_contract_terms`" in playbook
     assert "Read only the files marked `read_pages`" in playbook
+    assert "`stored_terms_incomplete`" in playbook
     assert "**unchanged**" in playbook
     assert "Send **every** rebate and fee term in each file you read" in playbook
     assert "not reviewed by a person" in playbook

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sys
 from datetime import UTC, datetime
 from typing import Any
@@ -29,7 +30,7 @@ from ingenus_mcp.core import citations, db
 from ingenus_mcp.core.config import Settings
 from ingenus_mcp.core.customers import norm
 from ingenus_mcp.core.db import Target
-from ingenus_mcp.core.documents import load_document
+from ingenus_mcp.core.documents import load_document, normalize
 from ingenus_mcp.core.models import Citation, ContractFile, ExtractedTerm, StoredTerm
 from ingenus_mcp.core.sources import DocumentSource
 
@@ -234,3 +235,42 @@ def prune(target: Target, before: str) -> int:
                 "DELETE FROM term WHERE last_used < %(before)s", {"before": before}
             ).rowcount
         )
+
+
+_RATE_WORDS = re.compile(r"rebate|fee|discount|allowance|chargeback|incentive", re.IGNORECASE)
+_PERCENT = re.compile(r"\d+(?:\.\d+)?\s*%")
+_LOOK_BACK = (
+    80  # characters before a percentage in which the rate word must stand, within its sentence
+)
+
+
+def uncovered_rate_lines(pages: tuple[str | None, ...], terms: list[StoredTerm]) -> int:
+    """How many rate lines on the pages that stored terms cite are NOT covered by a stored quote.
+
+    A rate line is a percentage with a rebate or fee word just before it in the same sentence. A file whose
+    stored terms leave such a line uncovered is incomplete (Claude sent only some of its terms) and must be
+    read again, because a file with stored terms is otherwise never read. Looks only at the cited pages, so
+    percentages elsewhere in the file (interest, penalties) do not count. Unsure means read again: a quote
+    that cannot be found on its page counts as uncovered. A rate shown without a rebate or fee word (a bare
+    table row) is not seen by this check.
+    """
+    by_page: dict[int, list[str]] = {}
+    for item in terms:
+        by_page.setdefault(item.term.citation.page, []).append(normalize(item.term.citation.quote))
+    missing = 0
+    for page, quotes in by_page.items():
+        text = normalize(pages[page - 1] or "") if 0 < page <= len(pages) else ""
+        spans = []
+        for quote in quotes:
+            start = text.find(quote)
+            if start < 0:
+                missing += 1  # the quote is not on the page any more: read it again
+            else:
+                spans.append((start, start + len(quote)))
+        for match in _PERCENT.finditer(text):
+            before = text[max(0, match.start() - _LOOK_BACK) : match.start()].rsplit(". ", 1)[-1]
+            if not _RATE_WORDS.search(before):
+                continue
+            if not any(a <= match.start() < b for a, b in spans):
+                missing += 1
+    return missing

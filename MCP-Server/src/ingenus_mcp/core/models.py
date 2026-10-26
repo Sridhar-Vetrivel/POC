@@ -313,6 +313,13 @@ class DocumentTerms(BaseModel):
             "read again. Say which file changed."
         ),
     )
+    stored_terms_incomplete: bool = Field(
+        default=False,
+        description=(
+            "True when the cited page has rate lines that no stored term covers (an earlier check sent only "
+            "some of the file's terms). Those stored terms are not returned; read the file and send all its terms."
+        ),
+    )
     action: Literal["use_stored_terms", "read_pages"] = Field(
         description=(
             "use_stored_terms: its terms are in `stored`, do not read it again. read_pages: no stored terms "

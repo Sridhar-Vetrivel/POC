@@ -159,3 +159,58 @@ def test_a_store_error_never_fails_the_check(monkeypatch, tmp_path):
     monkeypatch.setenv("INGENUS_RECORDS_DB", str(tmp_path / "no_such_dir" / "x" / "records.sqlite"))
     result = check()  # the answer still comes back
     assert result.total_monthly_gap == Decimal("8500.00")
+
+
+AMENDMENT_2 = "Chain_X_Amendment_2_2026.pdf"
+
+
+def test_a_file_with_only_some_of_its_terms_stored_is_read_again():
+    check(chain_x_terms()[:2])  # Claude sent two of the four rate lines on the page
+    result = get_contract_terms("Chain X")
+    doc = next(d for d in result.documents if d.filename == AMENDMENT_2)
+    assert doc.stored_terms_incomplete is True and doc.action == "read_pages"
+    assert result.stored == []  # the partial terms are not handed back
+    assert AMENDMENT_2 in result.note
+
+
+def test_sending_all_the_terms_afterwards_makes_the_file_complete():
+    check(chain_x_terms()[:2])
+    check()  # a second run sends all four; the two already stored are the same records
+    result = get_contract_terms("Chain X")
+    doc = next(d for d in result.documents if d.filename == AMENDMENT_2)
+    assert doc.stored_terms_incomplete is False and doc.action == "use_stored_terms"
+    assert len(result.stored) == 4
+
+
+def _stored(page: int, quote: str):
+    from ingenus_mcp.core.models import StoredTerm
+
+    return StoredTerm(
+        term=term("rebate", "Widget", "5", quote, document="d.txt", page=page),
+        verified_at="x",
+        verified_by="y",
+    )
+
+
+def test_uncovered_rate_lines_counts_only_rebate_and_fee_percentages_on_the_cited_page():
+    page1 = (
+        "Widget rebate: 5.0% of net sales of Widget. Gadget rebate: 3.0% of net sales of Gadget. "
+        "Late payment interest is 1.5% per month."
+    )
+    pages = (page1, "Another page with a 9% penalty fee that no term cites.")
+    both = [
+        _stored(1, "Widget rebate: 5.0% of net sales of Widget."),
+        _stored(1, "Gadget rebate: 3.0% of net sales of Gadget."),
+    ]
+    assert records.uncovered_rate_lines(pages, both) == 0  # interest and the other page are ignored
+    assert records.uncovered_rate_lines(pages, both[:1]) == 1  # the Gadget line has no stored term
+
+
+def test_a_quote_that_is_no_longer_on_its_page_counts_as_uncovered():
+    pages = ("Widget rebate: 6.0% of net sales of Widget.",)
+    assert (
+        records.uncovered_rate_lines(
+            pages, [_stored(1, "Widget rebate: 5.0% of net sales of Widget.")]
+        )
+        >= 1
+    )

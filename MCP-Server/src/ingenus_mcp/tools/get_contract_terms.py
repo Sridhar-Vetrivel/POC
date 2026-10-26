@@ -8,8 +8,10 @@ from pydantic import Field
 
 from ingenus_mcp.core import contracts, customers, records
 from ingenus_mcp.core.config import load_settings
+from ingenus_mcp.core.documents import load_document
 from ingenus_mcp.core.models import ContractTermsResult, DocumentTerms
 from ingenus_mcp.core.registry import tool
+from ingenus_mcp.core.sources import get_source
 
 
 @tool(read_only=True)
@@ -41,6 +43,7 @@ def get_contract_terms(
     found = contracts.find_contract_files(settings, who.name, None)
     changed: set[str] = set()
     stored, set_aside = records.lookup(settings, who.sap_customer_id, found.files, changed)
+    stored, incomplete = _drop_incomplete(settings, stored)
     per_document: dict[str, int] = {}
     for item in stored:
         per_document[item.term.citation.document] = (
@@ -55,6 +58,7 @@ def get_contract_terms(
             sha256_12=f.sha256_12,
             stored_terms=per_document.get(f.document_id, 0),
             changed_since_stored=f.document_id in changed and not per_document.get(f.document_id),
+            stored_terms_incomplete=f.document_id in incomplete,
             action="use_stored_terms" if per_document.get(f.document_id) else "read_pages",
         )
         for f in found.files
@@ -67,6 +71,12 @@ def get_contract_terms(
     changed_names = [d.filename for d in documents if d.changed_since_stored]
     if changed_names:
         note += f"Changed since its terms were stored, so read again: {', '.join(changed_names)}. "
+    incomplete_names = [d.filename for d in documents if d.stored_terms_incomplete]
+    if incomplete_names:
+        note += (
+            "Stored terms do not cover every rate line on the cited page, so read again and send all "
+            f"terms: {', '.join(incomplete_names)}. "
+        )
     if set_aside:
         note += f"{set_aside} stored term(s) were set aside because their file changed. "
     note += found.note
@@ -84,3 +94,24 @@ def get_contract_terms(
         storing_enabled=records.enabled(settings),
         note=note,
     )
+
+
+def _drop_incomplete(settings, stored):
+    """Keep only the stored terms of files whose cited pages are fully covered; name the others.
+
+    The stored terms of an incomplete file are not returned, so Claude reads the file and sends every term
+    (saving the same term again is harmless). If the page cannot be loaded, the file counts as incomplete.
+    """
+    by_document: dict[str, list] = {}
+    for item in stored:
+        by_document.setdefault(item.term.citation.document, []).append(item)
+    source = get_source(settings)
+    incomplete: set[str] = set()
+    for document, items in by_document.items():
+        try:
+            pages = load_document(source, document).pages  # cached: the listing just read it
+            if records.uncovered_rate_lines(pages, items):
+                incomplete.add(document)
+        except Exception:  # noqa: BLE001 - unsure means read again
+            incomplete.add(document)
+    return [s for s in stored if s.term.citation.document not in incomplete], incomplete

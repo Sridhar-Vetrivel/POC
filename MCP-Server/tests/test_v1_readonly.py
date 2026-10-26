@@ -28,6 +28,7 @@ BASELINE_TOOLS = {
     "compare_contract_to_sap",
     "get_guide",  # decision 0003
     "get_check_history",  # decision 0006
+    "get_contract_terms",  # decision 0011
 }
 
 
@@ -116,8 +117,8 @@ def _violations(path: Path) -> list[str]:
     return found
 
 
-# The log, the two stores and the storage layer they share (CLAUDE.md rule 5; decisions 0005, 0006, 0008). Nothing else.
-WRITER_MODULES = {"calllog.py", "auditstore.py", "history.py", "db.py"}
+# The log, the two stores and the storage layer they share (CLAUDE.md rule 5; decisions 0005, 0006, 0008, 0011). Nothing else.
+WRITER_MODULES = {"calllog.py", "auditstore.py", "history.py", "records.py", "db.py"}
 
 
 def test_no_code_outside_the_log_and_store_modules_can_write_files():

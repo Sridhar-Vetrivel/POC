@@ -38,8 +38,8 @@ def test_the_server_serves_the_eight_guides():
     assert set(load_guides(load_settings().guidance_dir)) == V2
 
 
-def test_the_default_guidance_is_v4():
-    assert load_settings().guidance_dir.name == "v4"
+def test_the_default_guidance_is_v5():
+    assert load_settings().guidance_dir.name == "v5"
 
 
 def test_guidance_v2_is_still_an_exact_copy_of_skills_v2():
@@ -167,3 +167,28 @@ def test_guidance_v4_fixes_what_the_live_runs_showed():
     assert "Never say the customer does not exist" in text["contract-check-playbook"]
     assert "A match with no sales is not a gap" in text["not-checked-rules"]
     assert "Say which sources were searched" in text["when-to-stop-and-ask"]
+
+
+CHANGED_IN_V5 = ("contract-check-playbook", "report-format")
+
+
+def test_guidance_v5_changes_only_two_guides_and_leaves_v4_alone():
+    # v4 is what the live runs of 23 Oct 2026 used: it must not be edited in place.
+    for name in V2:
+        same = (GUIDANCE / "v5" / name / "SKILL.md").read_bytes() == (
+            GUIDANCE / "v4" / name / "SKILL.md"
+        ).read_bytes()
+        assert same == (name not in CHANGED_IN_V5), name
+
+
+def test_guidance_v5_tells_claude_to_use_the_stored_terms_first():
+    served = load_settings().guidance_dir
+    playbook = (served / "contract-check-playbook" / "SKILL.md").read_text(encoding="utf-8")
+    assert "Call `get_contract_terms`" in playbook
+    assert "Read only the files marked `read_pages`" in playbook
+    assert "**unchanged**" in playbook
+    assert "Send **every** rebate and fee term in each file you read" in playbook
+    assert "not reviewed by a person" in playbook
+    report = (served / "report-format" / "SKILL.md").read_text(encoding="utf-8")
+    assert "stored terms" in report and "`changed_since_stored`" in report
+    assert "Never read a `use_stored_terms` file again" in playbook

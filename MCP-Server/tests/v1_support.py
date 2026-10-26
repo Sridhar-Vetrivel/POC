@@ -87,6 +87,7 @@ def isolated_env(tmp_path, monkeypatch):
     monkeypatch.setenv("INGENUS_LOG_PATH", str(tmp_path / "tool_calls.jsonl"))
     monkeypatch.setenv("INGENUS_USER", "tester")
     monkeypatch.setenv("INGENUS_HISTORY_DB", str(tmp_path / "history.sqlite"))
+    monkeypatch.setenv("INGENUS_RECORDS_DB", str(tmp_path / "records.sqlite"))
     monkeypatch.setenv("INGENUS_NO_ENV_FILE", "1")  # never read a developer's MCP-Server/.env
     for var in (
         "INGENUS_CONTRACTS_DIR",

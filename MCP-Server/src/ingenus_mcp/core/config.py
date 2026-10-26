@@ -75,6 +75,8 @@ class Settings:
     # Decision 0008: when Postgres is configured (INGENUS_PG_HOST), both go there unless set explicitly.
     audit_store: Target | None = None
     history_db: Target | None = None
+    # Decision 0011: stored contract terms. Their own store: the check history keeps no quotes, these do.
+    records_db: Target | None = None
     retention_days: int = (
         365  # default age limit for `python -m ingenus_mcp.audit prune` (assumed, to confirm)
     )
@@ -141,6 +143,15 @@ def _history_db(value: str | None, postgres: PgTarget | None) -> Target | None:
     return Path(value).expanduser()
 
 
+def _records_db(value: str | None, postgres: PgTarget | None) -> Target | None:
+    """Where stored contract terms are kept: Postgres if set, else a file under data/runtime; "off" disables."""
+    if value is None or not value.strip():
+        return postgres or _DATA / "runtime" / "records.sqlite"
+    if value.strip().lower() == "off":
+        return None
+    return Path(value).expanduser()
+
+
 def _patterns(value: str | None) -> tuple[str, ...]:
     """File-name patterns to skip on a network share. Default: Office lock files and temp files."""
     if value is None:
@@ -180,7 +191,7 @@ def load_settings() -> Settings:
         log_path=path("INGENUS_LOG_PATH", _DATA / "runtime" / "tool_calls.jsonl"),
         prompts_dir=path("INGENUS_PROMPTS_DIR", _SERVER_DIR / "prompts"),
         # The guides (skills) the server serves through get_guide; decision 0003.
-        guidance_dir=path("INGENUS_GUIDANCE_DIR", _SERVER_DIR / "guidance" / "v4"),
+        guidance_dir=path("INGENUS_GUIDANCE_DIR", _SERVER_DIR / "guidance" / "v5"),
         # Loopback by default. Binding to a network address is a deployment decision (V1-4), made
         # together with server sign-in: an open port without sign-in would let anyone call the tools.
         host=os.environ.get("INGENUS_MCP_HOST", "127.0.0.1"),
@@ -199,6 +210,7 @@ def load_settings() -> Settings:
         if os.environ.get("INGENUS_AUDIT_STORE")
         else postgres,
         history_db=_history_db(os.environ.get("INGENUS_HISTORY_DB"), postgres),
+        records_db=_records_db(os.environ.get("INGENUS_RECORDS_DB"), postgres),
         retention_days=int(os.environ.get("INGENUS_RETENTION_DAYS", "365")),
         network_root=Path(os.environ["INGENUS_NETWORK_ROOT"])
         if os.environ.get("INGENUS_NETWORK_ROOT")

@@ -39,6 +39,8 @@
 - **The earlier terms of a replaced amendment** are stored as well as the new ones; `compare` already works out which applies from the effective dates, so nothing else decides it.
 - Tests (`tests/test_v1_records.py`, 13): kept after a check, returned to the next person, same numbers when passed back to `compare`, idempotent, a failed quote is not kept, a changed file sets terms aside and stays set aside, no listing means no terms, quotes stored but no tokens, pruning by last use, using a term restarts the clock, store off, unknown customer, a store error does not fail the check. The Postgres path was exercised on the local database with synthetic Chain X data and cleaned up afterwards.
 
+- **A file's stored terms can be incomplete** (seen live, SR-4, 26 Oct): code stores only the terms Claude sent, and a file with any stored term is not read again, so a term Claude left out is missing from later checks. Guidance v5 tells Claude to send every term in each file. A server-side check (for example, comparing the rate lines on the cited page with the stored ones) is not built; **to confirm** whether it is needed.
+
 ## Not built or not verified
 
 - A live run through Claude Desktop: guidance that tells Claude to call `get_contract_terms` first (a new guidance version) is not written yet, so Claude does not use the tool unprompted today.

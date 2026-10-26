@@ -19,6 +19,7 @@ from mcp.types import ToolAnnotations
 from ingenus_mcp import __version__
 from ingenus_mcp.core.auth import EntraTokenVerifier
 from ingenus_mcp.core.config import Settings, load_env_file, load_settings
+from ingenus_mcp.core.sources import SOURCE_KINDS
 from ingenus_mcp.tools import discover
 
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
@@ -67,26 +68,34 @@ def check_startup(settings: Settings, host: str, transport: str) -> None:
             f"Refusing to listen on {host} with sign-in off: anyone who can reach the port could "
             "call the tools. Set INGENUS_AUTH=entra, or use a loopback host."
         )
-    if settings.doc_source in {"sharepoint", "onedrive"}:
-        if settings.auth_mode != "entra":
+    if settings.sources:
+        unknown = [k for k in settings.sources if k not in SOURCE_KINDS]
+        if unknown:
             problems.append(
-                f"INGENUS_DOC_SOURCE={settings.doc_source} reads files as the signed-in user, so it "
-                "needs INGENUS_AUTH=entra."
+                f"INGENUS_SOURCES names {unknown}; each must be one of {list(SOURCE_KINDS)}."
             )
-        if settings.doc_source == "sharepoint" and not settings.sharepoint_site_url:
-            problems.append("INGENUS_DOC_SOURCE=sharepoint needs INGENUS_SP_SITE_URL.")
-        if settings.doc_source == "onedrive" and not settings.onedrive_folder:
+        kinds = [k for k in settings.sources if k in SOURCE_KINDS]
+        label = "INGENUS_SOURCES includes {kind}, which"
+    else:
+        kinds = [settings.doc_source] if settings.doc_source in SOURCE_KINDS else []
+        label = "INGENUS_DOC_SOURCE={kind}"
+        if settings.doc_source not in SOURCE_KINDS:
             problems.append(
-                "INGENUS_DOC_SOURCE=onedrive needs INGENUS_OD_FOLDER (a folder, never the whole drive)."
+                f"INGENUS_DOC_SOURCE must be 'local', 'sharepoint', 'onedrive' or 'network', "
+                f"not '{settings.doc_source}'."
             )
-    elif settings.doc_source == "network":
-        if settings.network_root is None:
-            problems.append("INGENUS_DOC_SOURCE=network needs INGENUS_NETWORK_ROOT.")
-    elif settings.doc_source != "local":
-        problems.append(
-            f"INGENUS_DOC_SOURCE must be 'local', 'sharepoint', 'onedrive' or 'network', "
-            f"not '{settings.doc_source}'."
-        )
+    for kind in kinds:
+        name = label.format(kind=kind)
+        if kind in {"sharepoint", "onedrive"} and settings.auth_mode != "entra":
+            problems.append(
+                f"{name} reads files as the signed-in user, so it needs INGENUS_AUTH=entra."
+            )
+        if kind == "sharepoint" and not settings.sharepoint_site_url:
+            problems.append(f"{name} needs INGENUS_SP_SITE_URL.")
+        if kind == "onedrive" and not settings.onedrive_folder:
+            problems.append(f"{name} needs INGENUS_OD_FOLDER (a folder, never the whole drive).")
+        if kind == "network" and settings.network_root is None:
+            problems.append(f"{name} needs INGENUS_NETWORK_ROOT.")
     if problems:
         raise SystemExit("Cannot start:\n- " + "\n- ".join(problems))
 

@@ -4,6 +4,10 @@ A checklist and results sheet for trying v1 for real: Claude Desktop with the br
 central MCP server, asked questions by a person, with the answers checked against known numbers. Everything uses
 **synthetic data and a mock SAP**. Nothing here touches Ingenus systems or data.
 
+> **Status (23 Oct 2026).** Section 8b (all three sources at once, with Postgres for the audit log and check history) was run live and
+> passed after three fixes (findings 6 to 13). Guidance now served: **v4** (v2 and v3 are kept). The older note below is the
+> state on 19 Oct.
+>
 > **Status (19 Oct 2026).** The bridge is installed in Claude Desktop (unpacked) and the Chain X question gave the
 > exact numbers in Chat. The other golden questions, the server-side update test and the break-it tests have not
 > been run yet. The guidance (skills) is not served by the server yet (V1-3), so every run below is a **run without
@@ -216,10 +220,10 @@ in place. **Nothing here touches real Ingenus data.**
   user would work: nobody should have to change a setting per question.
 - **Mode B, after the source-routing build:** the server is set up with all three sources at once
   (`INGENUS_SOURCES=sharepoint,onedrive,network`) and finds a customer's files in whichever source holds them, with no
-  restart and no setting to change. **It cannot be run yet**: it is a proposal, see
-  [the source routing proposal](../../docs/proposal/multi_source_routing_impact_analysis_and_proposal.md) and
-  [the records and search index proposal](../../docs/proposal/records_and_search_index_impact_analysis_and_proposal.md).
-  Its expected results are written below so the QA is ready when the build is.
+  restart and no setting to change. **Built and run live on 23 Oct 2026 (results below).** The design is in
+  [the source routing proposal](../../docs/proposal/multi_source_routing_impact_analysis_and_proposal.md), the
+  [records and search index proposal](../../docs/proposal/records_and_search_index_impact_analysis_and_proposal.md) (what comes next)
+  and [decision 0010](../../docs/decisions/0010-v1-several-contract-sources-at-once.md).
 
 **Putting the files in place (steps 1 to 3) is the same for both modes. Do it once.**
 
@@ -345,7 +349,7 @@ A folder on the **same laptop** has no real network delay and no separate permis
 The realistic version is a share on another machine or an Azure file share, read as a service account. What Ingenus's
 real share is (file server, DFS, permissions) is **unknown**: ask Harish.
 
-### Mode B: all three sources at once (after the build; not runnable today)
+### Mode B: all three sources at once (run live on 23 Oct 2026)
 
 Set once in `MCP-Server\.env`, restart once, then ask in any order with **no further change**:
 
@@ -356,24 +360,32 @@ INGENUS_SOURCES=sharepoint,onedrive,network
 
 | # | Ask Claude | Expected | Result | Tools called | What Claude said |
 |---|---|---|---|---|---|
-| MB-1 | Check Chain A against SAP as of 31 Aug 2026. | Same figures as SP-1 (1,800.00 / 12,600.00). Each file is named with its source (SharePoint) | | | |
-| MB-2 | Check Chain C against SAP as of 31 Aug 2026. | Same figures as OD-1 (750.00 / 3,750.00), files from **OneDrive**, with no change to any setting and no restart | | | |
-| MB-3 | Check Chain E against SAP as of 31 Aug 2026. | Same figures as NW-1 (1,100.00 / 8,800.00), files from the **network drive** | | | |
-| MB-4 | Check Chain X against SAP as of 31 Aug 2026. | Chain X's files are not in any of the three test sources: **no files found**, and it says which sources it looked in. No figures | | | |
-| MB-5 | Which contract files do you have for Chain D, and where are they? | Lists the files with their source (OneDrive); the master's blank page is mentioned as unreadable | | | |
-| MB-6 | Is there a draft amendment for Chain E? | Yes, in the network drive; left out on purpose | | | |
+| MB-1 | Check Chain A against SAP as of 31 Aug 2026. | Same figures as SP-1 (1,800.00 / 12,600.00). Each file is named with its source (SharePoint) | ✅ (23 Oct) | `get_guide` ×2, `resolve_customer`, `find_contract_files`, `get_contract_pages` ×3, `compare_contract_to_sap` | 1,800.00 / 12,600.00. All three sources `ok`; files `sharepoint:Chain_A/...`; four quotes; "Warnings: none"; cannot change SAP. Postgres: 1 check recorded, 2 documents |
+| MB-2 | Check Chain C against SAP as of 31 Aug 2026. | Same figures as OD-1 (750.00 / 3,750.00), files from **OneDrive**, with no change to any setting and no restart | ✅ numbers; wording faults (23 Oct) | `get_guide` ×2, `resolve_customer`, `find_contract_files`, `get_contract_pages` ×3, `compare_contract_to_sap` | 750.00 / 3,750.00; files `onedrive:Chain_C/...` (proved by the saved check). Faults: said "all three returned the same 7 files" (each source holds 7 different files), no quote for the Product C match line, source system not named per file (findings 6 to 8) |
+| MB-3 | Check Chain E against SAP as of 31 Aug 2026. | Same figures as NW-1 (1,100.00 / 8,800.00), files from the **network drive** | numbers ✅, strict ❌ (23 Oct) | `get_guide` ×2, `resolve_customer`, `find_contract_files`, `get_contract_pages` ×3, `compare_contract_to_sap` (compare: `not_checked=3`) | 1,100.00 / 8,800.00; files `network:Chain_E/...`; terms found on page 4. But 3 items not checked: the master's matching rates had no SAP sales for 2025, and Claude said exposure "could be higher" (finding 9, fixed) |
+| MB-4 | Check Chain X against SAP as of 31 Aug 2026. | Chain X's files are not in any of the three test sources: **no files found**, and it says which sources it looked in. No figures | ✅ safe; wording flaw (23 Oct) | `get_guide`, `resolve_customer` (resolved to SYN-CUST-0001), `find_contract_files` ×2 (0 files; then 18 files, 3 drafts, no customer filter) | No figures; asked which chain. Said "no customer named Chain X" and listed Chain A to F, though Chain X is a known customer with no files in these sources; sources not named (finding 10) |
+| MB-5 | Which contract files do you have for Chain D, and where are they? | Lists the three files with page counts and their source (OneDrive); all three sources read, no conflicts. The master's blank page is **not** visible here: listing does not read page text, so it shows only when Chain D is checked (OD-2) | ✅ (23 Oct) | `find_contract_files` | Three files with page counts, all OneDrive (master 7 pages, Amendment 1 3 pages, Amendment 2 2 pages); no draft; all three sources read, no conflicts. The blank page is not visible here (expectation corrected) |
+| MB-6 | Is there a draft amendment for Chain E? | Yes, in the network drive; left out on purpose | ✅ (23 Oct) | `find_contract_files` | Yes: `Chain_E_Amendment_2_DRAFT.pdf` on the network drive, left out on purpose, not read; offered to read it only if asked |
 
 **Source-down tests (the most important new tests):**
 
 | Test | What to do | Expected | Result |
 |---|---|---|---|
-| One source down | Rename the network folder (as in the network tests). Ask MB-1 (Chain A, SharePoint) | Still gives the Chain A figures, but says the **network drive could not be read** and the answer is **not complete**; it must not say the check is complete | |
-| The down source holds the chain | Same state; ask MB-3 (Chain E) | **Not "no contracts found"**: it says the network drive could not be read, gives no figures, and asks to retry | |
-| Source back | Rename back; ask MB-3 | The Chain E figures return, with no restart | |
+| One source down | Rename the network folder (as in the network tests). Ask MB-1 (Chain A, SharePoint) | Still gives the Chain A figures, but says the **network drive could not be read** and the answer is **not complete**; it must not say the check is complete | ✅ (23 Oct). Chain A still gave 1,800.00 / 12,600.00, named the files' source (SharePoint), said the network share could not be reached and that the check is **incomplete**, and advised re-running when it is back |
+| The down source holds the chain | Same state; ask MB-3 (Chain E) | **Not "no contracts found"**: it says the network drive could not be read, gives no figures, and asks to retry | ✅ (23 Oct). "No Chain E files found in SharePoint or OneDrive"; the network drive "not available"; "this isn't 'Chain E has no contract'"; no figures; offered options. A stray line ("Confirmed — I can report this now.") was left in the text |
+| Source back | Rename back; ask MB-3 | The Chain E figures return, with no restart | ✅ (23 Oct). Chain E figures returned (1,100.00 / 8,800.00) with no restart and the files named as `network` |
 | One customer split across sources | **Needs a new synthetic chain** (a master on one source, an amendment on another); not made yet | One check over both documents, each citation naming its source | |
 
 **Pass rule for Mode B:** the same figures as Mode A for every chain, with no setting changed and no restart; every file names
 its source; a source that fails is reported and the answer is never presented as complete.
+
+**Mode B result (23 Oct 2026): pass.** Run as `develop.admin@vvrzl.onmicrosoft.com` on branch `feature/multi-source-routing`, with Postgres 18 switched on for the audit store and check history (role `ingenus_server`, database `ingenus_audit`). Six questions and three source-down tests passed; MB-3 passed on the numbers and failed strictly, and was **re-run after the fixes**:
+
+| Re-run | When | Result |
+|---|---|---|
+| MB-3 (Chain E) after the engine fix and guidance v4 | 23 Oct 2026, 10:55 UTC | **✅** 1,100.00 / 8,800.00; `compare_contract_to_sap not_checked=0` (was 3); six findings (1 variance, 5 match); a quote for every line; the source system named ("network"); no "exposure could be higher" claim; draft left out; cannot change SAP |
+
+What Postgres held after the run: the audit `events` (one row per login and tool call, each naming the signed-in user), `checks` (one row per comparison with its gap, exposure and documents) and `check_docs` (the files each check relied on, with their source in the id, for example `onedrive:Chain_C/...`). Not re-asked after the v4 guidance: MB-2 (Product C quote, "same 7 files") and MB-4 ("no customer named Chain X"); the tests cover the new wording, but only a live run shows Claude following it.
 
 ### Per-user tests (optional, needs a second dev-tenant user)
 
@@ -479,7 +491,14 @@ Severity: **blocker** (cannot demo), **wrong answer**, **risk**, **polish**.
 | 3 | Q1 answer did not say it cannot change SAP, and showed no exact quotes | risk / polish | Q1, without guidance | Same as v0 run A: nothing asks Claude to state these | V1-3 (server-served guidance); measure in section 8 |
 | 4 | First call after start: `find_contract_files` took 14.5 s against SharePoint (30 files, 12 folders); later calls 12 to 69 ms (20 Oct 2026) | risk | Q1, SharePoint source | The listing walks every folder one request at a time, and the matching files are downloaded and parsed once | Measure with a larger library; list folders in parallel; keep the cache across restarts if needed. Desktop tool timeouts are unknown |
 | 5 | The bridge's sign-in cache is a plain file in the user's profile folder (readable by that user only) | risk | Bridge | POC choice: simplest | Encrypt with Windows DPAPI before any real use |
-| 6 | | | | | |
+| 6 | Claude misread each source's `files` count: "all three returned the same 7 files" (MB-2) and "files matched across sources" (MB-3). Each source holds 7 different files | polish | MB-2, MB-3 | The number means files in that source for all customers; the description did not say so | **Fixed:** field description and tool text reworded; guidance v4 forbids the claim |
+| 7 | The Product C match line had no quote under the table (MB-2) | polish | MB-2 | Guidance asked for a quote "behind each line" but Claude skipped a matching line | **Fixed:** guidance v4: a quote for every line, matches included |
+| 8 | The table showed the document but not the source system (SharePoint, OneDrive, network) (MB-1, MB-2) | polish | MB-1, MB-2 | Guidance said "source" without defining it | **Fixed:** guidance v4 names the source system for every file |
+| 9 | A matching line with no SAP sales in its period (the master's 2025 rates, Chain E) was reported as not checked, and Claude said exposure "could be higher" (MB-3) | wrong answer (misleading) | MB-3 | `compare.py`: any line with no month of sales became not checked, even when the rate matched SAP | **Fixed:** a match with no sales is a match with no base (`monthly_base` null) and a caveat; a variance with no sales stays not checked; two tests |
+| 10 | Claude said "no customer named Chain X" and listed Chain A to F, though Chain X resolved to SYN-CUST-0001; it had no files in these sources (MB-4) | polish | MB-4 | No guidance for a known customer with no files | **Fixed:** guidance v4: known customer, no files in the sources searched (name them); never say it does not exist |
+| 11 | With INGENUS_SOURCES set, SharePoint and OneDrive were reported as needing a signed-in user (23 Oct) | blocker (fixed) | First MB-1 | Each source was built in a worker thread, which lacks the request's signed-in user | **Fixed:** sources built in the request thread; test fails on the old code (commit 4125a54) |
+| 12 | The MB-5 expectation said the listing would mention the master's blank page; it cannot (listing reads no page text) | polish (my error) | MB-5 | Wrong expectation | **Fixed:** expectation corrected. Optional: report pages with no text at listing time |
+| 13 | `MCP-Server/.env` disappeared from disk during the session (git-ignored, so not restorable from Git) | risk | Environment | Unknown | Recreated from the content read earlier; check nothing local was lost |
 
 ## 14. Sign-off
 
@@ -490,6 +509,7 @@ Severity: **blocker** (cannot demo), **wrong answer**, **risk**, **polish**.
 | Did a server-only change reach Claude Desktop (9.1)? | |
 | Did Cowork behave like Chat? | |
 | Was the hostile-text page flagged and ignored (Q9)? | |
+| Did all three sources work at once, with nothing changed per question (8b, Mode B)? | Yes (23 Oct 2026): SharePoint, OneDrive and the network folder in one server run. When the network folder was taken away, the answer said the check was incomplete and named the failed source |
 | Any wrong answers that sounded confident? | |
 | How would Ingenus users install the bridge? | Open (finding 1) |
 | Next steps | |

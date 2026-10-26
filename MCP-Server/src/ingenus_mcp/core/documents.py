@@ -95,9 +95,12 @@ def load_document(source: DocumentSource, rel_path: str, item: DocItem | None = 
     """Read one document through the source, re-using the parsed text while the file is unchanged."""
     key = (source.identity, rel_path)
     now = time.monotonic()
+    # Several sources at once: how long a copy is trusted depends on the source the file is in.
+    window_for = getattr(source, "revalidate_for", None)
+    window = window_for(rel_path) if window_for else source.revalidate_seconds
     with _LOCK:
         hit = _CACHE.get(key)
-        if hit and source.revalidate_seconds and now - hit.checked < source.revalidate_seconds:
+        if hit and window and now - hit.checked < window:
             _CACHE.move_to_end(key)
             return hit.doc
     item = item or source.stat(rel_path)

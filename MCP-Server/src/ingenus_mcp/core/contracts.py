@@ -22,9 +22,10 @@ from ingenus_mcp.core.models import (
     FindContractFilesResult,
     NotChecked,
     PageText,
+    SourceInfo,
     TopicName,
 )
-from ingenus_mcp.core.sources import get_source
+from ingenus_mcp.core.sources import RoutedSource, get_source
 
 MAX_FILES = 200
 DEFAULT_TOPICS = ["rebates", "fees", "effective_date"]
@@ -125,6 +126,7 @@ def find_contract_files(
 ) -> FindContractFilesResult:
     source = get_source(settings)
     items = source.list_items()  # a missing local folder raises FileNotFoundError here
+    routed = isinstance(source, RoutedSource)
 
     tokens: list[str] = []
     note_parts: list[str] = []
@@ -162,7 +164,10 @@ def find_contract_files(
         rel = item.rel_path
         suffix = Path(item.name).suffix.lower()
         if tokens:
-            hay = f" {customers.norm(rel.replace('/', ' '))} "
+            plain = (
+                rel.partition(":")[2] if routed else rel
+            )  # match on the path, not the source name
+            hay = f" {customers.norm(plain.replace('/', ' '))} "
             if not any(f" {t} " in hay for t in tokens if t):
                 continue
         if suffix not in SUPPORTED:
@@ -200,13 +205,43 @@ def find_contract_files(
                 modified=item.modified,
                 sha256_12=doc.sha12,
                 pages=len(pages),
+                source=rel.partition(":")[0] if routed else None,
             )
         )
+
+    conflicts = _merge_copies(files) if routed else []
+    statuses = list(getattr(source, "statuses", []))
+    infos = [
+        SourceInfo(
+            source=st.source,
+            ok=st.ok,
+            files=st.files,
+            seconds=round(st.seconds, 1),
+            reason=st.reason,
+        )
+        for st in statuses
+    ]
+    failed = [st for st in statuses if not st.ok]
+    for st in failed:
+        not_checked.append(NotChecked(item=f"source {st.source}", reason=st.reason or "Not read."))
 
     note_parts.append(f"{len(files)} file(s) listed; {len(drafts)} draft(s) left out on purpose.")
     if customer and not files:
         note_parts.append(
             "No files matched. The folder or file names may use a different spelling."
+        )
+    if conflicts:
+        note_parts.append(
+            "Same file name, different content in more than one source: "
+            + "; ".join(conflicts)
+            + ". Ask the user which one is right."
+        )
+    if failed:
+        note_parts.append(
+            "These sources could not be read: "
+            + ", ".join(st.source for st in failed)
+            + ". The list may be incomplete. Do not read 'no file found' as 'no contract', and do not "
+            "present the check as complete."
         )
     return FindContractFilesResult(
         customer_query=customer,
@@ -214,7 +249,38 @@ def find_contract_files(
         excluded_drafts=drafts,
         not_checked=not_checked,
         note=" ".join(note_parts),
+        sources=infos,
+        complete=not failed,
+        conflicts=conflicts,
     )
+
+
+def _merge_copies(files: list[ContractFile]) -> list[str]:
+    """List an identical file held in two sources once, and report same-named files that differ.
+
+    Rewrites `files` in place. Identical means the same file name and content hash: the first source in
+    the list keeps the entry and the others are named in `also_in`. Two identical files in the same
+    source are different documents and both stay.
+    """
+    kept: dict[tuple[str, str], ContractFile] = {}
+    differing: dict[str, set[str]] = {}
+    result: list[ContractFile] = []
+    for f in files:
+        key = (f.filename.casefold(), f.sha256_12)
+        first = kept.get(key)
+        if first is not None and f.source != first.source:
+            if f.source and f.source not in first.also_in:
+                first.also_in.append(f.source)
+            continue
+        kept.setdefault(key, f)
+        differing.setdefault(f.filename.casefold(), set()).add(f.source or "")
+        result.append(f)
+    files[:] = result
+    return [
+        f"{name} in {', '.join(sorted(where))}"
+        for name, where in sorted(differing.items())
+        if len(where) > 1
+    ]
 
 
 def get_contract_pages(

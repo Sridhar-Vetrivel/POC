@@ -45,6 +45,27 @@ class ContractFile(BaseModel):
         description="First 12 characters of the file hash; changes when the file changes."
     )
     pages: int | None = None
+    source: str | None = Field(
+        default=None,
+        description="Where the file is: sharepoint, onedrive, network or local. Empty with one source.",
+    )
+    also_in: list[str] = Field(
+        default_factory=list,
+        description="Other sources that hold an identical copy (same content). Not listed again.",
+    )
+
+
+class SourceInfo(BaseModel):
+    source: str
+    ok: bool
+    files: int = Field(
+        description=(
+            "How many files this source holds in total, for ALL customers (not this customer's files, "
+            "and not files shared with other sources)."
+        )
+    )
+    seconds: float
+    reason: str | None = Field(default=None, description="Why the source could not be read.")
 
 
 class FindContractFilesResult(BaseModel):
@@ -55,6 +76,21 @@ class FindContractFilesResult(BaseModel):
     )
     not_checked: list[NotChecked] = Field(default_factory=list)
     note: str
+    sources: list[SourceInfo] = Field(
+        default_factory=list,
+        description="One line per source that was asked (empty with one source).",
+    )
+    complete: bool = Field(
+        default=True,
+        description=(
+            "False if any source could not be read. Then the list may be missing files: never read "
+            "'no file found' as 'no contract exists', and do not present the check as complete."
+        ),
+    )
+    conflicts: list[str] = Field(
+        default_factory=list,
+        description="Files with the same name but different content in different sources. Ask the user which is right.",
+    )
 
 
 # --- get_contract_pages ----------------------------------------------------------------------
@@ -150,8 +186,12 @@ class Finding(BaseModel):
     contract_rate_pct: Decimal
     sap_rate_pct: Decimal | None
     effective_date: date
-    monthly_base: Decimal = Field(
-        description="Net sales the rate applies to, in the latest month that has SAP sales."
+    monthly_base: Decimal | None = Field(
+        description=(
+            "Net sales the rate applies to, in the latest month that has SAP sales. Null for a line that "
+            "matches SAP when SAP has no sales at all in its period: the rates agree, so there is no gap, "
+            "but there is no base to show."
+        )
     )
     monthly_gap: Decimal = Field(
         description=(

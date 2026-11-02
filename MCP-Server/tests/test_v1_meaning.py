@@ -151,6 +151,20 @@ def test_a_model_we_have_not_measured_is_refused_plainly(pg, monkeypatch, make_w
     assert result.hits and "not one we have measured" in result.note
 
 
+def _row(pid, sim):
+    return (pid, "doc", "sha", 1, None, "text", sim)
+
+
+def test_a_meaning_hit_far_below_the_best_one_is_dropped_unless_the_words_match():
+    rows = [_row("a", 0.80), _row("b", 0.74), _row("c", 0.66), _row("d", 0.60)]
+    kept = [r[0] for r in passages.within_band(rows, set())]
+    assert kept == ["a", "b"]  # within 0.10 of 0.80
+    kept = [r[0] for r in passages.within_band(rows, {"d"})]
+    assert kept == ["a", "b", "d"]  # a keyword match stays whatever its similarity
+    assert passages.within_band([], set()) == []
+    assert [r[0] for r in passages.within_band(rows, set(), band=1.0)] == ["a", "b", "c", "d"]
+
+
 def test_a_short_name_chooses_the_model(monkeypatch):
     assert embeddings.resolve_name("nomic") == "nomic-ai/nomic-embed-text-v1.5-Q"
     assert embeddings.resolve_name(" BGE ") == "BAAI/bge-small-en-v1.5"

@@ -215,6 +215,9 @@ CREATE TABLE IF NOT EXISTS passage_vec (
 );
 """
 BACKFILL_MAX = 400  # passages embedded in one search; the rest are done by the next searches
+MEANING_BAND = (
+    0.10  # a meaning-only hit must score within this of the best meaning hit, or it is dropped
+)
 RRF_K = 60  # reciprocal rank fusion constant: a hit's score is the sum of 1/(RRF_K + rank) over the lists
 
 
@@ -246,6 +249,21 @@ def _backfill(target: PgTarget, embedder: Embedder, customer_id: str | None) -> 
                 {"id": pid, "model": embedder.spec.name, "vec": vector_text(vector)},
             )
         return len(rows)
+
+
+def within_band(
+    meaning: list[tuple], keyword_ids: set[str], band: float = MEANING_BAND
+) -> list[tuple]:
+    """Drop the meaning hits that are far below the best one, unless the words match too.
+
+    The cut-off keeps unrelated text out; this keeps the long tail of loosely related passages out of a query
+    that has a clear best answer (decision 0013, after live QA MQ-3: 8 of 10 hits were noise). A passage that
+    the keyword search also found always stays. Rows are (passage_id, ..., similarity), nearest first.
+    """
+    if not meaning:
+        return []
+    best = max(float(r[6]) for r in meaning)
+    return [r for r in meaning if r[0] in keyword_ids or float(r[6]) >= best - band]
 
 
 def _meaning_rows(
@@ -319,6 +337,7 @@ def search(
         meaning_note = f" Meaning search is off for this call ({type(exc).__name__}: {exc})."
         print(f"[ingenus_mcp] meaning search skipped ({type(exc).__name__})", file=sys.stderr)
 
+    meaning = within_band(meaning, {row[0] for row in keyword})
     # Merge the two lists by reciprocal rank fusion: a passage in both lists ranks above one in a single list.
     merged: dict[str, dict[str, Any]] = {}
     for position, row in enumerate(keyword, start=1):

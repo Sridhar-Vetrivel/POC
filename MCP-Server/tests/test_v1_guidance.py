@@ -38,8 +38,8 @@ def test_the_server_serves_the_eight_guides():
     assert set(load_guides(load_settings().guidance_dir)) == V2
 
 
-def test_the_default_guidance_is_v5():
-    assert load_settings().guidance_dir.name == "v5"
+def test_the_default_guidance_is_v6():
+    assert load_settings().guidance_dir.name == "v6"
 
 
 def test_guidance_v2_is_still_an_exact_copy_of_skills_v2():
@@ -179,6 +179,27 @@ def test_guidance_v5_changes_only_two_guides_and_leaves_v4_alone():
             GUIDANCE / "v4" / name / "SKILL.md"
         ).read_bytes()
         assert same == (name not in CHANGED_IN_V5), name
+
+
+CHANGED_IN_V6 = ("contract-check-playbook",)
+
+
+def test_guidance_v6_changes_only_the_playbook_and_leaves_v5_alone():
+    # v5 is what the live runs of 26 Oct 2026 used: it must not be edited in place.
+    for name in V2:
+        same = (GUIDANCE / "v6" / name / "SKILL.md").read_bytes() == (
+            GUIDANCE / "v5" / name / "SKILL.md"
+        ).read_bytes()
+        assert same == (name not in CHANGED_IN_V6), name
+
+
+def test_guidance_v6_says_a_search_hit_is_a_pointer_and_never_a_number():
+    playbook = (load_settings().guidance_dir / "contract-check-playbook" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    assert "`search_contracts`" in playbook
+    assert "A search hit is **only a pointer**" in playbook
+    assert "never take a rate or any number from it into a check" in playbook
 
 
 def test_guidance_v5_tells_claude_to_use_the_stored_terms_first():

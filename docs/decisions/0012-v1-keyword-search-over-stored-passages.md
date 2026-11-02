@@ -1,6 +1,6 @@
 # 0012: v1 keeps contract passages in the one Postgres database and searches them by keyword (`search_contracts`)
 
-**Date:** 2 Nov 2026 · **Status:** built and tested offline and on the local Postgres 18 (synthetic data, 2 Nov 2026); **not yet tried through Claude Desktop**, and no guidance version mentions it yet (step 3a) · **Phase:** 1, v1 (`MCP-Server/`), step 3a of the [records and search index proposal](../proposal/records_and_search_index_impact_analysis_and_proposal.md)
+**Date:** 2 Nov 2026 · **Status:** built and tested offline and on the local Postgres 18 (synthetic data, 2 Nov 2026); **not yet tried through Claude Desktop**, guidance v6 (2 Nov 2026) tells Claude when to search; live QA SQ-1 to SQ-6 in `demo_guide.md` section 8d is **not run yet** (step 3a) · **Phase:** 1, v1 (`MCP-Server/`), step 3a of the [records and search index proposal](../proposal/records_and_search_index_impact_analysis_and_proposal.md)
 **Adds:** one tool (`search_contracts`) and one table (`passage`), as the read-only rule requires a decision for each. Meaning search (step 3b) is a separate decision.
 
 ## Context
@@ -43,7 +43,7 @@ Passages stored once per fingerprint (idempotent); a changed file replaces its p
 
 ## Build order
 
-Steps 1 to 4 are done (2 Nov 2026); 5 and 6 are open. 1. `core/passages.py`: split pages, DDL, save, replace, search, prune. 2. Hook the save into the listing (`find_contract_files`). 3. `tools/search_contracts.py` (and its audit entry). 4. Tests and ruff and `check.py`. 5. New guidance version (v6): when to search, and that a hit is not a number. 6. Live QA in Claude Desktop.
+Steps 1 to 5 are done (2 Nov 2026); step 6 is open. 1. `core/passages.py`: split pages, DDL, save, replace, search, prune. 2. Hook the save into the listing (`find_contract_files`). 3. `tools/search_contracts.py` (and its audit entry). 4. Tests and ruff and `check.py`. 5. New guidance version (v6): when to search, and that a hit is not a number. 6. Live QA in Claude Desktop.
 
 ## Related
 

@@ -92,7 +92,7 @@ Production Postgres version, OS and `pgvector` availability are **unknown** (ask
 | `INGENUS_SOURCES_TIMEOUT=45` | Seconds to wait for one source before reporting it as failed |
 | `INGENUS_RECORDS_DB` | Unset: Postgres when `INGENUS_PG_HOST` is set, else a local file. `off`: keep no terms |
 | `INGENUS_PG_HOST` | Present: Postgres for audit, check history and stored terms. Comment out to fall back to local files |
-| `INGENUS_GUIDANCE_DIR` | Pin a guidance version, for example `...\guidance\v4`. Default is `v5` |
+| `INGENUS_GUIDANCE_DIR` | Pin a guidance version, for example `...\guidance\v4`. Default is `v6` |
 
 ## Git
 

@@ -77,8 +77,9 @@ IT's Windows Postgres 18 has no `pgvector`, and installing into it needs admin. 
 
 | What | Command (PowerShell) |
 |---|---|
-| Start | `wsl -d Ubuntu -- bash -c 'export LD_LIBRARY_PATH=$HOME/pg18/usr/lib/x86_64-linux-gnu; $HOME/pg18/usr/lib/postgresql/18/bin/pg_ctl -D $HOME/pgdata -o "-p 5433 -c listen_addresses=localhost -k /tmp" -l $HOME/pgdata.log start'` |
-| Stop | same, with `stop` instead of `start` |
+| Start | `wsl -d Ubuntu -- bash -c 'export LD_LIBRARY_PATH=$HOME/pg18/usr/lib/x86_64-linux-gnu; $HOME/pg18/usr/lib/postgresql/18/bin/pg_ctl -D $HOME/pgdata -o \"-p 5433 -c listen_addresses=localhost -k /tmp\" -l $HOME/pgdata.log start'` (the `\"` matters: PowerShell drops plain inner quotes and `pg_ctl` then says "no operation specified") |
+| Is it already running? | same, with `status` and without the `-o ...` and `-l ...` part. If `start` says "another server might be running" and then fails, it is already up |
+| Stop | same as Start, with `stop` instead of `start` |
 | Check | `Test-NetConnection localhost -Port 5433` |
 | Check the extension | `psql -h localhost -p 5433 -U postgres -c "select extversion from pg_extension where extname='vector'"` (needs the WSL `psql` at `~/pg18/usr/lib/postgresql/18/bin/psql`) |
 

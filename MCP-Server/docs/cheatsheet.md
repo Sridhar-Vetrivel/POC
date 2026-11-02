@@ -11,6 +11,7 @@ Run from the repo root `C:\Users\sridhar.vetrivel\INGENUS\POC` unless a line say
 | Stop | `Ctrl+C`, then start again after any `.env` or code change (guidance files are read fresh, no restart needed) |
 | Live sign-in check (server running in another terminal) | `python MCP-Server\scripts\signin_check.py` |
 | Tool-call report from the log | `python -m ingenus_mcp.report --log MCP-Server\data\runtime\tool_calls.jsonl` |
+| Last 10 tool calls and logins (PowerShell). A `login` line with no `tool_call` after it means the chat connected but Claude used no tool | `Get-Content C:\Users\sridhar.vetrivel\INGENUS\POC\MCP-Server\data\runtime\tool_calls.jsonl -Tail 10` |
 
 ## Tests and checks
 

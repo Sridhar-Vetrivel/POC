@@ -29,6 +29,7 @@ BASELINE_TOOLS = {
     "get_guide",  # decision 0003
     "get_check_history",  # decision 0006
     "get_contract_terms",  # decision 0011
+    "search_contracts",  # decision 0012
 }
 
 

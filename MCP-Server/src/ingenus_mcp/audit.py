@@ -23,7 +23,7 @@ import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from ingenus_mcp.core import auditstore, calllog, history, records
+from ingenus_mcp.core import auditstore, calllog, history, passages, records
 from ingenus_mcp.core.config import load_env_file, load_settings
 
 
@@ -79,6 +79,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.records is not None:
             print(
                 f"Deleted {records.prune(args.records, before)} stored term(s) not used for {args.days} days from {args.records}."
+            )
+            print(
+                f"Deleted {passages.prune(args.records, before)} stored passage(s) not used for {args.days} days."
             )
             pruned = True
         if not pruned:

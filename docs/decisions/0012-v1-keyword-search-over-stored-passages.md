@@ -1,6 +1,6 @@
 # 0012: v1 keeps contract passages in the one Postgres database and searches them by keyword (`search_contracts`)
 
-**Date:** 2 Nov 2026 · **Status:** decided, **not built** (step 3a) · **Phase:** 1, v1 (`MCP-Server/`), step 3a of the [records and search index proposal](../proposal/records_and_search_index_impact_analysis_and_proposal.md)
+**Date:** 2 Nov 2026 · **Status:** built and tested offline and on the local Postgres 18 (synthetic data, 2 Nov 2026); **not yet tried through Claude Desktop**, and no guidance version mentions it yet (step 3a) · **Phase:** 1, v1 (`MCP-Server/`), step 3a of the [records and search index proposal](../proposal/records_and_search_index_impact_analysis_and_proposal.md)
 **Adds:** one tool (`search_contracts`) and one table (`passage`), as the read-only rule requires a decision for each. Meaning search (step 3b) is a separate decision.
 
 ## Context
@@ -13,10 +13,10 @@
 
 1. **One database for everything.** Audit events, check history, stored terms and now passages (and later the vectors of step 3b) live in the **same Postgres database**: `ingenus_audit`, role `ingenus_server`, on the WSL Postgres (`INGENUS_PG_PORT=5433`). No second database to start, back up or secure. The Windows Postgres on port 5432 is no longer used by the server; its old rows (synthetic) are **not migrated** and come back as customers are checked. The audit log was copied across with `audit ship` (134 events; the local file stays the first write, decision 0008).
 2. **Table `passage`** (Postgres only): `passage_id` (hash of document id, fingerprint, page, position), `customer_id`, `document_id` (with source), `fingerprint` (`sha256_12`), `page`, `section` (the heading line above it, if any), `text`, `last_used`, and a generated `tsvector` column with a GIN index for keyword search. Same retention as terms: **90 days from last use**, deleted by `audit prune`.
-3. **How passages are filled: lazily, by code, no Claude.** When `get_contract_pages` or `get_contract_terms` loads a file for someone, the pages are split into passages (one per paragraph or clause, long ones cut at about 1,200 characters on a sentence end) and stored for that fingerprint. A changed file replaces its passages (old fingerprint deleted). Saving never fails a tool call (same rule as terms).
+3. **How passages are filled: lazily, by code, no Claude.** When `find_contract_files` (which `get_contract_terms` also calls) lists a customer's files for someone, each **non-draft** file's pages are split into passages (one per paragraph or clause, long ones cut at about 1,200 characters on a sentence end) and stored for that fingerprint. A changed file replaces its passages (old fingerprint deleted). Drafts are left out, as they are from listings. One process saves a given file content once; a file opened by a search is saved again if it changed. Saving never fails a tool call (same rule as terms).
 4. **New tool `search_contracts(query, customer?)`.** Runs a Postgres full-text query (`websearch_to_tsquery`, ranked with `ts_rank`), narrowed by customer when given, returns the top passages with file, page, section and a short quote, plus a note that **search results are for finding, never for numbers in a check** (a rate found by search still goes through `get_contract_pages` and the quote check). It is read-only.
 5. **Who sees what.** Passages are a second copy of text, so each candidate file is checked **as the asking person**: the server asks the source for that one file (`stat`, as the signed-in user for SharePoint and OneDrive) and drops the hit if it cannot be opened. Only the top 20 candidates are checked, to keep it cheap. The network share is the service account's view (decision 0007). A source that cannot be reached means those hits are left out and the answer says so (`complete` false, as in decision 0010).
-6. **Never in the logs:** passage text is not written to the audit log or the check history; the log holds the query's length and the number of hits, not the text.
+6. **Never in the logs:** passage text is not written to the audit log or the check history. The log holds the tool's arguments as for every tool (so the query words, trimmed to 300 characters) and counts of hits, never the passages.
 7. **Without Postgres** the tool says search is not available (SQLite has no full-text column of this kind in our schema). Records and checks still work on SQLite.
 
 ## Options considered
@@ -37,13 +37,13 @@
 - **WSL Postgres is a dev setup:** no password, localhost only, stops when WSL stops, start command in the cheat sheet. The production database (version, OS, `pgvector` availability) is **unknown**; ask Aditya. The code only needs standard Postgres 18 features for 3a; `pgvector` is needed from 3b.
 - **Not verified:** speed and ranking quality on real contracts; two server processes writing passages at once.
 
-## Tests planned (`tests/test_v1_search.py`)
+## Tests (`tests/test_v1_search.py`, 15; they use the local Postgres and skip without it)
 
-Passages stored once per fingerprint (idempotent); a changed file replaces its passages; a hit for a wording the page finder misses; narrowed by customer; a file the asker cannot open is dropped; a source down is reported, not "no hit"; no passage text in the audit log; pruning by last use; tool says "not available" without Postgres; a search result cannot feed a comparison.
+Passages stored once per fingerprint (idempotent); a changed file replaces its passages; a hit for a wording the page finder misses; narrowed by customer; a file the asker cannot open is dropped; a source down is reported, not "no hit"; no passage text in the audit log; pruning by last use; tool says "not available" without Postgres; (a search result cannot feed a comparison is held by the tool text and the guidance only, not by a test).
 
 ## Build order
 
-1. `core/passages.py`: split pages, DDL, save, replace, search, prune. 2. Hook the save into the two page-loading tools. 3. `tools/search_contracts.py` (and its audit entry). 4. Tests and ruff and `check.py`. 5. New guidance version (v6): when to search, and that a hit is not a number. 6. Live QA in Claude Desktop.
+Steps 1 to 4 are done (2 Nov 2026); 5 and 6 are open. 1. `core/passages.py`: split pages, DDL, save, replace, search, prune. 2. Hook the save into the listing (`find_contract_files`). 3. `tools/search_contracts.py` (and its audit entry). 4. Tests and ruff and `check.py`. 5. New guidance version (v6): when to search, and that a hit is not a number. 6. Live QA in Claude Desktop.
 
 ## Related
 

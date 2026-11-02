@@ -346,3 +346,28 @@ class ContractTermsResult(BaseModel):
         description="False if this server keeps no stored terms (then every file shows read_pages)."
     )
     note: str
+
+
+# --- search_contracts -------------------------------------------------------------------------
+class SearchHit(BaseModel):
+    document_id: str = Field(description="document_id exactly as returned by find_contract_files.")
+    filename: str
+    source: str | None = None
+    page: int = Field(ge=1)
+    section: str | None = Field(default=None, description="The heading above the passage, if any.")
+    text: str = Field(description="The passage, copied from the file. " + UNTRUSTED_TEXT_NOTICE)
+    rank: float = Field(description="Higher is a better keyword match. Only for ordering.")
+
+
+class SearchContractsResult(BaseModel):
+    query: str
+    customer_id: str | None = None
+    hits: list[SearchHit]
+    available: bool = Field(
+        description="False if this server cannot search (no Postgres), or the search store failed."
+    )
+    complete: bool = Field(
+        default=True, description="False if a hit's source could not be reached to check access."
+    )
+    not_checked: list[NotChecked] = Field(default_factory=list)
+    note: str

@@ -13,7 +13,7 @@ from typing import Any
 
 import yaml
 
-from ingenus_mcp.core import customers
+from ingenus_mcp.core import customers, passages
 from ingenus_mcp.core.config import Settings
 from ingenus_mcp.core.documents import SUPPORTED, load_document
 from ingenus_mcp.core.models import (
@@ -194,6 +194,9 @@ def find_contract_files(
         if _is_draft(item.name, pages[0] if pages else None):
             drafts.append(rel)
             continue
+        passages.save(
+            settings, rel, doc.sha12, pages
+        )  # decision 0012: keyword search over passages
         file_kind = _kind(item.name)
         if kind and file_kind != kind:
             continue

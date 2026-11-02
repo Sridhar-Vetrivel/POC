@@ -86,6 +86,29 @@ IT's Windows Postgres 18 has no `pgvector`, and installing into it needs admin. 
 
 Production Postgres version, OS and `pgvector` availability are **unknown** (ask Aditya).
 
+## Meaning search (decision 0013; needs the Postgres with pgvector above)
+
+Choose the model with one word in `MCP-Server\.env`: `INGENUS_EMBED_MODEL=nomic`, `bge` or `minilm` (or the full name). Unset or `off` means keyword search only. Synthetic data only until the AI admin answers (decision 0013).
+
+| Short name | Model | Size, numbers | Ranking on our test (MRR) | Cut-off |
+|---|---|---|---|---|
+| `nomic` (chosen) | nomic-ai/nomic-embed-text-v1.5-Q | 134 MB, 768 | **0.97** | 0.55 |
+| `bge` | BAAI/bge-small-en-v1.5 | 65 MB, 384 | 0.92 | 0.55 |
+| `minilm` | sentence-transformers/all-MiniLM-L6-v2 | 88 MB, 384 | 0.84 | 0.30 |
+
+| What | Command (repo root, PowerShell) |
+|---|---|
+| Install the runtime once | `.venv\Scripts\python.exe -m pip install fastembed` |
+| **Use nomic** (set, then download once) | `(Get-Content MCP-Server\.env) -replace '^#?\s*INGENUS_EMBED_MODEL=.*','INGENUS_EMBED_MODEL=nomic' \| Set-Content MCP-Server\.env -Encoding ascii; .venv\Scripts\python.exe -m ingenus_mcp.embeddings fetch` |
+| **Use bge** | same, with `INGENUS_EMBED_MODEL=bge` |
+| **Use minilm** | same, with `INGENUS_EMBED_MODEL=minilm` |
+| **Turn it off** (keyword search stays) | same, with `INGENUS_EMBED_MODEL=off` (and no `fetch`) |
+| What is set, and does it load | `.venv\Scripts\python.exe -m ingenus_mcp.embeddings status` |
+| After any change | restart the server. The next search embeds the passages again with the new model and drops the old model's vectors |
+| Look at the vectors | `SELECT model, count(*) FROM passage_vec GROUP BY 1;` (pgAdmin or psql on port 5433) |
+
+`fetch` downloads only the model named in `.env` (the only time anything is downloaded; the server never does). If the line is not in `.env` yet, add `INGENUS_EMBED_MODEL=nomic` by hand first: the replace above only changes an existing line.
+
 ## Switches in `MCP-Server\.env` (git-ignored; first definition wins)
 
 | Setting | Meaning |
@@ -93,8 +116,9 @@ Production Postgres version, OS and `pgvector` availability are **unknown** (ask
 | `INGENUS_SOURCES=sharepoint,onedrive,network` | Search all three sources; the server picks per question. Leave `INGENUS_DOC_SOURCE` unset |
 | `INGENUS_SOURCES_TIMEOUT=45` | Seconds to wait for one source before reporting it as failed |
 | `INGENUS_RECORDS_DB` | Unset: Postgres when `INGENUS_PG_HOST` is set, else a local file. `off`: keep no terms |
+| `INGENUS_EMBED_MODEL` | `nomic`, `bge` or `minilm` (or the full name): meaning search on (download the model first). Unset or `off`: keyword search only. `INGENUS_EMBED_MIN_SIM` changes the similarity cut-off (default 0.55) |
 | `INGENUS_PG_HOST` | Present: Postgres for audit, check history and stored terms. Comment out to fall back to local files |
-| `INGENUS_GUIDANCE_DIR` | Pin a guidance version, for example `...\guidance\v4`. Default is `v6` |
+| `INGENUS_GUIDANCE_DIR` | Pin a guidance version, for example `...\guidance\v4`. Default is `v7` |
 
 ## Git
 

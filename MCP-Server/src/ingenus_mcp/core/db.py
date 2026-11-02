@@ -99,7 +99,8 @@ def _pg_connect(target: PgTarget, ddl: str) -> Any:
                         pgsql.Identifier(target.schema)
                     )
                 )
-        conn.execute("SELECT set_config('search_path', %s, false)", (target.schema,))
+        # public stays on the path so that extension types (pgvector's `vector`) resolve in any schema
+        conn.execute("SELECT set_config('search_path', %s, false)", (f"{target.schema}, public",))
         if first:
             conn.execute(ddl)
             _ready.add(key)

@@ -356,7 +356,14 @@ class SearchHit(BaseModel):
     page: int = Field(ge=1)
     section: str | None = Field(default=None, description="The heading above the passage, if any.")
     text: str = Field(description="The passage, copied from the file. " + UNTRUSTED_TEXT_NOTICE)
-    rank: float = Field(description="Higher is a better keyword match. Only for ordering.")
+    rank: float = Field(description="Higher is a better match. Only for ordering.")
+    matched_by: Literal["keyword", "meaning", "both"] = Field(
+        default="keyword",
+        description="keyword: the words are in the passage. meaning: similar in meaning, the words may differ.",
+    )
+    similarity: float | None = Field(
+        default=None, description="Closeness of meaning, 0 to 1, when meaning search matched it."
+    )
 
 
 class SearchContractsResult(BaseModel):
@@ -370,4 +377,8 @@ class SearchContractsResult(BaseModel):
         default=True, description="False if a hit's source could not be reached to check access."
     )
     not_checked: list[NotChecked] = Field(default_factory=list)
+    meaning_search: bool = Field(
+        default=False,
+        description="True if this search also looked for similar meaning, not only the words typed.",
+    )
     note: str

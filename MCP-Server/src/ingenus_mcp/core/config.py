@@ -77,6 +77,10 @@ class Settings:
     history_db: Target | None = None
     # Decision 0011: stored contract terms. Their own store: the check history keeps no quotes, these do.
     records_db: Target | None = None
+    # Decision 0013: meaning search. Off unless a model is named. The server never downloads it (see embeddings.py).
+    embed_model: str = ""
+    embed_dir: Path = _DATA / "runtime" / "models"
+    embed_min_similarity: float | None = None  # overrides the model's own cut-off
     retention_days: int = (
         365  # default age limit for `python -m ingenus_mcp.audit prune` (assumed, to confirm)
     )
@@ -191,7 +195,7 @@ def load_settings() -> Settings:
         log_path=path("INGENUS_LOG_PATH", _DATA / "runtime" / "tool_calls.jsonl"),
         prompts_dir=path("INGENUS_PROMPTS_DIR", _SERVER_DIR / "prompts"),
         # The guides (skills) the server serves through get_guide; decision 0003.
-        guidance_dir=path("INGENUS_GUIDANCE_DIR", _SERVER_DIR / "guidance" / "v6"),
+        guidance_dir=path("INGENUS_GUIDANCE_DIR", _SERVER_DIR / "guidance" / "v7"),
         # Loopback by default. Binding to a network address is a deployment decision (V1-4), made
         # together with server sign-in: an open port without sign-in would let anyone call the tools.
         host=os.environ.get("INGENUS_MCP_HOST", "127.0.0.1"),
@@ -211,6 +215,11 @@ def load_settings() -> Settings:
         else postgres,
         history_db=_history_db(os.environ.get("INGENUS_HISTORY_DB"), postgres),
         records_db=_records_db(os.environ.get("INGENUS_RECORDS_DB"), postgres),
+        embed_model=os.environ.get("INGENUS_EMBED_MODEL", "").strip(),
+        embed_dir=path("INGENUS_EMBED_DIR", _DATA / "runtime" / "models"),
+        embed_min_similarity=float(os.environ["INGENUS_EMBED_MIN_SIM"])
+        if os.environ.get("INGENUS_EMBED_MIN_SIM")
+        else None,
         retention_days=int(os.environ.get("INGENUS_RETENTION_DAYS", "365")),
         network_root=Path(os.environ["INGENUS_NETWORK_ROOT"])
         if os.environ.get("INGENUS_NETWORK_ROOT")

@@ -30,7 +30,7 @@ def search_contracts(
     instead of searching local folders or uploads. Returns passages with file, page and section.
 
     Use it to locate a clause (for example returns, payment terms, a defined word) before reading the page
-    with get_contract_pages. It matches the words you type, not their meaning, and with a customer it lists their files itself; without one it
+    with get_contract_pages. It matches the words you type and, if the server has a meaning model on (`meaning_search` in the result), passages of similar meaning, which can be loosely related. With a customer it lists their files itself; without one it
     covers only files already listed by someone. Passages are shown only
     for files you can open. NEVER use a number from a search result in a check: read the page, quote it, and
     let compare_contract_to_sap verify it. With a customer, the server lists that customer's files first if nothing was found, so one call is enough. If `complete` is false or `available` is false, say so. The

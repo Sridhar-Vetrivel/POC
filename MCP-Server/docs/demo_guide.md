@@ -466,6 +466,21 @@ Record each result here (pass or fail, and what Claude did) with the chat and th
 **Search QA summary (2 Nov 2026):** SQ-1 to SQ-6 pass; extra: an unknown customer ("Chain J") gets the similar names and no clause (SQ-7). Found and fixed during the QA: headings not split or searched, Claude not searching after listing (the server now lists the customer's files itself), Claude not using the tools for a question that says "file". Open: the automatic listing path live (`DELETE FROM passage`), a second person's view (per-user access across two users), meaning search (3b).
  Side note: that check showed `stored_count` 0 because the old terms were in the Windows Postgres (port 5432) and the server moved to the WSL Postgres (5433) the same day; the 6 terms now stored come from that check, so the next one should use them (SR-3).
 
+## 8e. Meaning search QA (decision 0013; guidance v7; **not run yet**)
+
+Setup: WSL Postgres up, `fastembed` installed, the model downloaded (`python -m ingenus_mcp.embeddings fetch`), `INGENUS_EMBED_MODEL=nomic-ai/nomic-embed-text-v1.5-Q` in `.env`, server restarted, new Chat with the Ingenus connector on. Say "contract" and the customer name.
+
+| # | Do | Expect |
+|---|---|---|
+| MQ-1 | "Search the Chain A contracts for 'retrospective discount'" (this returned nothing in SQ-3) | Hits with `matched_by` `meaning`, the Schedule A rebate page among them; Claude says they are similar in meaning, reads the page before relying on one |
+| MQ-2 | "Which Chain A contract talks about a volume rebate?" | The Schedule A and Amendment 1 passages, `meaning_search` true |
+| MQ-3 | "Which Chain A contract mentions payment terms?" | Same as SQ-2 (`both`: words and meaning) |
+| MQ-4 | "Search the Chain A contracts for chocolate cake" | No hits; Claude does not invent one |
+| MQ-5 | Hide Amendment 3 as in SQ-5, ask MQ-3 again | Its hit is dropped, `complete` false |
+| MQ-6 | Comment out `INGENUS_EMBED_MODEL`, restart, ask MQ-1 | Keyword only: no hit, `meaning_search` false |
+
+Record each result here. Known limit to watch: a topic that is absent can still return loosely related passages (decision 0013).
+
 ## 9. v1-specific tests
 
 These test what is new in v1: the server is central and the laptop holds nothing.

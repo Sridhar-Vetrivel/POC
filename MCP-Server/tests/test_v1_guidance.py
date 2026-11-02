@@ -38,8 +38,8 @@ def test_the_server_serves_the_eight_guides():
     assert set(load_guides(load_settings().guidance_dir)) == V2
 
 
-def test_the_default_guidance_is_v6():
-    assert load_settings().guidance_dir.name == "v6"
+def test_the_default_guidance_is_v7():
+    assert load_settings().guidance_dir.name == "v7"
 
 
 def test_guidance_v2_is_still_an_exact_copy_of_skills_v2():
@@ -200,6 +200,23 @@ def test_guidance_v6_says_a_search_hit_is_a_pointer_and_never_a_number():
     assert "`search_contracts`" in playbook
     assert "A search hit is **only a pointer**" in playbook
     assert "never take a rate or any number from it into a check" in playbook
+
+
+def test_guidance_v7_changes_only_the_playbook_and_leaves_v6_alone():
+    # v6 is what the search QA of 2 Nov 2026 used: it must not be edited in place.
+    for name in V2:
+        same = (GUIDANCE / "v7" / name / "SKILL.md").read_bytes() == (
+            GUIDANCE / "v6" / name / "SKILL.md"
+        ).read_bytes()
+        assert same == (name != "contract-check-playbook"), name
+
+
+def test_guidance_v7_explains_meaning_hits_and_keeps_the_pointer_rule():
+    playbook = (load_settings().guidance_dir / "contract-check-playbook" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    assert "`meaning_search` is true" in playbook and "`matched_by` is `meaning`" in playbook
+    assert "A search hit is **only a pointer**" in playbook
 
 
 def test_guidance_v5_tells_claude_to_use_the_stored_terms_first():

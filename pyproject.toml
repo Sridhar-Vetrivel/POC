@@ -19,6 +19,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+meaning = [
+    "fastembed>=0.7",   # local embedding model (ONNX, no PyTorch) for meaning search (decision 0013)
+]
 dev = [
     "pytest>=8",
     "ruff>=0.5",

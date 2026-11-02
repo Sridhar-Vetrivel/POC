@@ -29,6 +29,13 @@ from ingenus_mcp.core import customers, db
 from ingenus_mcp.core.config import Settings
 from ingenus_mcp.core.db import PgTarget, Target
 from ingenus_mcp.core.documents import load_document, normalize
+from ingenus_mcp.core.embeddings import (
+    Embedder,
+    EmbedderUnavailable,
+    get_embedder,
+    min_similarity,
+    vector_text,
+)
 from ingenus_mcp.core.models import NotChecked, SearchContractsResult, SearchHit
 from ingenus_mcp.core.sources import get_source
 
@@ -199,10 +206,70 @@ def save(settings: Settings, document_id: str, sha12: str, pages: tuple[str | No
         return 0
 
 
+_VEC_DDL = """
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE TABLE IF NOT EXISTS passage_vec (
+    passage_id TEXT PRIMARY KEY REFERENCES passage (passage_id) ON DELETE CASCADE,
+    model      TEXT NOT NULL,
+    embedding  vector NOT NULL
+);
+"""
+BACKFILL_MAX = 400  # passages embedded in one search; the rest are done by the next searches
+RRF_K = 60  # reciprocal rank fusion constant: a hit's score is the sum of 1/(RRF_K + rank) over the lists
+
+
+def _vec_session(target: Target):
+    return db.session(target, "", _DDL + _VEC_DDL)
+
+
+def _backfill(target: PgTarget, embedder: Embedder, customer_id: str | None) -> int:
+    """Embed the passages that have no vector for this model yet (and drop vectors of any other model)."""
+    where = "AND p.customer_id = %(customer)s" if customer_id else ""
+    with _vec_session(target) as conn:
+        conn.execute(
+            "DELETE FROM passage_vec WHERE model <> %(model)s", {"model": embedder.spec.name}
+        )
+        rows = conn.execute(
+            "SELECT p.passage_id, p.section, p.text FROM passage p"  # noqa: S608
+            " LEFT JOIN passage_vec v ON v.passage_id = p.passage_id AND v.model = %(model)s"
+            f" WHERE v.passage_id IS NULL {where} ORDER BY p.passage_id LIMIT %(n)s",
+            {"model": embedder.spec.name, "customer": customer_id, "n": BACKFILL_MAX},
+        ).fetchall()
+        if not rows:
+            return 0
+        texts = [f"{section}. {text}" if section else text for _pid, section, text in rows]
+        for (pid, _s, _t), vector in zip(rows, embedder.embed_documents(texts), strict=True):
+            conn.execute(
+                "INSERT INTO passage_vec (passage_id, model, embedding) VALUES"
+                " (%(id)s, %(model)s, %(vec)s::vector) ON CONFLICT (passage_id) DO UPDATE SET"
+                " model = excluded.model, embedding = excluded.embedding",
+                {"id": pid, "model": embedder.spec.name, "vec": vector_text(vector)},
+            )
+        return len(rows)
+
+
+def _meaning_rows(
+    target: PgTarget, embedder: Embedder, query: str, customer_id: str | None, floor: float
+) -> list[tuple]:
+    """The passages closest in meaning to the query, nearest first, none below the similarity floor."""
+    where = "AND p.customer_id = %(customer)s" if customer_id else ""
+    vector = vector_text(embedder.embed_query(query))
+    with _vec_session(target) as conn:
+        rows = conn.execute(
+            "SELECT p.passage_id, p.document_id, p.sha12, p.page, p.section, p.text,"  # noqa: S608
+            " 1 - (v.embedding <=> %(q)s::vector) AS sim FROM passage_vec v"
+            " JOIN passage p ON p.passage_id = v.passage_id"
+            f" WHERE v.model = %(model)s {where} ORDER BY v.embedding <=> %(q)s::vector LIMIT %(n)s",
+            {"q": vector, "model": embedder.spec.name, "customer": customer_id, "n": CANDIDATES},
+        ).fetchall()
+    return [r for r in rows if float(r[6]) >= floor]
+
+
 def search(
     settings: Settings, query: str, customer_id: str | None, limit: int
 ) -> SearchContractsResult:
-    """Keyword search, then each candidate file is opened as the asking person before its passage is shown."""
+    """Keyword search and, if a model is set, meaning search; each candidate file is opened as the asking
+    person before its passage is shown."""
     target = settings.records_db
     if not isinstance(target, PgTarget):
         return SearchContractsResult(
@@ -219,7 +286,7 @@ def search(
     where = "AND customer_id = %(customer)s" if customer_id else ""
     try:
         with _session(target) as conn:
-            rows = conn.execute(
+            keyword = conn.execute(
                 "SELECT passage_id, document_id, sha12, page, section, text,"  # noqa: S608
                 " ts_rank(tsv, q) AS rank FROM passage, websearch_to_tsquery('english', %(q)s) q"
                 f" WHERE tsv @@ q {where} ORDER BY rank DESC, document_id, page, passage_id"
@@ -236,11 +303,41 @@ def search(
             note="Search is not available: the store failed.",
         )
 
+    # Meaning search, when a model is set. Any problem here leaves keyword search as it was.
+    meaning: list[tuple] = []
+    meaning_note = ""
+    meaning_on = False
+    try:
+        embedder = get_embedder(settings)
+        if embedder is not None:
+            _backfill(target, embedder, customer_id)
+            meaning = _meaning_rows(
+                target, embedder, query, customer_id, min_similarity(settings, embedder)
+            )
+            meaning_on = True
+    except (EmbedderUnavailable, *db.STORE_ERRORS) as exc:
+        meaning_note = f" Meaning search is off for this call ({type(exc).__name__}: {exc})."
+        print(f"[ingenus_mcp] meaning search skipped ({type(exc).__name__})", file=sys.stderr)
+
+    # Merge the two lists by reciprocal rank fusion: a passage in both lists ranks above one in a single list.
+    merged: dict[str, dict[str, Any]] = {}
+    for position, row in enumerate(keyword, start=1):
+        entry = merged.setdefault(row[0], {"row": row[:6], "score": 0.0, "kw": False, "sim": None})
+        entry["score"] += 1 / (RRF_K + position)
+        entry["kw"] = True
+    for position, row in enumerate(meaning, start=1):
+        entry = merged.setdefault(row[0], {"row": row[:6], "score": 0.0, "kw": False, "sim": None})
+        entry["score"] += 1 / (RRF_K + position)
+        entry["sim"] = float(row[6])
+    ranked = sorted(merged.values(), key=lambda e: (-e["score"], e["row"][1], e["row"][3]))[
+        :CANDIDATES
+    ]
+
     source = get_source(settings)
     verdict: dict[str, str | None] = {}  # document -> its current sha12 if this person can open it
     not_checked: list[NotChecked] = []
-    for row in rows:
-        document = row[1]
+    for entry in ranked:
+        document = entry["row"][1]
         if document in verdict:
             continue
         try:
@@ -258,11 +355,13 @@ def search(
 
     hits: list[SearchHit] = []
     used: list[str] = []
-    for pid, document, sha12, page, section, text, rank in rows:
+    for entry in ranked:
+        pid, document, sha12, page, section, text = entry["row"]
         if verdict.get(document) != sha12:
             continue  # not openable by this person, or the file changed since the passage was stored
         if len(hits) >= limit:
             break
+        found = ("both" if entry["sim"] is not None else "keyword") if entry["kw"] else "meaning"
         hits.append(
             SearchHit(
                 document_id=document,
@@ -271,7 +370,9 @@ def search(
                 page=page,
                 section=section,
                 text=text,
-                rank=round(float(rank), 4),
+                rank=round(entry["score"], 5),
+                matched_by=found,
+                similarity=round(entry["sim"], 3) if entry["sim"] is not None else None,
             )
         )
         used.append(pid)
@@ -286,10 +387,17 @@ def search(
                     )
         except db.STORE_ERRORS:
             pass  # the clock is not worth failing a search for
+    how = "by keyword and by meaning" if meaning_on else "by keyword only"
     note = (
-        f"{len(hits)} passage(s) found by keyword. This finds where to look: it does not understand "
-        "meaning, so different wording is missed, and it covers only files already listed by someone. "
+        f"{len(hits)} passage(s) found {how}. This finds where to look, not a fact: "
+        + (
+            "a 'meaning' hit is similar in sense and may not contain the words you typed. "
+            if meaning_on
+            else "it does not understand meaning, so different wording is missed. "
+        )
+        + "It covers only files already listed by someone. "
         "A number found here is not a checked term: read the page with get_contract_pages."
+        + meaning_note
     )
     if not_checked:
         note += (
@@ -303,6 +411,7 @@ def search(
         available=True,
         complete=not not_checked,
         not_checked=not_checked,
+        meaning_search=meaning_on,
         note=note,
     )
 

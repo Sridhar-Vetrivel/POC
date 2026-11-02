@@ -110,6 +110,9 @@ def isolated_env(tmp_path, monkeypatch):
         "INGENUS_EXCLUDE_PATTERNS",
         "INGENUS_SOURCES",
         "INGENUS_SOURCES_TIMEOUT",
+        "INGENUS_EMBED_MODEL",
+        "INGENUS_EMBED_DIR",
+        "INGENUS_EMBED_MIN_SIM",
     ):
         monkeypatch.delenv(var, raising=False)
     return tmp_path

@@ -1,6 +1,6 @@
 # 0008: v1 keeps the audit store and the check history in Postgres
 
-**Date:** 21 Oct 2026 · **Status:** built and tested against a local Postgres 17 (the earlier laptop) and, since 21 Oct 2026, run live on Postgres 18.6 (the current laptop, IT's official install); not yet on the VM or at Ingenus · **Phase:** 1, v1 (`MCP-Server/`)
+**Date:** 21 Oct 2026 · **Status:** built and tested against a local Postgres 17 (the earlier laptop) and, from the live QA of 23 Oct 2026, run on Postgres 18.6 (the current laptop, IT's official install); not yet on the VM or at Ingenus · **Phase:** 1, v1 (`MCP-Server/`)
 
 ## Context
 

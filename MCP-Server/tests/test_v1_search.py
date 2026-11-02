@@ -51,6 +51,26 @@ def test_split_page_cuts_a_long_paragraph_on_sentence_ends():
     assert all(p.endswith(".") for _, p in pieces)
 
 
+def test_a_capitalised_heading_is_a_section_and_body_lines_with_a_colon_or_percent_are_kept():
+    page = (
+        "5. PAYMENT AND RETURNS\nPayment terms: net 45 days.\nReturns: none.\n"
+        "Product A rebate 6.0% of sales"
+    )
+    assert passages.split_page(page) == [
+        (
+            "5. PAYMENT AND RETURNS",
+            "Payment terms: net 45 days. Returns: none. Product A rebate 6.0% of sales",
+        )
+    ]
+
+
+def test_the_heading_is_searched_with_the_text(pg, make_world):
+    make_world(["5. PAYMENT AND RETURNS\nPayment terms: net 45 days from invoice date."], [], [])
+    list_files("Acme")
+    hit = search_contracts("returns").hits[0]
+    assert hit.section == "5. PAYMENT AND RETURNS" and "net 45" in hit.text
+
+
 def test_a_page_without_blank_lines_is_packed_not_lost():
     assert passages.split_page("Line one has words.\nLine two has more words.") == [
         (None, "Line one has words. Line two has more words.")

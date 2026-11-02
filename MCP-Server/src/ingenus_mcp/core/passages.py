@@ -10,6 +10,9 @@ after the asking person's own source has opened that file (as them for SharePoin
 while the file's fingerprint is the one the passage was stored with. A changed file replaces its passages.
 Kept 90 days from last use (`python -m ingenus_mcp.audit prune`). Passage text is never written to a log.
 
+The heading (section) is searched together with the text, so "returns" finds the clause under
+"5. PAYMENT AND RETURNS".
+
 Postgres only: the full-text column does not exist on SQLite, so there `enabled` is False.
 """
 
@@ -43,7 +46,7 @@ CREATE TABLE IF NOT EXISTS passage (
     section     TEXT,
     text        TEXT NOT NULL,
     last_used   TEXT NOT NULL,
-    tsv         tsvector GENERATED ALWAYS AS (to_tsvector('english', text)) STORED
+    tsv         tsvector GENERATED ALWAYS AS (to_tsvector('english', coalesce(section, '') || ' ' || text)) STORED
 );
 CREATE INDEX IF NOT EXISTS passage_tsv ON passage USING GIN (tsv);
 CREATE INDEX IF NOT EXISTS passage_document ON passage (document_id);
@@ -85,8 +88,24 @@ def _cut(block: str) -> list[str]:
     return pieces
 
 
+_NUMBERED_TITLE = re.compile(r"^\d+(?:\.\d+)*[.)]?\s+[A-Z][^.:;,%]*$")
+
+
 def _is_heading(block: str) -> bool:
-    return len(block) <= HEADING_CHARS and not block.endswith((".", ";", ","))
+    """A short line that looks like a title: mostly capitals ("5. PAYMENT AND RETURNS") or a numbered title
+    ("3. Returns"). A line with a colon, a percent sign or a full stop is body text, so it is never dropped."""
+    if (
+        len(block) > HEADING_CHARS
+        or block.endswith((".", ";", ","))
+        or "%" in block
+        or ":" in block
+    ):
+        return False
+    letters = [c for c in block if c.isalpha()]
+    if not letters:
+        return False
+    upper = sum(c.isupper() for c in letters) / len(letters)
+    return upper >= 0.6 or bool(_NUMBERED_TITLE.match(block))
 
 
 def split_page(text: str) -> list[tuple[str | None, str]]:
@@ -95,7 +114,12 @@ def split_page(text: str) -> list[tuple[str | None, str]]:
     if len(blocks) == 1:  # a page with no blank lines: pack its lines instead
         packed: list[str] = []
         for line in (normalize(b) for b in blocks[0].splitlines() if b.strip()):
-            if packed and len(packed[-1]) + 1 + len(line) <= MAX_CHARS and not _is_heading(line):
+            if (
+                packed
+                and len(packed[-1]) + 1 + len(line) <= MAX_CHARS
+                and not _is_heading(line)
+                and not _is_heading(packed[-1])
+            ):
                 packed[-1] = f"{packed[-1]} {line}"
             else:
                 packed.append(line)

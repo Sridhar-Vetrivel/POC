@@ -441,6 +441,8 @@ Setup: the WSL Postgres is up (cheat sheet), `INGENUS_PG_HOST` and `INGENUS_PG_P
 
 Record each result here (pass or fail, and what Claude did) with the chat and the log line.
 
+**SQ-1 (2 Nov 2026): partial.** Log: `search_contracts` (customer Chain A, 0 hits, as expected before any listing) then `find_contract_files`, then `get_contract_pages` (topic returns) on the three files. Claude did **not** call `get_guide` (not a check question, so v6 was not read) and did **not** search again after listing; it used the page finder and said which pages it had read and that the amendments were read only on their first pages (honest). It did not say that search covers only listed files. The listing did store 11 passages, and a direct query for "returns" then finds both the Definitions page and "5. PAYMENT AND RETURNS". **Found and fixed the same day:** the splitter merged the heading line into the body (section was empty) and the heading was not searched; now a capitalised or numbered title is the section and is searched with the text (the `passage` table was dropped and refills on the next listing); the tool text now says "if nothing found, list the files and search again". **Re-run SQ-1 after restarting the server.**
+
 ## 9. v1-specific tests
 
 These test what is new in v1: the server is central and the laptop holds nothing.

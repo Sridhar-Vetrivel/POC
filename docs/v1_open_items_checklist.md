@@ -95,6 +95,22 @@ Built (decision [0007](decisions/0007-v1-onedrive-and-network-share-sources.md))
 - [ ] **Decide:** the server reads a share as ONE account, so every signed-in user sees what that account sees. If Ingenus's folder permissions differ by person (**UNKNOWN**), this is not enough
 - [ ] **Done when (live):** Q1 exact from the real share; a link or path outside the root is refused; a locked file is reported, not fatal
 
+### 2.7 Several sources at once: what is left from the routing proposal (built and QA'd 23 to 26 Oct 2026, decision [0010](decisions/0010-v1-several-contract-sources-at-once.md))
+
+The proposal is now in [`completed/`](completed/multi_source_routing_impact_analysis_and_proposal.md) (its section 10 and section 8 are the source of these items). The routing itself is built; these were left open:
+
+- [ ] **Optional `source` argument** (proposal 10.1): let a caller limit a search to one source (`sharepoint`, `onedrive`, `network`). Not built. Decide (Sridhar, Aditya) whether it is wanted at all
+- [ ] **`compare` when it cannot tell whether every source answered** (proposal 10.2, risk 1): today the guidance plus the `complete` flag cover it. The proposal's view was a **health re-check inside `compare` before any real Ingenus data**: not built. Decide (Sridhar, Aditya)
+- [ ] **Old check-history rows without a source prefix** (proposal 10.3): keep them (treat as the single source) or hide them. Not decided
+- [ ] **Take the six questions below to Ingenus (Abhishek, Dan).** Their answers decide whether a simpler "one known place per customer" design, or a catalog for thousands of files, is needed later (proposal section 9). Also a security question that could change the design: must the network share and personal OneDrive never be answered in one result? (then split by role or tool)
+
+  1. For one customer, where do the master agreement, each amendment and any draft live? Always the same place, or split?
+  2. Is there one source of truth for signed contracts? If a copy is in two places, which wins?
+  3. How are files named and foldered in each place? Does the customer's name appear in the path?
+  4. Roughly how many contract files per place?
+  5. Who can read each place, and is the shared drive read by a service account or by people?
+  6. Do people keep contract copies in personal OneDrive, and does the team treat those as official?
+
 ### 2.6 More demo runs (V1-9)
 
 - [ ] Run the 16 questions with sign-in and SharePoint, not only Q1 (record in [`MCP-Server/docs/demo_guide.md`](../MCP-Server/docs/demo_guide.md))
@@ -115,7 +131,7 @@ Built (decision [0007](decisions/0007-v1-onedrive-and-network-share-sources.md))
 
 ## 4. Moving beyond the dev tenant
 
-The apps, certificate, group and site were made in a developer tenant (`vvrzl`) by the repo owner. Its lifetime is **UNKNOWN**: check the expiry in the developer programme. For Psiog's tenant, and later Ingenus's, the same steps repeat with their admins ([`psiog_it_steps_v1-4_v1-6.md`](psiog_it_steps_v1-4_v1-6.md)); the IDs and the site URL are settings, not code. What was done in the dev tenant, step by step: [`dev_tenant_setup_steps.md`](dev_tenant_setup_steps.md).
+The apps, certificate, group and site were made in a developer tenant (`vvrzl`) by the repo owner. Its lifetime is **UNKNOWN**: check the expiry in the developer programme. For Psiog's tenant, and later Ingenus's, the same steps repeat with their admins ([`psiog_it_steps_v1-4_v1-6.md`](psiog_it_steps_v1-4_v1-6.md)); the IDs and the site URL are settings, not code. What was done in the dev tenant, step by step: [`dev_tenant_setup_steps.md`](completed/dev_tenant_setup_steps.md).
 
 - [ ] Check when the developer tenant expires
 - [ ] Update the Psiog IT request: the app, group and SharePoint parts are proven in the dev tenant; the VM and HTTPS no longer go to Psiog IT (AWS, Aditya; decision 0009); what may still need IT is the app registration in the real tenant and, later, the file share

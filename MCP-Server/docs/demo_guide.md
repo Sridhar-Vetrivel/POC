@@ -221,7 +221,7 @@ in place. **Nothing here touches real Ingenus data.**
 - **Mode B, after the source-routing build:** the server is set up with all three sources at once
   (`INGENUS_SOURCES=sharepoint,onedrive,network`) and finds a customer's files in whichever source holds them, with no
   restart and no setting to change. **Built and run live on 23 Oct 2026 (results below).** The design is in
-  [the source routing proposal](../../docs/proposal/multi_source_routing_impact_analysis_and_proposal.md), the
+  [the source routing proposal](../../docs/completed/multi_source_routing_impact_analysis_and_proposal.md), the
   [records and search index proposal](../../docs/proposal/records_and_search_index_impact_analysis_and_proposal.md) (what comes next)
   and [decision 0010](../../docs/decisions/0010-v1-several-contract-sources-at-once.md).
 

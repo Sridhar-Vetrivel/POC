@@ -1,16 +1,16 @@
 # Handover: continuing on the new laptop
 
-**Written 22 Oct 2026.** For Sridhar and for the first Claude Code session on the new laptop. It holds no secrets and no IDs: those stay in `MCP-Server/.env` and `MCP-Server/secrets/`, which are not in git. The state of the work is in [`v1_open_items_checklist.md`](v1_open_items_checklist.md) and the decision records in [`decisions/`](decisions/); this note only says how to pick it up.
+**Written 22 Oct 2026.** For Sridhar and for the first Claude Code session on the new laptop. It holds no secrets and no IDs: those stay in `MCP-Server/.env` and `MCP-Server/secrets/`, which are not in git. The state of the work is in [`v1_open_items_checklist.md`](../v1_open_items_checklist.md) and the decision records in [`decisions/`](../decisions/); this note only says how to pick it up.
 
 ## 1. Set up the new laptop
 
 1. Install Python 3.13, Git, Node (only if you rebuild the bridge) and Claude Code; sign in to the same Claude account.
 2. `git clone` the repo, then in `POC/`: create `.venv`, `pip install -e ".[dev]"`. Run `python scripts/check.py`: it should end `13 passed, 0 failed`.
 3. Copy from the old laptop, over a safe channel (not email or chat):
-   - `MCP-Server/.env` and the whole `MCP-Server/secrets/` folder. `server_key.pem` is the private key of the certificate on the server app in the dev tenant: without it the Entra sign-in cannot work. (If you would rather not copy it, make a new key and upload its `.cer` to the app: [`developer_guide.md`](../developer_guide.md) section 5.1.)
+   - `MCP-Server/.env` and the whole `MCP-Server/secrets/` folder. `server_key.pem` is the private key of the certificate on the server app in the dev tenant: without it the Entra sign-in cannot work. (If you would rather not copy it, make a new key and upload its `.cer` to the app: [`developer_guide.md`](../../developer_guide.md) section 5.1.)
    - The `INGENUS/` folder's files that are outside `POC/` (pre-sales notes). They are not in git.
-4. Postgres: install it the normal way (the app installer, port 5432), create the database `ingenus_audit`, put the password in `MCP-Server/secrets/pg_password.txt`, and set `INGENUS_PG_HOST`, `INGENUS_PG_PORT`, `INGENUS_PG_PASSWORD_FILE` in `.env` ([`.env.example`](../MCP-Server/.env.example)). Without `INGENUS_PG_HOST` the server uses SQLite files and still works.
-5. Claude Desktop: reinstall the bridge as an unpacked extension (`MCP-Server/bridge`; steps are in [`MCP-Server/README.md`](../MCP-Server/README.md)), enter the server URL and the three IDs, and sign in again. The old sign-in cache does not move.
+4. Postgres: install it the normal way (the app installer, port 5432), create the database `ingenus_audit`, put the password in `MCP-Server/secrets/pg_password.txt`, and set `INGENUS_PG_HOST`, `INGENUS_PG_PORT`, `INGENUS_PG_PASSWORD_FILE` in `.env` ([`.env.example`](../../MCP-Server/.env.example)). Without `INGENUS_PG_HOST` the server uses SQLite files and still works.
+5. Claude Desktop: reinstall the bridge as an unpacked extension (`MCP-Server/bridge`; steps are in [`MCP-Server/README.md`](../../MCP-Server/README.md)), enter the server URL and the three IDs, and sign in again. The old sign-in cache does not move.
 
 ## 2. Resume the Claude Code session
 

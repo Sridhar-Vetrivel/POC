@@ -89,6 +89,6 @@ incomplete and named the failed source, and gave no "no contract" claim.
 
 ## Related
 
-- [Source routing: impact analysis and proposal](../proposal/multi_source_routing_impact_analysis_and_proposal.md)
+- [Source routing: impact analysis and proposal](../completed/multi_source_routing_impact_analysis_and_proposal.md)
 - [Records and search index: impact analysis and proposal](../proposal/records_and_search_index_impact_analysis_and_proposal.md) (what comes after this)
 - [0007: OneDrive and the network share](0007-v1-onedrive-and-network-share-sources.md) · [0004: sign-in and SharePoint](0004-v1-per-user-sign-in-and-sharepoint-reading.md)

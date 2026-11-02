@@ -6,7 +6,7 @@
 
 Labels used below: **Said**, **Doc** (read in this repo or the solution-approach notes), **Psiog proposal** (ours, to confirm), **Assumed**, **Unknown / verify**.
 
-Read with: [source routing proposal](multi_source_routing_impact_analysis_and_proposal.md) (the same work seen from "which source?").
+Read with: [source routing proposal](../completed/multi_source_routing_impact_analysis_and_proposal.md) (the same work seen from "which source?").
 
 ---
 
@@ -109,7 +109,7 @@ Before a record or passage is used, the server asks the file's source for that o
 
 ### 4.5 How a question finds its source (answer to the routing ask)
 
-"Check Chain A against SAP" is looked up in the **catalog** by customer. The catalog row already says which source each file is in, and the `document_id` carries that source, so the other tools route by it. The first time a customer is asked about, the server lists all sources (the fan-out in the [routing proposal](multi_source_routing_impact_analysis_and_proposal.md)); after that it uses the catalog and re-lists on the timer.
+"Check Chain A against SAP" is looked up in the **catalog** by customer. The catalog row already says which source each file is in, and the `document_id` carries that source, so the other tools route by it. The first time a customer is asked about, the server lists all sources (the fan-out in the [routing proposal](../completed/multi_source_routing_impact_analysis_and_proposal.md)); after that it uses the catalog and re-lists on the timer.
 
 ### 4.6 Who can see what (the hard part)
 
@@ -191,7 +191,7 @@ Keyword alone already fixes part of the "unusual wording" limit of today's page 
 | Step | What | Done when | Estimate |
 |---|---|---|---|
 | 0 | Decisions (section 8) | Sridhar and Aditya agree | 0.5 day |
-| 1 | Source routing and the **catalog** (the [routing proposal](multi_source_routing_impact_analysis_and_proposal.md)) | A question finds its files in any source; each file names its source; a failed source is reported | 5 to 7 days (already estimated there) |
+| 1 | Source routing and the **catalog** (the [routing proposal](../completed/multi_source_routing_impact_analysis_and_proposal.md)) | A question finds its files in any source; each file names its source; a failed source is reported | 5 to 7 days (already estimated there) |
 | 2 | **Records**: store verified terms; `get_contract_terms`; freshness check; status | Second check of Chain X reuses stored terms; an edited file sets them aside | 3 to 4 days |
 | 3a | **Keyword search**: passages; `search_contracts`; access check | A clause found that the page finder missed; no access means no passage | 3 to 4 days |
 | 3b | **Meaning search**: pick and test a local embedding model; pgvector; combined ranking | "Retrospective discount" is found for a rebate question on the synthetic set; passages are re-embedded when the model version changes | 2 to 3 days |

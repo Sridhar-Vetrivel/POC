@@ -2,8 +2,8 @@
 
 What the repo owner did on 20 Oct 2026 in a Microsoft 365 developer tenant, with the screens as they looked then
 (menu names may differ slightly in other portal versions). The same steps are what **Psiog IT** (or any admin) would do in
-another tenant: [`psiog_it_steps_v1-4_v1-6.md`](psiog_it_steps_v1-4_v1-6.md) is the short checklist for them, this is the
-long version. Why each thing exists is in decision [0004](decisions/0004-v1-per-user-sign-in-and-sharepoint-reading.md).
+another tenant: [`psiog_it_steps_v1-4_v1-6.md`](../psiog_it_steps_v1-4_v1-6.md) is the short checklist for them, this is the
+long version. Why each thing exists is in decision [0004](../decisions/0004-v1-per-user-sign-in-and-sharepoint-reading.md).
 
 Real IDs are **not** written here. Fill in the table below as you go; the values go into `MCP-Server/.env`
 (git-ignored), never into code or tests.
@@ -132,7 +132,7 @@ The server needs one credential to swap a user's token for a Graph token. A cert
 public half is uploaded.
 
 **5.1 Make the key pair** (OpenSSL; Git Bash has it). Full commands and the rules are in
-[`developer_guide.md`](../developer_guide.md) section 5.1. In short:
+[`developer_guide.md`](../../developer_guide.md) section 5.1. In short:
 
 ```bash
 mkdir -p MCP-Server/secrets && cd MCP-Server/secrets

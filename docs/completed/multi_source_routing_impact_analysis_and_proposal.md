@@ -4,7 +4,7 @@
 **For:** Sridhar and Aditya (Psiog).
 **Ask (Sridhar, 23 Oct 2026):** a user must not have to change `INGENUS_DOC_SOURCE`. The server should work out where a customer's contracts are from the question the user asks.
 
-> **Update, same day.** The records and search index we had already agreed are the end state, and the catalog inside them is how a question finds its source. This note is therefore **step 1** of the [records and search index proposal](records_and_search_index_impact_analysis_and_proposal.md). Option E below ("catalog / index", which I called not needed for a pilot) was wrong to dismiss: it is the agreed design. Option C (search all sources) stays as the way the catalog is first filled and re-listed.
+> **Update, same day.** The records and search index we had already agreed are the end state, and the catalog inside them is how a question finds its source. This note is therefore **step 1** of the [records and search index proposal](../proposal/records_and_search_index_impact_analysis_and_proposal.md). Option E below ("catalog / index", which I called not needed for a pilot) was wrong to dismiss: it is the agreed design. Option C (search all sources) stays as the way the catalog is first filled and re-listed.
 
 Labels used below: **Said**, **Doc** (read in this repo), **Psiog proposal** (ours, to confirm), **Assumed**, **Unknown / verify**.
 

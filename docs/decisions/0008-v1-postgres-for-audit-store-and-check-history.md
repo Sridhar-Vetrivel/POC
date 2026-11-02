@@ -1,6 +1,6 @@
 # 0008: v1 keeps the audit store and the check history in Postgres
 
-**Date:** 21 Oct 2026 · **Status:** built and tested against a local Postgres 17; not yet on the VM or at Ingenus · **Phase:** 1, v1 (`MCP-Server/`)
+**Date:** 21 Oct 2026 · **Status:** built and tested against a local Postgres 17 (the earlier laptop) and, since 21 Oct 2026, run live on Postgres 18.6 (the current laptop, IT's official install); not yet on the VM or at Ingenus · **Phase:** 1, v1 (`MCP-Server/`)
 
 ## Context
 
@@ -36,4 +36,4 @@ custom database for the real store (**SAID**, relayed by Sridhar, 21 Oct 2026). 
   server and a read-only user for reviewers (**UNKNOWN** what Ingenus's DBAs require).
 - No TLS to the database (it is on the same machine). A remote database needs `sslmode`, not yet configured.
 - Pruning the local log, and a timer for `prune`, are not built.
-- Not tested: two server processes writing together, a long outage and catch-up of many events, Postgres versions other than 17.
+- Not tested: two server processes writing together, a long outage and catch-up of many events, Postgres versions other than 17 and 18.

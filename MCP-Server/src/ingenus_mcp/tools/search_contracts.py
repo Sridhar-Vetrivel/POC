@@ -24,7 +24,10 @@ def search_contracts(
     ] = None,
     limit: Annotated[int, Field(ge=1, le=20, description="Most passages to return.")] = 8,
 ) -> SearchContractsResult:
-    """Find where contracts mention something, by keyword. Returns passages with file, page and section.
+    """Find which customer contract file mentions something (payment terms, returns, a word), and quote it.
+
+    The contracts are in SharePoint, OneDrive and a network drive, NOT in the local file system: use this
+    instead of searching local folders or uploads. Returns passages with file, page and section.
 
     Use it to locate a clause (for example returns, payment terms, a defined word) before reading the page
     with get_contract_pages. It matches the words you type, not their meaning, and with a customer it lists their files itself; without one it

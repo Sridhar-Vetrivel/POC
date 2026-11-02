@@ -27,6 +27,9 @@ def find_contract_files(
 ) -> FindContractFilesResult:
     """List a customer's contract files (master agreements, amendments) with their document_id.
 
+    The contracts are in SharePoint, OneDrive and a network drive, NOT in the local file system: use this
+    instead of searching local folders or uploads.
+
     Use this to see which files exist before reading pages. Draft files are left out on purpose and
     listed by name in `excluded_drafts`; mention them if relevant. Returns file names, kind, date and
     hash only, not the contents. Read-only. Never opens a file outside the configured contract folder.

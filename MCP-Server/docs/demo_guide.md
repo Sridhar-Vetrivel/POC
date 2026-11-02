@@ -449,6 +449,8 @@ Record each result here (pass or fail, and what Claude did) with the chat and th
 
 **SQ-2 second run: invalid again, no tool calls and not even a login line.** Claude's answer mentions an "uploads folder", "working directory" and "memory notes": that is a session with a file workspace, not Chat with the Ingenus connector. Run SQ-2 in **Chat** with the Ingenus connector on (the first question, which worked, was in the chat that logged in at 10:16:11).
 
+**SQ-2 third run (2 Nov 2026): invalid again, cause found.** The connector was on (Claude listed all 10 tools) but the tools were **deferred** and Claude did not load them: "Which Chain A file mentions payment terms?" reads like a local file lookup, so it searched its sandbox (`/home/claude`, `/mnt/user-data`); "Check Chain A against SAP" names the job, so it loaded them and worked (log 10:22 UTC: `get_guide`, `resolve_customer`, `get_contract_terms`, three `get_contract_pages`, `compare`; 1,800.00 / 12,600.00 as before). **Fix (2 Nov):** the first lines of `search_contracts`, `find_contract_files`, `get_contract_pages` and `get_contract_terms` now say the contracts are in SharePoint, OneDrive and the network drive, not the local file system. **Re-run SQ-2 without any hint** (restart the server first). Side note: that check showed `stored_count` 0 because the old terms were in the Windows Postgres (port 5432) and the server moved to the WSL Postgres (5433) the same day; the 6 terms now stored come from that check, so the next one should use them (SR-3).
+
 ## 9. v1-specific tests
 
 These test what is new in v1: the server is central and the laptop holds nothing.

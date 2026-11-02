@@ -20,6 +20,8 @@ def get_contract_terms(
 ) -> ContractTermsResult:
     """List a customer's contract files and the terms already stored for them, so they are not read twice.
 
+    The contracts are in SharePoint, OneDrive and a network drive, NOT in the local file system.
+
     Use this instead of find_contract_files when you are about to check a customer. For each file it says
     `use_stored_terms` (its terms are in `stored`: pass them unchanged in `terms` of
     compare_contract_to_sap) or `read_pages` (no stored terms for this content: read it with

@@ -428,15 +428,15 @@ no figures; the unsigned DRAFTs are never used; the call log shows no errors exc
 
 ## 8d. Search QA (decision 0012; guidance v6; **not run yet**)
 
-Setup: the WSL Postgres is up (cheat sheet), `INGENUS_PG_HOST` and `INGENUS_PG_PORT=5433` are set in `.env`, restart the server, new chat for every question. Passages exist only for files someone has listed, so SQ-1 comes first.
+Setup: the WSL Postgres is up (cheat sheet), `INGENUS_PG_HOST` and `INGENUS_PG_PORT=5433` are set in `.env`, restart the server, new chat for every question, in **Chat** with the Ingenus connector on. Word each question with "contract" and the customer name: a question about a "file" can send Claude to its own workspace (SQ-2, 2 Nov). Passages exist only for files someone has listed, so SQ-1 comes first.
 
 | # | Do | Expect |
 |---|---|---|
-| SQ-1 | New chat: "Where does the Chain A contract mention returns?" with no earlier listing | `get_guide`, then `search_contracts` finds nothing or little, and Claude lists the files (`get_contract_terms` or `find_contract_files`) and searches again; it says the search covers only listed files |
-| SQ-2 | New chat: "Which Chain A file mentions payment terms? Quote the clause." | `search_contracts` with customer; hits show file, page, section; Claude gives file and page |
-| SQ-3 | New chat: "Search the contracts for 'retrospective discount'" | Likely **no hit** (keyword only); Claude says it may have missed the clause, tries another wording and does not claim there is none |
-| SQ-4 | New chat: "Search for the rebate rate in Chain A and check it against SAP" | Claude searches, then **reads the page** with `get_contract_pages` and sends a quote; it never uses a number from the search hit alone |
-| SQ-5 | Rename a file's folder in a source so it is not listed, then ask SQ-2 again | Hits of that file are left out and `complete` is false (or the file is absent); put it back afterwards |
+| SQ-1 | New chat: "Where does the Chain A contract mention returns?" with no earlier listing (to test the automatic listing, first run `DELETE FROM passage`) | `search_contracts` once, with hits (the server lists the customer's files itself when nothing is stored, and the note says so); Claude reads the page before answering |
+| SQ-2 | New chat: "Which Chain A contract mentions payment terms? Quote the clause." (say **contract**, not "file": with "file" Claude looked in its own workspace and never used the Ingenus tools, see below) | `search_contracts` with customer; hits show file, page, section; Claude gives file and page |
+| SQ-3 | New chat: "Search the Chain A contracts for 'retrospective discount'" | Likely **no hit** (keyword only); Claude says it may have missed the clause, tries another wording and does not claim there is none |
+| SQ-4 | New chat: "Search the Chain A contract for the rebate rate and check it against SAP" | Claude searches, then **reads the page** with `get_contract_pages` and sends a quote; it never uses a number from the search hit alone |
+| SQ-5 | Rename a contract's folder in a source so it is not listed, then ask SQ-2 again | Hits of that file are left out and `complete` is false (or the file is absent); put it back afterwards |
 | SQ-6 | Look at the tail of `tool_calls.jsonl` | The `search_contracts` line has the query words and hit counts, **no passage text** |
 
 Record each result here (pass or fail, and what Claude did) with the chat and the log line.

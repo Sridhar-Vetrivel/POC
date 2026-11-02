@@ -71,6 +71,8 @@ If the tables are not found, the server may use a schema other than `public` (`I
 
 ## Postgres with pgvector (dev, user-level, in WSL; no admin rights)
 
+**Since 2 Nov 2026 the server uses this one database for everything** (audit, history, terms, later search; `INGENUS_PG_PORT=5433`, no password, decision 0012). The Windows Postgres sections above (port 5432) now describe IT's install, which the server no longer uses. If this one is stopped, start it first.
+
 IT's Windows Postgres 18 has no `pgvector`, and installing into it needs admin. So a second Postgres 18.6 runs in WSL Ubuntu from a home folder (official PostgreSQL apt packages, `postgresql-18-pgvector` 0.8.7, sha256-checked), on **port 5433**, localhost only, no password (dev, synthetic data only). Windows can reach it at `localhost:5433`.
 
 | What | Command (PowerShell) |

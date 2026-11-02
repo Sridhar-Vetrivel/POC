@@ -28,6 +28,11 @@ SERVER_NAME = "ingenus"
 MCP_PATH = "/mcp"
 
 INSTRUCTIONS = (
+    "Customer contracts (master agreements, amendments) are in SharePoint, OneDrive and a network drive "
+    "and can be reached ONLY through these tools, never in local folders, uploads or a sandbox. For any "
+    "question about a customer's contract files or clauses (which file mentions payment terms, where "
+    "returns are covered, what a contract says), use these tools first: search_contracts finds a clause "
+    "by keyword and find_contract_files lists a customer's files. "
     "Read-only helper for checking Ingenus customer contracts against SAP. It cannot change SAP or any "
     "file, so never say or imply that anything was changed. Before a contract check, call get_guide "
     "(the guidance is served here, maintained on the server) and follow contract-check-playbook and "

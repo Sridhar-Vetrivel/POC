@@ -69,6 +69,19 @@ SELECT * FROM check_docs LIMIT 20;
 
 If the tables are not found, the server may use a schema other than `public` (`INGENUS_PG_SCHEMA`): put it in front of the table name **(verify)**. The password is in `MCP-Server\secrets\pg_password.txt` (git-ignored; never paste it into chat or commit it).
 
+## Postgres with pgvector (dev, user-level, in WSL; no admin rights)
+
+IT's Windows Postgres 18 has no `pgvector`, and installing into it needs admin. So a second Postgres 18.6 runs in WSL Ubuntu from a home folder (official PostgreSQL apt packages, `postgresql-18-pgvector` 0.8.7, sha256-checked), on **port 5433**, localhost only, no password (dev, synthetic data only). Windows can reach it at `localhost:5433`.
+
+| What | Command (PowerShell) |
+|---|---|
+| Start | `wsl -d Ubuntu -- bash -c 'export LD_LIBRARY_PATH=$HOME/pg18/usr/lib/x86_64-linux-gnu; $HOME/pg18/usr/lib/postgresql/18/bin/pg_ctl -D $HOME/pgdata -o "-p 5433 -c listen_addresses=localhost -k /tmp" -l $HOME/pgdata.log start'` |
+| Stop | same, with `stop` instead of `start` |
+| Check | `Test-NetConnection localhost -Port 5433` |
+| Check the extension | `psql -h localhost -p 5433 -U postgres -c "select extversion from pg_extension where extname='vector'"` (needs the WSL `psql` at `~/pg18/usr/lib/postgresql/18/bin/psql`) |
+
+Production Postgres version, OS and `pgvector` availability are **unknown** (ask Aditya).
+
 ## Switches in `MCP-Server\.env` (git-ignored; first definition wins)
 
 | Setting | Meaning |

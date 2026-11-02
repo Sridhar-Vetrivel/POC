@@ -77,9 +77,22 @@ def test_a_page_without_blank_lines_is_packed_not_lost():
     ]
 
 
-def test_nothing_is_found_before_anyone_has_listed_the_files(pg):
-    result = search_contracts("rebate", "Chain X")
-    assert result.available is True and result.hits == []
+def test_a_customer_search_lists_the_files_first_when_nothing_was_stored(pg):
+    assert count(pg) == 0
+    result = search_contracts("rebate", "Chain X")  # nobody has listed Chain X yet
+    assert result.available and result.hits and "files were listed first" in result.note
+    assert count(pg) > 0
+
+
+def test_a_search_without_a_customer_only_covers_files_already_listed(pg):
+    assert search_contracts("rebate").hits == []
+    list_files("Chain X")
+    assert search_contracts("rebate").hits
+
+
+def test_a_word_that_is_in_no_file_gives_no_hits_after_listing(pg):
+    result = search_contracts("zebra", "Chain X")
+    assert result.available and result.hits == [] and "files were listed first" in result.note
 
 
 def test_after_listing_a_search_finds_the_clause_with_file_and_page(pg):
@@ -102,7 +115,8 @@ def test_listing_twice_stores_each_passage_once(pg):
 def test_search_is_narrowed_by_customer(pg):
     list_files("Chain X")
     assert search_contracts("rebate", "Chain X").hits
-    assert search_contracts("rebate", "Chain Y").hits == []
+    other = search_contracts("rebate", "Chain Y")  # lists Chain Y's own files, if any
+    assert all("Chain_X" not in h.document_id for h in other.hits)
 
 
 def test_a_changed_file_replaces_its_passages(pg, make_world, tmp_path):

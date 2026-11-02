@@ -30,7 +30,7 @@
 
 ## Consequences and limits
 
-- **Search covers only files someone has read** (lazy fill). A file nobody opened is not searchable.
+- **Search covers only files someone has listed** (lazy fill). With a customer, `search_contracts` lists that customer's files itself when it finds nothing and searches again (added after live QA SQ-1, where Claude did not search again after listing); without a customer it covers only files already listed, so the answer can miss files.
 - **Keyword only:** it finds the words typed (and their stems), not meaning. "Retrospective discount" will not match "rebate". Step 3b adds meaning search on the same table.
 - **Scanned or image-only pages** have no text and no passages (same limit as reading).
 - **English text search configuration** (`english`) is assumed for the synthetic contracts; Ingenus's wording is unknown (**verify**).

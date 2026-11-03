@@ -4,8 +4,8 @@
 
 ## Context
 
-Decisions 0005 and 0006 built the audit store and the check history on SQLite files as a reference. Aditya suggested a
-custom database for the real store (**SAID**, relayed by Sridhar, 21 Oct 2026). Sridhar chose **Postgres** (**SAID**).
+Decisions 0005 and 0006 built the audit store and the check history on SQLite files as a reference. The Principal Architect suggested a
+custom database for the real store (**SAID**, relayed by the Systems Designer, 21 Oct 2026). The Systems Designer chose **Postgres** (**SAID**).
 
 ## Decision
 
@@ -25,9 +25,9 @@ custom database for the real store (**SAID**, relayed by Sridhar, 21 Oct 2026). 
 ## Assumed, to be confirmed by Ingenus (not facts)
 
 - Keep the audit log and the check history **12 months**.
-- The audit database is read by **admins only** (Sridhar, Aditya).
+- The audit database is read by **admins only** (Systems Designer, Principal Architect).
 - The history shows other people's names.
-- Where it runs: local for the POC, then the AWS VM that Aditya provisions for the POC only (**SAID**, relayed 21 Oct 2026; decision 0009), then Ingenus's choice
+- Where it runs: local for the POC, then the AWS VM that the Principal Architect provisions for the POC only (**SAID**, relayed 21 Oct 2026; decision 0009), then Ingenus's choice
   (possibly Azure or on-prem) by a later decision.
 
 ## Not built or not verified

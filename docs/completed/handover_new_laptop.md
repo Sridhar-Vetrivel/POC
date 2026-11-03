@@ -1,6 +1,6 @@
 # Handover: continuing on the new laptop
 
-**Written 22 Oct 2026.** For Sridhar and for the first Claude Code session on the new laptop. It holds no secrets and no IDs: those stay in `MCP-Server/.env` and `MCP-Server/secrets/`, which are not in git. The state of the work is in [`v1_open_items_checklist.md`](../v1_open_items_checklist.md) and the decision records in [`decisions/`](../decisions/); this note only says how to pick it up.
+**Written 22 Oct 2026.** For the Systems Designer and for the first Claude Code session on the new laptop. It holds no secrets and no IDs: those stay in `MCP-Server/.env` and `MCP-Server/secrets/`, which are not in git. The state of the work is in [`v1_open_items_checklist.md`](../v1_open_items_checklist.md) and the decision records in [`decisions/`](../decisions/); this note only says how to pick it up.
 
 ## 1. Set up the new laptop
 
@@ -14,7 +14,7 @@
 
 ## 2. Resume the Claude Code session
 
-The session files are in `claude_sessions_backup_2026-10-22.zip` (made on the old laptop). Unzip them into `C:\Users\<user>\.claude\projects\<folder>\`, where `<folder>` is the working directory path with `:` and `\` replaced by `-` (for `C:\Users\sridhar.vetrivel\INGENUS` it was `c--Users-sridhar-vetrivel-INGENUS`). If the path differs on the new laptop, rename the folder to match. Then open Claude Code in `INGENUS/` and use `/resume`. The `memory/` folder inside it holds the notes Claude loads each session.
+The session files are in `claude_sessions_backup_2026-10-22.zip` (made on the old laptop). Unzip them into `C:\Users\<user>\.claude\projects\<folder>\`, where `<folder>` is the working directory path with `:` and `\` replaced by `-` (for `C:\Users\<username>\INGENUS` it was `c--Users-<username>-INGENUS`). If the path differs on the new laptop, rename the folder to match. Then open Claude Code in `INGENUS/` and use `/resume`. The `memory/` folder inside it holds the notes Claude loads each session.
 
 The big session file is about 126 MB. If resuming is slow, start a fresh session instead; the memory notes plus this repo carry the context.
 
@@ -22,13 +22,13 @@ The big session file is about 126 MB. If resuming is slow, start a fresh session
 
 - **Built and tested offline (221 v1 tests):** server sign-in and SharePoint reading (live-verified in Claude Desktop), OneDrive and network-share sources, audit and login log with hash chain (several processes safe), shared check history (`get_check_history`), Postgres store, three source datasets with one shared ontology and mock SAP.
 - **Not verified live:** OneDrive, a real network share, two real people on one server, Claude calling `get_check_history` unprompted.
-- **Order locked by Sridhar:** build and test everything locally first, host last. The POC VM is on AWS, provisioned by Aditya, for the POC only, to QA multi-user calls and logging (decision 0009). Ingenus's own hosting may be Azure or on-prem: later.
+- **Order locked by the Systems Designer:** build and test everything locally first, host last. The POC VM is on AWS, provisioned by the Principal Architect, for the POC only, to QA multi-user calls and logging (decision 0009). Ingenus's own hosting may be Azure or on-prem: later.
 - **Your next steps:** copy `Sharepoint/*`, `Onedrive/*` and `Network-Drive/*` from `MCP-PlugIn/data/synthetic/` to the matching real locations; then ask Claude to set the folder settings and run the live check per source (expected figures are in the checklist, section 2.0).
-- **Waiting on people:** Ingenus confirms retention (12 months assumed), readers (admins only assumed) and the data policy; Aditya gives the AWS details (account, OS, DNS name, HTTPS).
+- **Waiting on people:** Ingenus confirms retention (12 months assumed), readers (admins only assumed) and the data policy; the Principal Architect gives the AWS details (account, OS, DNS name, HTTPS).
 
 ## 4. Standing instructions (also in Claude's memory)
 
-- You are Psiog pre-sales on Ingenus; Aditya is the boss. Keep **SAID** (with timestamps), **ASSUMED** and **UNKNOWN** apart; never write an assumption as fact.
+- You are Psiog pre-sales on Ingenus; the Principal Architect is the boss. Keep **SAID** (with timestamps), **ASSUMED** and **UNKNOWN** apart; never write an assumption as fact.
 - SAP is read-only; synthetic or public data only; never invent SAP tables or T-codes.
 - Keep it cheap. Do not publish or contact anyone beyond what is asked. Use they/them for unstated pronouns.
 - Commits: **no `Co-Authored-By` line.** Run `scripts/check.py` only at the end of one complete change.

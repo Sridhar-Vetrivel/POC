@@ -7,14 +7,14 @@
 
 - Decisions 0004 and 0007 read **one** source, chosen at start-up by `INGENUS_DOC_SOURCE`. To test another source you edit
   `.env` and restart. That was a build shortcut, not a client request.
-- **SAID (Sridhar, 23 Oct 2026):** a user must not change a setting to ask about a different customer. The server should find
+- **SAID (Systems Designer, 23 Oct 2026):** a user must not change a setting to ask about a different customer. The server should find
   the source from the question.
 - A question such as "Check Chain A against SAP" names no source. The only thing in it that points to a place is the customer,
   so the server has to look in every source, or hold a map from customer to place.
 - Ingenus's contracts sit in SharePoint, OneDrive and a network drive (decision 0007, context). Whether one customer's documents
   can be spread over more than one of them is **UNKNOWN** (**ASSUMED** here).
 
-## Decision (Psiog; to be confirmed by Aditya)
+## Decision (Psiog; to be confirmed by the Principal Architect)
 
 1. **Several sources can be switched on together:** `INGENUS_SOURCES=sharepoint,onedrive,network` (any of `local`, `sharepoint`,
    `onedrive`, `network`), using the per-source settings that already exist. If it is not set, `INGENUS_DOC_SOURCE` works exactly as
@@ -62,7 +62,7 @@ incomplete and named the failed source, and gave no "no contract" claim.
 - **The answer is only as complete as the sources that answered.** If a source is down and the newest amendment lives there, a
   check can look clean and be wrong. This is the main risk. The result says so (`complete`, per-source status, the note) and the
   guidance tells Claude to say the check is incomplete. The server is stateless, so `compare_contract_to_sap` cannot know that an
-  earlier listing was incomplete. **Decided (Sridhar, 23 Oct 2026):** guidance and the flag for the POC; a re-check inside
+  earlier listing was incomplete. **Decided (Systems Designer, 23 Oct 2026):** guidance and the flag for the POC; a re-check inside
   `compare` is left for before any real Ingenus data.
 - **Speed:** a call takes as long as the slowest source (up to the limit). On 20 Oct the first SharePoint listing took 14.5 s for
   30 files; the network source can take up to `INGENUS_NETWORK_TIMEOUT`. Claude Desktop's own tool timeout is **UNKNOWN (verify)**.

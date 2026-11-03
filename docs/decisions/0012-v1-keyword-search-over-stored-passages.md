@@ -5,7 +5,7 @@
 
 ## Context
 
-- **SAID (Sridhar, 2 Nov 2026):** "Have everything in one database. Then start doing 3a with ADR." Earlier (2 Nov): "Go with pgvector."
+- **SAID (Systems Designer, 2 Nov 2026):** "Have everything in one database. Then start doing 3a with ADR." Earlier (2 Nov): "Go with pgvector."
 - Today Claude finds a clause through the page finder, which knows only a fixed list of topic words (the demo guide's "odd wording" test shows it can miss). Terms are already stored (decision 0011); passages are not.
 - IT's Windows Postgres 18 has no `pgvector` and installing into it needs admin rights. A user-level Postgres 18.6 with `pgvector` 0.8.7 runs in WSL on port 5433 (cheat sheet; synthetic data only, trust authentication).
 
@@ -23,7 +23,7 @@
 
 | Option | Why not |
 |---|---|
-| A second database for search | More to run and secure; the cost of one database is nothing at POC size. Said by Sridhar: one database |
+| A second database for search | More to run and secure; the cost of one database is nothing at POC size. Said by the Systems Designer: one database |
 | A separate search engine (OpenSearch or similar) | A new service to host and approve at Ingenus; Postgres full-text is enough for hundreds of contracts |
 | Fill the index in bulk by a crawler | Needs application-level read access; rejected in decision 0011 and the proposal (option B) |
 | Let Claude choose the passages to store | Not needed: passages come from parsing, and a stored passage is only used to find a page |
@@ -34,7 +34,7 @@
 - **Keyword only:** it finds the words typed (and their stems), not meaning. "Retrospective discount" will not match "rebate". Step 3b adds meaning search on the same table.
 - **Scanned or image-only pages** have no text and no passages (same limit as reading).
 - **English text search configuration** (`english`) is assumed for the synthetic contracts; Ingenus's wording is unknown (**verify**).
-- **WSL Postgres is a dev setup:** no password, localhost only, stops when WSL stops, start command in the cheat sheet. The production database (version, OS, `pgvector` availability) is **unknown**; ask Aditya. The code only needs standard Postgres 18 features for 3a; `pgvector` is needed from 3b.
+- **WSL Postgres is a dev setup:** no password, localhost only, stops when WSL stops, start command in the cheat sheet. The production database (version, OS, `pgvector` availability) is **unknown**; ask the Principal Architect. The code only needs standard Postgres 18 features for 3a; `pgvector` is needed from 3b.
 - **Not verified:** speed and ranking quality on real contracts; two server processes writing passages at once.
 
 ## Tests (`tests/test_v1_search.py`, 15; they use the local Postgres and skip without it)

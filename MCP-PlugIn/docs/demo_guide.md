@@ -41,7 +41,7 @@ that it cannot change SAP, and the call appears in the log.
 
 ## 3. Pre-flight checklist
 
-Run from `C:\Users\sridhar.vetrivel\INGENUS\POC`.
+Run from `C:\Users\<username>\INGENUS\POC`.
 
 - [ ] `python --version` shows **3.13.x** (the bundle's libraries are built for it)
 - [ ] `python scripts/check.py --fast` ends with `0 failed`
@@ -94,7 +94,7 @@ Then add the skills and run **B**, so you can see what the skills change.
 To make the skills (one zip per skill, the folder at the zip's root):
 
 ```powershell
-cd C:\Users\sridhar.vetrivel\INGENUS\POC\MCP-PlugIn\skills\v1
+cd C:\Users\<username>\INGENUS\POC\MCP-PlugIn\skills\v1
 Get-ChildItem -Directory | ForEach-Object { Compress-Archive -Path $_.FullName -DestinationPath "..\$($_.Name).zip" -Force }
 ```
 
@@ -168,9 +168,9 @@ Also note, for run A and run B: how many tool calls question 1 took, and whether
 1. Build the eight zips and check that git does not list them:
 
 ```powershell
-cd C:\Users\sridhar.vetrivel\INGENUS\POC\MCP-PlugIn\skills\v1
+cd C:\Users\<username>\INGENUS\POC\MCP-PlugIn\skills\v1
 Get-ChildItem -Directory | ForEach-Object { Compress-Archive -Path $_.FullName -DestinationPath "..\$($_.Name).zip" -Force }
-cd C:\Users\sridhar.vetrivel\INGENUS\POC
+cd C:\Users\<username>\INGENUS\POC
 git status --short
 ```
 

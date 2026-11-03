@@ -1,6 +1,6 @@
 # Request to Psiog IT: Entra app registrations, SharePoint access and a VM for the Ingenus POC
 
-**From:** Sridhar Vetrivel (Psiog pre-sales) · **Date:** 19 Oct 2026 · **For:** Psiog IT (Entra ID and infrastructure admins)
+**From:** Systems Designer (Psiog pre-sales) · **Date:** 19 Oct 2026 · **For:** Psiog IT (Entra ID and infrastructure admins)
 **Purpose:** set up what a proof of concept needs to (1) read a Psiog SharePoint folder through Microsoft Graph,
 read-only, and (2) run one small internal server that only signed-in, named people can use.
 
@@ -24,7 +24,7 @@ We need from you:
 | 6 | A small internal VM, an internal DNS name and an HTTPS certificate | 7 |
 | 7 | The values listed in section 9, sent back to us | 9 |
 
-Users: Sridhar Vetrivel, Aditya Manthena, and up to two testers (names to follow). Duration: about six weeks.
+Users: Systems Designer, Principal Architect, and up to two testers (names to follow). Duration: about six weeks.
 Everything is removed or handed back at the end (section 10).
 
 ## 2. How it fits together
@@ -152,7 +152,7 @@ member). The contracts are under **Documents > General > synthetic > contracts**
 | Network | Internal only. **Inbound:** TCP 443 from the office network and the VPN address range. **No inbound from the internet** |
 | Outbound | HTTPS 443 to `login.microsoftonline.com` and `graph.microsoft.com` (sign-in and SharePoint), and to `pypi.org` / `files.pythonhosted.org` for installing Python packages (or tell us your package mirror) |
 | Software | Python 3.13; we install the rest |
-| Access | Remote desktop (or SSH) for Sridhar |
+| Access | Remote desktop (or SSH) for the Systems Designer |
 | DNS | An internal name, for example `ingenus-poc.psiog.local` (any name is fine) |
 | Service account | A local or domain account the server runs as; no admin rights needed after setup |
 
@@ -208,4 +208,4 @@ A Windows file share with a read-only service account (to test reading a network
 small request once this part works.
 
 Thank you. Happy to walk through the design on a call.
-Sridhar Vetrivel
+Systems Designer

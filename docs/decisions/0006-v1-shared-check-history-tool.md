@@ -1,10 +1,10 @@
 # 0006: v1 keeps a record of each check and shares it through an eighth tool, `get_check_history`
 
-**Date:** 21 Oct 2026 · **Status:** proposed, built as the smallest useful version; **what Aditya means by "memory" is not confirmed** · **Phase:** 1, v1 (`MCP-Server/`)
+**Date:** 21 Oct 2026 · **Status:** proposed, built as the smallest useful version; **what the Principal Architect means by "memory" is not confirmed** · **Phase:** 1, v1 (`MCP-Server/`)
 
 ## Context
 
-Aditya asked for a shared "per-process memory": Sridhar checks a file on Day 1, Aditya on Day 3, and a third person
+The Principal Architect asked for a shared "per-process memory": the Systems Designer checks a file on Day 1, the Principal Architect on Day 3, and a third person
 should see what they found. What the server can and cannot do:
 
 - It **cannot** share anyone's Claude conversation: chats live in each person's Claude account and never reach the

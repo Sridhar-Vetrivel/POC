@@ -1,6 +1,6 @@
 # Plan: Phase 1, the MCP plug-in for Contract-to-SAP
 
-**Ingenus × Psiog** · Internal, pre-sales · Draft for Aditya's review · written after the 8 Oct 2026 call
+**Ingenus × Psiog** · Internal, pre-sales · Draft for the Principal Architect's review · written after the 8 Oct 2026 call
 **Read with:** [README.md](../README.md) (the bigger picture and the status tables) · [CLAUDE.md](../CLAUDE.md) (rules for people and AI agents) · [Call 2 notes](../../2026/Call_Notes/Ingenus_Call2_Notes_8Oct.md) · [P4 MCP plug-in proposal](../../2026/Solution_Approach/Proposals/P4_MCP_Plugin.md) (the .md files number this option P4; the deck and the call call it P1)
 
 > **Pre-sales status.** Nothing here is confirmed with Ingenus, and there is no access to their systems or data. This plan is **our proposal**. Items marked **verify** are not yet checked against a source. **Said** facts carry a timestamp from the 8 Oct call, written `[8 Oct h:mm:ss]`. Phase 1 uses **synthetic and public data only** until Ingenus's data policy is received and signed off (DP-20, DP-29).
@@ -17,7 +17,7 @@
 
 - Abhishek: *"I like the part one for now"* [8 Oct 46:57]. He wants it *"extremely simple and extremely easy for Dan to accept"* [8 Oct 1:10:34], *"quick and dirty so that we can actually test it out"* [8 Oct 1:10:39], and *"we are not going to use it to enter data right away, we are going to use the evaluation"* [8 Oct 1:10:15].
 - Adoption and trust come first: *"they don't trust it because they have not seen the outputs"* [8 Oct 46:57].
-- Aditya's estimate for the pilot: *"about a month"* [8 Oct 53:30]. That is a verbal estimate, not a commitment.
+- The Principal Architect's estimate for the pilot: *"about a month"* [8 Oct 53:30]. That is a verbal estimate, not a commitment.
 
 **Phase 1 is done when** Abhishek (or a named SME) can ask Claude to check a contract against SAP, get a result where every value shows its page and exact quote, and we can show from the log who used which tool and when. The first run on synthetic data reproduces the README's Chain X numbers exactly.
 
@@ -54,7 +54,7 @@ The README describes a larger POC: an orchestrator, a policy and audit gateway, 
 | Every tool and LLM call goes through our gateway; the API's remote MCP connector is not used               |                                                       | **Our gateway is not in the path** of Claude's calls. The plug-in itself enforces read-only, scope and logging. If we later call an LLM from a tool (Option Y), the gateway rule applies to that call |
 | Claude API conventions (models, structured outputs, effort)                                                | Only if a tool calls the API (Option Y)               | Under Option X (default below) the server makes**no LLM calls**                                                                                                                                       |
 
-**The README and CLAUDE.md have been updated to match this plan** (Phase 1 is now the current work; the larger design is Phase 2; each hard rule says which phase it applies to). The exceptions above are recorded there as proposals, pending Aditya's approval. If they conflict with this plan, this plan is the authority for `MCP-PlugIn/`.
+**The README and CLAUDE.md have been updated to match this plan** (Phase 1 is now the current work; the larger design is Phase 2; each hard rule says which phase it applies to). The exceptions above are recorded there as proposals, pending the Principal Architect's approval. If they conflict with this plan, this plan is the authority for `MCP-PlugIn/`.
 
 ## 3. Decisions the plan depends on
 
@@ -62,12 +62,12 @@ The plan is written with a **default** for each, so work can start. Each default
 
 | #  | Decision                               | Default in this plan                                                                                                    | Why                                                                                                                                                                                                                                                  | Who decides           |
 | -- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| D1 | How Claude reaches the server          | **Desktop extension per user** (local server, stdio)                                                              | Needs no firewall change; Dan said SAP and the shared drive can*"never"* be exposed [8 Oct 37:42]. Anthropic's docs say a remote connector is reached from Anthropic's cloud and won't connect to a private network (**verify** on their plan) | Aditya, then Dan      |
-| D2 | Who extracts contract terms            | **Option X: Claude, on their own plan, extracts from the pages our tool returns.** Our code checks every quote    | No second LLM route and no new agreement [8 Oct 41:40]. Option Y (our own LLM inside a tool) needs its own provider approval                                                                                                                         | Aditya                |
+| D1 | How Claude reaches the server          | **Desktop extension per user** (local server, stdio)                                                              | Needs no firewall change; Dan said SAP and the shared drive can*"never"* be exposed [8 Oct 37:42]. Anthropic's docs say a remote connector is reached from Anthropic's cloud and won't connect to a private network (**verify** on their plan) | Principal Architect, then Dan      |
+| D2 | Who extracts contract terms            | **Option X: Claude, on their own plan, extracts from the pages our tool returns.** Our code checks every quote    | No second LLM route and no new agreement [8 Oct 41:40]. Option Y (our own LLM inside a tool) needs its own provider approval                                                                                                                         | Principal Architect                |
 | D3 | SAP access route                       | **Mock adapter now.** Real route decided with Dan (report export, API/CDS views or other; **unknown**)      | SAP version and route unknown; SAP is on RISE, reached over IPSEC [8 Oct 33:10, 43:04]                                                                                                                                                               | Dan                   |
 | D4 | Data used                              | **Synthetic and public** until the policy is signed                                                               | DP-20, DP-29                                                                                                                                                                                                                                         | Dan, Abhishek, Harith |
-| D5 | Scope beyond contract-to-SAP           | **Contract-to-SAP only.** Daily-use lookups (order status, packing slip [8 Oct 16:39]) are an option after step 4 | Keep it small [8 Oct 46:34]                                                                                                                                                                                                                          | Aditya                |
-| D6 | Domain-neutral rule for`MCP-PlugIn/` | **Exception for phase 1**                                                                                         | Quick start; tool code is plain functions that can move later                                                                                                                                                                                        | Aditya                |
+| D5 | Scope beyond contract-to-SAP           | **Contract-to-SAP only.** Daily-use lookups (order status, packing slip [8 Oct 16:39]) are an option after step 4 | Keep it small [8 Oct 46:34]                                                                                                                                                                                                                          | Principal Architect                |
+| D6 | Domain-neutral rule for`MCP-PlugIn/` | **Exception for phase 1**                                                                                         | Quick start; tool code is plain functions that can move later                                                                                                                                                                                        | Principal Architect                |
 | D7 | Where tool-call logs go                | **A configured shared folder** (a set location Ingenus agrees to)                                                 | A desktop extension logs on each laptop, which would split the usage data. DP-14 says our own stores need agreement                                                                                                                                  | Dan, Abhishek         |
 
 ## 4. Design
@@ -112,7 +112,7 @@ POC/
 
 ### 4.3 Tool catalogue (proposal; business-level, all read-only)
 
-Composite first: one comparison tool carries the deterministic work, because Abhishek wants reproducible results and Aditya warned that many tools degrade tool selection [8 Oct 12:29]. Six tools in the baseline.
+Composite first: one comparison tool carries the deterministic work, because Abhishek wants reproducible results and the Principal Architect warned that many tools degrade tool selection [8 Oct 12:29]. Six tools in the baseline.
 
 | Tool                                                | Purpose                                                                                                                                                                                                                                            | Notes                                                                                                                                                                                |
 | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -127,7 +127,7 @@ Every tool result labels contract text as untrusted data, and returns quotes and
 
 **Optional after step 4 (needs D5):** `get_order_status(order)` and `find_delivery_document(order)` for the daily-use story [8 Oct 16:39].
 
-### 4.4 Skills pack and MCP prompt (Aditya mentioned *"eight or nine skills"* [8 Oct 28:53])
+### 4.4 Skills pack and MCP prompt (the Principal Architect mentioned *"eight or nine skills"* [8 Oct 28:53])
 
 Policy and playbook live in skills in phase 1 [8 Oct 49:00]. Proposed set, each versioned:
 
@@ -158,7 +158,7 @@ The README's M0 to M5 belong to the larger POC. Phase 1 uses **steps S0 to S6**.
 
 | Step                             | When                   | What                                                                                                                                                                                                         | Done when                                                                                                                                                             |
 | -------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **S0 Spikes**              | Days 1–3              | Hello-world MCP server with one echo tool: as a desktop extension and as a remote connector, on a Psiog Claude account. Then, with Dan, a reachability test to SAP through the tunnel and one read-only call | A pass/fail table for D1 and D3. If D1 fails both ways, stop and take it to Aditya                                                                                    |
+| **S0 Spikes**              | Days 1–3              | Hello-world MCP server with one echo tool: as a desktop extension and as a remote connector, on a Psiog Claude account. Then, with Dan, a reachability test to SAP through the tunnel and one read-only call | A pass/fail table for D1 and D3. If D1 fails both ways, stop and take it to the Principal Architect                                                                                    |
 | **S1 Skeleton**            | Week 1                 | `MCP-PlugIn/` package skeleton and `pyproject.toml`, the scope guard, read-only test, the tool-call log, the mock SAP adapter, the Chain X synthetic fixtures                                            | `pytest` green; `get_rebate_setup` and `get_sales_volume` return the Chain X mock data                                                                          |
 | **S2 Contract pages**      | Week 1–2              | Local contract folder,`find_contract_files`, `get_contract_pages` with keyword and heading search; 20–30 synthetic and public contracts with labelled rebate pages                                      | Miss rate on the labelled pages measured and reported; the "not checked" list works                                                                                   |
 | **S3 Compare**             | Week 2                 | `resolve_customer`, the quote checker, `compare_contract_to_sap` using the rule and schema files in the slice package                                                                                    | Chain X:**3 variances + 1 match, $8,500 a month, $17,000 for 1 Jul–31 Aug**, identical across 5 runs. A fabricated quote is rejected and listed as not checked |
@@ -191,13 +191,13 @@ If any item is missing, the pilot runs on synthetic data and says so.
 | **Adopted**       | Weekly calls per user from the log; number of users who come back                  |
 | **Trusted**       | Spot checks against known contracts; each answer's quotes inspected by a named SME |
 
-Value for management (Aditya: *"we will also anchor it to value"* [8 Oct 1:09:03]) needs a baseline from Ingenus: today's hours per contract change and how often a change is missed (**unknown**).
+Value for management (Principal Architect: *"we will also anchor it to value"* [8 Oct 1:09:03]) needs a baseline from Ingenus: today's hours per contract change and how often a change is missed (**unknown**).
 
 ## 7. Dependency checklist
 
 | #  | Dependency                                                                                                       | Owner                  | Needed by | If missing                        |
 | -- | ---------------------------------------------------------------------------------------------------------------- | ---------------------- | --------- | --------------------------------- |
-| 1  | Decisions D1–D7                                                                                                 | Aditya (then Dan)      | S0        | Plan defaults apply               |
+| 1  | Decisions D1–D7                                                                                                 | Principal Architect (then Dan)      | S0        | Plan defaults apply               |
 | 2  | A Psiog Claude account on a Team (or equivalent) plan for spikes                                                 | Psiog                  | S0        | Spike delayed                     |
 | 3  | Ingenus's Claude plan, Owner, admin settings, Desktop version on the ~12 laptops [8 Oct 46:02]                   | Abhishek               | S4        | Extension route unproven          |
 | 4  | SAP access: route, version (ECC or S/4: unknown), read-only service login                                        | Dan                    | S6        | Mock adapter only                 |
@@ -229,7 +229,7 @@ Value for management (Aditya: *"we will also anchor it to value"* [8 Oct 1:09:03
 
 ## 9. How a later phase builds on this
 
-The same `core/` functions become the tools layer of P2 (pipelines) or P3 (orchestrator). That is the path Aditya described: the MCP base stays and orchestration is added [8 Oct 13:53, 14:11]. Step 2 would add the watcher, a review queue, a recorded decision, a shared records store and an audit of the answer, which is where Abhishek's audit goal is met. Per-user memory is a known ceiling: a shared decisions store *"might not scale… beyond, say, four or five users"* [8 Oct 25:03].
+The same `core/` functions become the tools layer of P2 (pipelines) or P3 (orchestrator). That is the path the Principal Architect described: the MCP base stays and orchestration is added [8 Oct 13:53, 14:11]. Step 2 would add the watcher, a review queue, a recorded decision, a shared records store and an audit of the answer, which is where Abhishek's audit goal is met. Per-user memory is a known ceiling: a shared decisions store *"might not scale… beyond, say, four or five users"* [8 Oct 25:03].
 
 ## 10. Open items to verify (nothing here is checked yet)
 

@@ -1,6 +1,6 @@
 # Command cheat sheet (MCP-Server, POC)
 
-Run from the repo root `C:\Users\sridhar.vetrivel\INGENUS\POC` unless a line says otherwise. Commands are for the dev laptop and synthetic data. Anything marked **(verify)** was not run while writing this sheet.
+Run from the repo root `C:\Users\<username>\INGENUS\POC` unless a line says otherwise. That is a **root path**: replace `<username>` with your Windows user name (and use your own folder if the repo is somewhere else); every `C:\Users\<username>\...` path below works the same way. Commands are for the dev laptop and synthetic data. Anything marked **(verify)** was not run while writing this sheet.
 
 ## Run the server
 
@@ -11,7 +11,7 @@ Run from the repo root `C:\Users\sridhar.vetrivel\INGENUS\POC` unless a line say
 | Stop | `Ctrl+C`, then start again after any `.env` or code change (guidance files are read fresh, no restart needed) |
 | Live sign-in check (server running in another terminal) | `python MCP-Server\scripts\signin_check.py` |
 | Tool-call report from the log | `python -m ingenus_mcp.report --log MCP-Server\data\runtime\tool_calls.jsonl` |
-| Last 10 tool calls and logins (PowerShell). A `login` line with no `tool_call` after it means the chat connected but Claude used no tool | `Get-Content C:\Users\sridhar.vetrivel\INGENUS\POC\MCP-Server\data\runtime\tool_calls.jsonl -Tail 10` |
+| Last 10 tool calls and logins (PowerShell). A `login` line with no `tool_call` after it means the chat connected but Claude used no tool | `Get-Content C:\Users\<username>\INGENUS\POC\MCP-Server\data\runtime\tool_calls.jsonl -Tail 10` |
 
 ## Tests and checks
 
@@ -84,7 +84,7 @@ IT's Windows Postgres 18 has no `pgvector`, and installing into it needs admin. 
 | Check | `Test-NetConnection localhost -Port 5433` |
 | Check the extension | `psql -h localhost -p 5433 -U postgres -c "select extversion from pg_extension where extname='vector'"` (needs the WSL `psql` at `~/pg18/usr/lib/postgresql/18/bin/psql`) |
 
-Production Postgres version, OS and `pgvector` availability are **unknown** (ask Aditya).
+Production Postgres version, OS and `pgvector` availability are **unknown** (ask the Principal Architect).
 
 ## Meaning search (decision 0013; needs the Postgres with pgvector above)
 

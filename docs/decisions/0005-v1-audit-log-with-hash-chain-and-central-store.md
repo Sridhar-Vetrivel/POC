@@ -5,7 +5,7 @@
 ## Context
 
 Today the tool-call log is a JSONL file on the machine that runs the server. It is not central, not searchable across
-machines, and an edit to it would go unseen. Aditya wants an audit log and a login log with a central store. What
+machines, and an edit to it would go unseen. The Principal Architect wants an audit log and a login log with a central store. What
 Ingenus will accept is unknown: Ingenus leaned towards on-prem on 8 Oct 2026 (**SAID**), and whether rules such as
 21 CFR Part 11 apply is **UNKNOWN**; neither is assumed here.
 

@@ -1,7 +1,7 @@
 # v1: impact analysis and solution proposal
 
-**Status (updated 2 Nov 2026):** the proposal as written on 19 Oct 2026, with the decisions taken that day (section 10). **Most of it is now built** (laptop, synthetic data): the move (V1-0), the mock SAP document (V1-1), the HTTP server (V1-2), guidance served by the server (V1-3), server and bridge sign-in with a per-user log (V1-4), the Claude Desktop bridge (V1-5), and SharePoint, OneDrive and the network drive as sources (V1-6 to V1-8), tried through Claude Desktop. Work beyond this proposal has been built since: several sources at once ([0010](decisions/0010-v1-several-contract-sources-at-once.md)), Postgres ([0008](decisions/0008-v1-postgres-for-audit-store-and-check-history.md)), stored contract terms ([0011](decisions/0011-v1-stored-contract-terms.md)) and keyword and meaning search ([0012](decisions/0012-v1-keyword-search-over-stored-passages.md), [0013](decisions/0013-v1-meaning-search-with-a-local-embedding-model.md)). **Not done:** moving the server to the AWS VM Aditya provisions ([0009](decisions/0009-v1-poc-vm-on-aws-provisioned-by-aditya.md)), HTTPS from another machine, and a real Windows file share (not tested). **Nothing is confirmed by Ingenus.** The sections below are the plan as it stood on 19 Oct 2026 and are not rewritten; the current state is in the [`MCP-Server/README.md`](../MCP-Server/README.md) status table and what is left is in [`v1_open_items_checklist.md`](v1_open_items_checklist.md).
-**For:** Sridhar and Aditya (Psiog).
+**Status (updated 2 Nov 2026):** the proposal as written on 19 Oct 2026, with the decisions taken that day (section 10). **Most of it is now built** (laptop, synthetic data): the move (V1-0), the mock SAP document (V1-1), the HTTP server (V1-2), guidance served by the server (V1-3), server and bridge sign-in with a per-user log (V1-4), the Claude Desktop bridge (V1-5), and SharePoint, OneDrive and the network drive as sources (V1-6 to V1-8), tried through Claude Desktop. Work beyond this proposal has been built since: several sources at once ([0010](decisions/0010-v1-several-contract-sources-at-once.md)), Postgres ([0008](decisions/0008-v1-postgres-for-audit-store-and-check-history.md)), stored contract terms ([0011](decisions/0011-v1-stored-contract-terms.md)) and keyword and meaning search ([0012](decisions/0012-v1-keyword-search-over-stored-passages.md), [0013](decisions/0013-v1-meaning-search-with-a-local-embedding-model.md)). **Not done:** moving the server to the AWS VM the Principal Architect provisions ([0009](decisions/0009-v1-poc-vm-on-aws-provisioned-by-principal-architect.md)), HTTPS from another machine, and a real Windows file share (not tested). **Nothing is confirmed by Ingenus.** The sections below are the plan as it stood on 19 Oct 2026 and are not rewritten; the current state is in the [`MCP-Server/README.md`](../MCP-Server/README.md) status table and what is left is in [`v1_open_items_checklist.md`](v1_open_items_checklist.md).
+**For:** Systems Designer and Principal Architect (Psiog).
 **Asks covered:** (0) move `build/` and `data/` into `MCP-PlugIn/`, keeping v0 intact; (i) connect to a real SharePoint and OneDrive (Psiog's own tenant); (ii) put the mock data there and make Claude read it from there; (iii) a document on how the mock SAP works; (iv) one MCP server that carries the tools and skills, connected to Claude Code, so a new tool or skill is picked up without separate uploads; (v) read contracts from a network drive as well (added 19 Oct 2026). v1 is built in a new folder.
 
 Labels used below: **Said** (in a transcript, with timestamp), **Doc** (read in Anthropic's or the repo's documentation, with source), **Assumed**, **Unknown / verify**.
@@ -25,7 +25,7 @@ Total: about **12 to 17 working days** for one person, excluding Psiog IT's lead
 
 **Three points to settle before building (TAC view):**
 
-1. **Contracts at Ingenus are on the network drive, not SharePoint.** Dan: *"the SharePoint isn't hard, but the shared drive and our SAP system, which are behind a firewall, ... we can never expose that outside of our own firewall"* **[Said, 8 Oct 37:42]**. Call 1 also placed contracts on the network drive. A SharePoint connector is still worth building, because SharePoint is a stated Ingenus source (*"keep SharePoint and the network drives in mind as well"* **[Said, Call 1 58:32]**) and Aditya proposed it **[Said, 8 Oct 12:29, 14:12]**. SharePoint alone would prove the SharePoint connector, **not** Ingenus's contract route, so **v1 also reads a network drive** (section 4.5). What stays open is Ingenus's actual share: its path, size, folder layout, file types and the read-only account (questions in 4.5.6).
+1. **Contracts at Ingenus are on the network drive, not SharePoint.** Dan: *"the SharePoint isn't hard, but the shared drive and our SAP system, which are behind a firewall, ... we can never expose that outside of our own firewall"* **[Said, 8 Oct 37:42]**. Call 1 also placed contracts on the network drive. A SharePoint connector is still worth building, because SharePoint is a stated Ingenus source (*"keep SharePoint and the network drives in mind as well"* **[Said, Call 1 58:32]**) and the Principal Architect proposed it **[Said, 8 Oct 12:29, 14:12]**. SharePoint alone would prove the SharePoint connector, **not** Ingenus's contract route, so **v1 also reads a network drive** (section 4.5). What stays open is Ingenus's actual share: its path, size, folder layout, file types and the read-only account (questions in 4.5.6).
 2. **Claude Code is a developer tool; the client chose a plug-in in their own Claude.** (Decided 19 Oct 2026: v1 is built **primarily for Claude Desktop**, through the bridge in 6.5; Claude Code is kept as a second client.) *"I like the part one for now"* **[Said, 8 Oct 46:57]** referred to the MCP plug-in in their Claude (Teams, about 12 licences **[Said, 46:02]**). Claude Code is included in Team seats, Standard and Premium **[Doc: support.claude.com, "What is the Team plan"]**, so licensing is not the issue. The issue is the users: Ingenus's contract and finance staff are unlikely to work in a terminal or IDE (**Assumed**). Recommendation: build v1's server so that it works from **both** Claude Code (our build and test harness) and Claude Desktop (the client's agreed route). Section 6.5.
 3. **Claude Code can read and edit files by itself.** In Claude Desktop Chat, our tools are Claude's only way to the data. In Claude Code, Claude also has its own file, edit and shell tools. With the **central server**, the SAP mock, the document cache and the log live on the VM, not the laptop, so those tools cannot reach them. The remaining gap is a laptop that also has a synced copy of the documents or a repo checkout with the synthetic data (section 6.6). State this when v1 is shown.
 
@@ -92,7 +92,7 @@ The synthetic data was the shared fixture set for Phase 1 and Phase 2 (`README.m
 
 | Option | How | For | Against |
 |---|---|---|---|
-| **A. Our server reads through Microsoft Graph (recommended)** | Our document tools call Graph with the signed-in user's delegated, read-only token | Our code still sees the exact page text, so the quote check (rule 7), draft exclusion and scope guard keep working. Matches Aditya's point that our own search can carry Ingenus nuances such as ignoring drafts **[Said, 8 Oct 14:50]**. Delegated tokens *"can never exceed the current user's existing permissions"* (already quoted in `Authorization_Approach.md`) | Needs an Entra app registration and consent in Psiog's tenant. More code: auth, paging, caching |
+| **A. Our server reads through Microsoft Graph (recommended)** | Our document tools call Graph with the signed-in user's delegated, read-only token | Our code still sees the exact page text, so the quote check (rule 7), draft exclusion and scope guard keep working. Matches the Principal Architect's point that our own search can carry Ingenus nuances such as ignoring drafts **[Said, 8 Oct 14:50]**. Delegated tokens *"can never exceed the current user's existing permissions"* (already quoted in `Authorization_Approach.md`) | Needs an Entra app registration and consent in Psiog's tenant. More code: auth, paging, caching |
 | B. Claude's own Microsoft 365 connector | Claude reads SharePoint directly through Anthropic's connector | No code from us | Our server never sees the text, so the quote check cannot run: Claude's quotes cannot be verified against a file we cannot read. Its search is Microsoft's (*"they decide the way the search algorithm works"* **[Said, 8 Oct 14:12]**). Connector traffic runs from Anthropic's cloud **[Doc]**, which for Ingenus means data leaving their environment |
 | C. OneDrive sync client | Sync the library to a local folder and point the existing setting at it | Zero code; works today | Still local file access, so it does not meet "instead of local" |
 
@@ -109,11 +109,11 @@ The synthetic data was the shared fixture set for Phase 1 and Phase 2 (`README.m
 - **Graph calls used (verify exact endpoints at build time):** resolve the site from its URL, list the drive's children under a folder path, download an item's content; `/me/drive` for OneDrive.
 - **Data move:** an upload script that reads the 30 synthetic PDFs and uploads them once to a POC folder in a Psiog SharePoint site (and optionally OneDrive). This script is the **only** writer, it runs by hand, and it is not part of the server. Every file stays labelled synthetic; the folder name says so.
 
-### 4.3 What we need from Psiog IT (blocking; Sridhar raises it, draft in Appendix A)
+### 4.3 What we need from Psiog IT (blocking; the Systems Designer raises it, draft in Appendix A)
 
 1. An app registration in Psiog's Entra tenant (or IT registers it for us): one for the server (confidential client, certificate) exposing an API that the clients sign in to.
 2. Consent for the delegated read permissions (some may need admin consent; **verify**).
-3. A SharePoint site and library for the POC, and confirmation that synthetic files named after a client may be stored there. **Site created by Sridhar (19 Oct 2026):** `https://psiog0.sharepoint.com/sites/INGENUS`, default library "Documents" (`Shared Documents`). Still needed from IT: items 1, 2 and 4, and the confirmation in item 3. Not requested yet.
+3. A SharePoint site and library for the POC, and confirmation that synthetic files named after a client may be stored there. **Site created by the Systems Designer (19 Oct 2026):** `https://psiog0.sharepoint.com/sites/INGENUS`, default library "Documents" (`Shared Documents`). Still needed from IT: items 1, 2 and 4, and the confirmation in item 3. Not requested yet.
 4. A small VM on Psiog's internal network for the server, reachable from team laptops over the network or VPN.
 
 ### 4.4 Why not the mock SAP in SharePoint
@@ -126,7 +126,7 @@ Putting `entities.json` (or an Excel version) in SharePoint is technically easy,
 
 #### 4.5.1 Why it matters
 
-Ingenus's contracts are PDFs on a network drive, with no contract system (**Said**, 8 Oct, opening of the call; Call 1). Dan put the shared drive behind the firewall with SAP **[Said, 8 Oct 37:42]**. Aditya proposed building an index *"very close to the network drive instead of ... processing the whole network drive for every query"* **[Said, 8 Oct 12:29]**. Abhishek has an in-progress PowerShell watcher on those folders (Call 1, 04:21, as recorded in the Call 1 notes). With the central server inside Ingenus's network (6.4), the server can read the share directly, and no firewall change is needed for it.
+Ingenus's contracts are PDFs on a network drive, with no contract system (**Said**, 8 Oct, opening of the call; Call 1). Dan put the shared drive behind the firewall with SAP **[Said, 8 Oct 37:42]**. The Principal Architect proposed building an index *"very close to the network drive instead of ... processing the whole network drive for every query"* **[Said, 8 Oct 12:29]**. Abhishek has an in-progress PowerShell watcher on those folders (Call 1, 04:21, as recorded in the Call 1 notes). With the central server inside Ingenus's network (6.4), the server can read the share directly, and no firewall change is needed for it.
 
 #### 4.5.2 Options
 
@@ -145,7 +145,7 @@ Ingenus's contracts are PDFs on a network drive, with no contract system (**Said
 - **Configuration:** source type `share`, root path (UNC or mount point), optional include and exclude patterns (for example `*DRAFT*` and `~$*` Office lock files). The service account's password is never in configuration: on Windows the service runs **as** the account; on Linux the mount uses a credentials file readable only by the service.
 - **Read-only, three ways:** the account has Read only on the share and in NTFS; the adapter has no write method; the existing write scan (`calllog.py` is the only writer) still applies.
 - **Scope guard:** `resolve_inside` already rejects absolute paths and `..`. For a share it must also refuse links that point outside the root: symbolic links, junctions, and DFS links (**verify** how `Path.resolve` treats each on a UNC path).
-- **Index near the drive (Aditya's point):** the v0 listing walks the folder on every `find_contract_files` call. That is fine for 30 files, not for a large share. v1 keeps a small **metadata index** on the server (path, size, modified time, hash, page count, draft flag), refreshed by a timed rescan that only re-reads changed files. A page-text cache keyed by path, size and modified time already exists in v0 (`documents.py`). Abhishek's watcher could later trigger rescans instead of a timer (to confirm with him).
+- **Index near the drive (Principal Architect's point):** the v0 listing walks the folder on every `find_contract_files` call. That is fine for 30 files, not for a large share. v1 keeps a small **metadata index** on the server (path, size, modified time, hash, page count, draft flag), refreshed by a timed rescan that only re-reads changed files. A page-text cache keyed by path, size and modified time already exists in v0 (`documents.py`). Abhishek's watcher could later trigger rescans instead of a timer (to confirm with him).
 - **Robustness:** a file locked by someone editing it, a path longer than 260 characters, a permission error on one folder, or the share being offline becomes a **not checked** entry naming the file and the reason, never a failed call. Very long listings stop at a limit and say so (v0 already does this at 200 files).
 - **File types:** v0 reads text PDFs and `.txt` only. A real share likely holds `.docx` and scanned PDFs (**assumed**; scanned is **unknown**, 8 Oct notes). v1 reports them as not checked, as v0 does. `.docx` reading and OCR are separate decisions, not in v1.
 
@@ -159,7 +159,7 @@ To show the multi-source design, the demo can put some customers on SharePoint a
 
 Only configuration and the account: the share path, the read-only service account (Dan or Ingenus IT), the VM joined to Ingenus's domain, and the include and exclude patterns for their folder names. No code change is expected, if their contracts are text PDFs in per-customer folders (**unknown**).
 
-#### 4.5.6 Questions for Ingenus (through Aditya)
+#### 4.5.6 Questions for Ingenus (through the Principal Architect)
 
 1. Share path(s) for contracts, and roughly how many files and how much data?
 2. Folder layout: one folder per customer, by year, or mixed? Are drafts marked in the name?
@@ -211,7 +211,7 @@ So the honest answer to "add a skill to the MCP server and Claude uses it" is: *
 
 ### 6.3 How tools get added
 
-Today every tool is a function with `@tool(read_only=True)` in `core/tools.py`, and the registry exposes whatever it finds. v1 keeps that, with one change: tools live as one module per tool in `tools/`, discovered at start-up. Adding a tool is: write the function and its test, restart the server (or let a file watcher reload it), and the server sends `list_changed`. The rules stay: read-only only, and a decision record for each new tool, because more tools make Claude choose worse (Aditya made the same point **[Said, 8 Oct 12:29]**).
+Today every tool is a function with `@tool(read_only=True)` in `core/tools.py`, and the registry exposes whatever it finds. v1 keeps that, with one change: tools live as one module per tool in `tools/`, discovered at start-up. Adding a tool is: write the function and its test, restart the server (or let a file watcher reload it), and the server sends `list_changed`. The rules stay: read-only only, and a decision record for each new tool, because more tools make Claude choose worse (the Principal Architect made the same point **[Said, 8 Oct 12:29]**).
 
 Tools are code, so they are **not** loaded from SharePoint or any shared drive: loading code from a document store would let anyone with write access to that folder run code on every user's machine.
 
@@ -345,7 +345,7 @@ V1-0 to V1-3 do not depend on IT and can start now. V1-4, V1-6 and V1-8 wait for
 | 4 | Clients | **Claude Desktop is the primary client**, through the thin bridge to the HTTP server (our own bridge on the official MCP TypeScript SDK, no third-party bridge). **Claude Code is a second client.** Demos and acceptance are in Claude Desktop |
 | 8 | Order | **Bridge (V1-5) before guidance (V1-3)**, so every later step is tested in Claude Desktop |
 | 5 | Folder and package | **`MCP-Server/`** and **`ingenus_mcp`** |
-| 6 | Psiog IT request | **Sridhar** raises it (draft in Appendix A) |
+| 6 | Psiog IT request | **Systems Designer** raises it (draft in Appendix A) |
 | 7 | Document sources | **SharePoint first, then OneDrive** (same Graph code), **plus the network drive** (added 19 Oct 2026; option N1, read-only service account, section 4.5) |
 
 ## 11. What was not verified
@@ -379,9 +379,9 @@ V1-0 to V1-3 do not depend on IT and can start now. V1-4, V1-6 and V1-8 wait for
 > 4. **A small VM on the internal network** (2 vCPU, 4 GB RAM is plenty; Windows or Linux), reachable from the POC team's laptops over the office network or VPN, not from the internet. It runs one Python service on one HTTPS port. Windows and joined to the domain is preferred, so it can read the file share below as a service account.
 > 5. **A Windows file share** (on that VM or an existing file server), for example `\\<server>\IngenusPOC\Contracts`, and a **domain service account** with **Read only** on the share and its folders. The service runs as that account. Same synthetic contracts, about 30 PDFs.
 >
-> Users: Sridhar Vetrivel and Aditya Manthena (and one or two testers). Duration: about four to six weeks. We will remove the app, site, share, service account and VM at the end, or hand them back for reuse.
+> Users: Systems Designer and Principal Architect (and one or two testers). Duration: about four to six weeks. We will remove the app, site, share, service account and VM at the end, or hand them back for reuse.
 >
 > Happy to walk through the design. Thanks,
-> Sridhar
+> The Systems Designer
 
 Adjust the VM size, duration and names before sending; they are estimates.

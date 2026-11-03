@@ -27,7 +27,7 @@ is code with tests, not Claude's judgment.
 Requires Python 3.12+ (3.13 is what the bundle is built with) and, for packaging only, Node.js.
 
 ```powershell
-cd C:\Users\sridhar.vetrivel\INGENUS\POC
+cd C:\Users\<username>\INGENUS\POC      # a root path: replace <username> with your Windows user name
 python -m venv .venv                  # already exists on this machine
 .\.venv\Scripts\Activate.ps1          # Git Bash: source .venv/Scripts/activate
 pip install -e ".[dev]"

@@ -5,14 +5,14 @@
 
 ## Context
 
-- **SAID (Sridhar, 2 Nov 2026):** "Go with pgvector", then "Proceed with 3b", then, after the policy check below: "No, Download an embedding model and do."
+- **SAID (Systems Designer, 2 Nov 2026):** "Go with pgvector", then "Proceed with 3b", then, after the policy check below: "No, Download an embedding model and do."
 - Keyword search (0012) finds the words typed. Live QA SQ-3 showed the gap: "retrospective discount" finds nothing, because Chain A says "rebate".
 - The synthetic contracts use six words for the same idea (rebate, back-end discount, retrospective discount, year-end volume bonus, volume incentive, price protection credit), which makes them a fair test.
 
 ## Policy check (Psiog AI Policy v1, revision received 27 Oct 2026)
 
 - **Result: not addressed.** The policy has no tier for a locally run open-source model (`[TOOLS-TIERS]`), says nothing about downloading models, and `[SCOPE-COVERAGE]` leaves three tool categories "not yet covered in operating detail", with ambiguity "clarified with the AI admin". The licence of the model is a question for Legal, InfoSec and BD (`[SCOPE-ACCOUNT]`).
-- **Sridhar decided to proceed (2 Nov 2026).** **Open:** the AI admin has not been asked. **Condition kept in the meantime:** the model is used with **synthetic data only**. Real Ingenus contract text is C2 at least (`[DATA-MATRIX]`: Delivery head checks the customer contract first, and `[TOOLS-CUSTWORK]` names AI, sub-processor, third-party-processing and residency clauses), so it needs that clearance **before** it reaches any model, local or not.
+- **Systems Designer decided to proceed (2 Nov 2026).** **Open:** the AI admin has not been asked. **Condition kept in the meantime:** the model is used with **synthetic data only**. Real Ingenus contract text is C2 at least (`[DATA-MATRIX]`: Delivery head checks the customer contract first, and `[TOOLS-CUSTWORK]` names AI, sub-processor, third-party-processing and residency clauses), so it needs that clearance **before** it reaches any model, local or not.
 
 ## Decision
 
@@ -50,7 +50,7 @@
 - **The band cannot remove a flat tail.** When no passage is clearly best ("which law applies" on Chain A: 10 hits between 0.56 and 0.63, no governing-law clause exists) it keeps them all; "retrospective discount" likewise keeps 4 hits between 0.55 and 0.58.
 - **The cut-off is tuned on synthetic text.** Ingenus's contracts will score differently. It must be checked on real wording (after the policy route above) and is one setting to change.
 - **First meaning search of a process loads the model** (a few seconds) and embeds missing passages (about 0.03 s each here).
-- **Production:** the model runs where the server runs, on the CPU. Memory and time on the Ingenus server are **unknown** (Aditya provisions it). pgvector availability on the production Postgres is **unknown (verify)**.
+- **Production:** the model runs where the server runs, on the CPU. Memory and time on the Ingenus server are **unknown** (the Principal Architect provisions it). pgvector availability on the production Postgres is **unknown (verify)**.
 - **A model change means re-embedding** every passage (done automatically at the next search).
 - **Not verified:** a live run through Claude Desktop (steps MQ-1 to MQ-5 in `MCP-Server/docs/demo_guide.md`, section 8e); two server processes embedding at once; model licences on their cards.
 

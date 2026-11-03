@@ -1,8 +1,8 @@
 # Finding the document source from the question: impact analysis and proposal
 
 **Status:** proposal, 23 Oct 2026. Nothing in it is built. Nothing is confirmed by Ingenus.
-**For:** Sridhar and Aditya (Psiog).
-**Ask (Sridhar, 23 Oct 2026):** a user must not have to change `INGENUS_DOC_SOURCE`. The server should work out where a customer's contracts are from the question the user asks.
+**For:** Systems Designer and Principal Architect (Psiog).
+**Ask (Systems Designer, 23 Oct 2026):** a user must not have to change `INGENUS_DOC_SOURCE`. The server should work out where a customer's contracts are from the question the user asks.
 
 > **Update, same day.** The records and search index we had already agreed are the end state, and the catalog inside them is how a question finds its source. This note is therefore **step 1** of the [records and search index proposal](../proposal/records_and_search_index_impact_analysis_and_proposal.md). Option E below ("catalog / index", which I called not needed for a pilot) was wrong to dismiss: it is the agreed design. Option C (search all sources) stays as the way the catalog is first filled and re-listed.
 
@@ -28,7 +28,7 @@ Reasons, short:
 
 | | |
 |---|---|
-| **Said (Sridhar, 23 Oct 2026)** | The user will not change the source setting per question. The server must identify the source. |
+| **Said (Systems Designer, 23 Oct 2026)** | The user will not change the source setting per question. The server must identify the source. |
 | **Doc** | Ingenus's contracts sit in SharePoint, OneDrive and a network drive ([decision 0007](../decisions/0007-v1-onedrive-and-network-share-sources.md), context). The v1 proposal quotes Dan on 8 Oct (37:42): the shared drive and SAP are behind a firewall and *"we can never expose that outside of our own firewall"*, and Call 1 (58:32): *"keep SharePoint and the network drives in mind as well"* ([v1 proposal](../v1_impact_analysis_and_proposal.md), section 1). I have not re-read the transcripts for this note. |
 | **Doc** | The server reads **one** source per run today, chosen at start by `INGENUS_DOC_SOURCE` ([config.py](../../MCP-Server/src/ingenus_mcp/core/config.py), [sources.py](../../MCP-Server/src/ingenus_mcp/core/sources.py) `get_source`). This was a build shortcut, not a client request. |
 | **Assumed** | A customer's documents can be spread over more than one source. Users do not say where a document is. The same customer name appears in the folder or file names in every source. |
@@ -112,7 +112,7 @@ Optional, if wanted: a `source` argument on `find_contract_files` (from the enab
 
 ## 6. Risks, ranked
 
-1. **A source is down and the newest amendment lives there. The check looks clean and is wrong.** Worst case, because the figure feeds an accrual. Mitigation: per-source status and `complete` in the result, and the guidance rule above. **Residual:** the server is stateless, so `compare_contract_to_sap` cannot know that an earlier `find_contract_files` call was incomplete. The protection there is the guidance and the user reading the report. State this to Aditya (**verify with Aditya** whether that is acceptable for the pilot, or whether `compare` should re-check source health itself).
+1. **A source is down and the newest amendment lives there. The check looks clean and is wrong.** Worst case, because the figure feeds an accrual. Mitigation: per-source status and `complete` in the result, and the guidance rule above. **Residual:** the server is stateless, so `compare_contract_to_sap` cannot know that an earlier `find_contract_files` call was incomplete. The protection there is the guidance and the user reading the report. State this to the Principal Architect (**verify with the Principal Architect** whether that is acceptable for the pilot, or whether `compare` should re-check source health itself).
 2. **The same contract exists twice with different content** (a SharePoint working copy and a signed copy on the drive). The merge flags it; deciding which is right is a person's job. Without the flag, the newer file date could win by accident.
 3. **Customer matching is by name in the folder or file path.** It assumes every source names things the same way. A file saved as `CHX Amend 2.pdf` in one place may be missed **silently**. Unknown at Ingenus: ask for their naming (section 8).
 4. **Speed.** The call takes as long as the slowest source. Measured on 20 Oct: the first SharePoint listing took 14.5 s for 30 files ([demo guide](../../MCP-Server/docs/demo_guide.md), finding 4). The network source can take up to its 20 s timeout. Claude Desktop's own tool timeout is **unknown (verify)**. Mitigation: parallel search, the existing cache, a small catalog later (option E).
@@ -168,7 +168,7 @@ GxP posture is unchanged: every source stays read-only, nothing writes to SAP or
 
 ## 10. Next steps and decisions
 
-1. **Decide:** option C, with the optional `source` argument? (Sridhar, Aditya)
+1. **Decide:** option C, with the optional `source` argument? (Systems Designer, Principal Architect)
 2. **Decide:** what `compare` should do when it cannot tell whether every source answered (risk 1). My view: guidance plus the flag for the pilot, and a health re-check inside `compare` before any real Ingenus data.
 3. **Decide:** old check-history records without a source prefix: keep (treat as the single source) or hide.
 4. Build behind the fallback, with the tests in section 7. Then set up all three sources at once and re-run section 8b of the demo guide without any restart.

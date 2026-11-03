@@ -1,8 +1,8 @@
 # Records and search index in the MCP server: impact analysis and proposal
 
 **Status:** proposal, 23 Oct 2026. Nothing in it is built. Nothing is confirmed by Ingenus.
-**For:** Sridhar and Aditya (Psiog).
-**Ask (Sridhar, 23 Oct 2026):** build the **records** (key values plus quote) and the **search index** that we already agreed in the design. It is the answer to Abhishek's first question, "repository or fetch every time?" (his four questions and our answers are in the Guidelines note linked below).
+**For:** Systems Designer and Principal Architect (Psiog).
+**Ask (Systems Designer, 23 Oct 2026):** build the **records** (key values plus quote) and the **search index** that we already agreed in the design. It is the answer to Abhishek's first question, "repository or fetch every time?" (his four questions and our answers are in the Guidelines note linked below).
 
 Labels used below: **Said**, **Doc** (read in this repo or the solution-approach notes), **Psiog proposal** (ours, to confirm), **Assumed**, **Unknown / verify**.
 
@@ -14,7 +14,7 @@ Read with: [source routing proposal](../completed/multi_source_routing_impact_an
 
 **Build it, in this order: (1) a catalog of documents with their source, (2) records, (3) a search index with keyword and meaning (vector) search, using a local embedding model.** The file stays the truth: every stored record or passage is checked against the file's fingerprint before it is used.
 
-**Decisions taken (Sridhar, 23 Oct 2026):** per-user lazy indexing; records stay `verified` only (no accept or reject tool yet); keyword **and** meaning search from the first cut, with a **local open-source embedding model** and search on **Postgres only**; `compare` relies on guidance and a flag when a source is down. Section 8 lists them. One of them goes against my recommendation (meaning search now, not later); section 4.7 says what that costs.
+**Decisions taken (Systems Designer, 23 Oct 2026):** per-user lazy indexing; records stay `verified` only (no accept or reject tool yet); keyword **and** meaning search from the first cut, with a **local open-source embedding model** and search on **Postgres only**; `compare` relies on guidance and a flag when a source is down. Section 8 lists them. One of them goes against my recommendation (meaning search now, not later); section 4.7 says what that costs.
 
 A correction to my own earlier note. In the source routing proposal I listed a catalog or index as "not needed for a pilot". That contradicted the design we had already agreed ([Guidelines and Review Methodology](../../../2026/Solution_Approach/Guidelines_and_Review_Methodology.md) section 1, [Ontology approach](../../../2026/Solution_Approach/Ontology_Approach.md) section 9, [P4 MCP plug-in](../../../2026/Solution_Approach/Proposals/P4_MCP_Plugin.md)). The routing proposal is now **step 1 of this one**: the catalog is also how a question finds its source, without anyone changing a setting.
 
@@ -26,7 +26,7 @@ A correction to my own earlier note. In the source routing proposal I listed a c
 
 | | |
 |---|---|
-| **Said (Sridhar, 23 Oct 2026)** | The records (key values plus quote) and the search index are what we have to build; the approach was discussed before; two diagrams were given. |
+| **Said (Systems Designer, 23 Oct 2026)** | The records (key values plus quote) and the search index are what we have to build; the approach was discussed before; two diagrams were given. |
 | **Doc: the agreed design** | Read each important document **once**, store its facts in a fixed form with proof, and **check the source file's fingerprint before any record is used**; if it changed, set the record aside and re-read. The repository is a **working copy, not the system of record**. Records are for checks (exact numbers); the search index is for open questions and **never for numbers**. |
 | **Doc: what a record holds** | Value, source file and fingerprint, page and exact quote, effective dates, what it replaces, how it was read (schema, prompt, model), review status ("accepted by Abhishek"). |
 | **Doc: the stack** | One PostgreSQL database; full-text search built in; **pgvector** for meaning search (**verify** on the target tier); a **separate embedding model** because Claude does not make embeddings (**verify** provider). |
@@ -99,7 +99,7 @@ The catalog and the passages need **no LLM**: they come from parsing the file. O
 | `get_contract_terms(customer, as_of)` (new, from P4) | Runs the freshness check on each file. Returns the **records in force** (value, quote, page, status). For any file with no record, or a changed file, returns the relevant pages so Claude can extract | new |
 | `compare_contract_to_sap` (existing) | Unchanged maths. After the quote check, it **stores each term that passed** as a record (idempotent: same file, page, quote, rate gives the same record) | small change |
 | `search_contracts(query, customer?)` (new, from P4) | Returns cited passages (file, page, section, quote). **Never numbers for a check.** | new |
-| `record_decision(term_id, accept or reject, reason)` (new, optional) | Lets a person accept or reject a record. P4 says this brings part of the foundation back. Aditya decides | optional |
+| `record_decision(term_id, accept or reject, reason)` (new, optional) | Lets a person accept or reject a record. P4 says this brings part of the foundation back. The Principal Architect decides | optional |
 
 ### 4.4 The freshness check, and its hole
 
@@ -181,7 +181,7 @@ Keyword alone already fixes part of the "unusual wording" limit of today's page 
 5. **Search is mistaken for fact.** A passage returned by search might be quoted as a number. Mitigation: the tool says "not for checks", the guidance forbids it, and a test fails if a search result feeds a comparison.
 6. **Order of amendments across sources.** The rule "later effective date replaces earlier" works on dates, not on links between files. If an amendment has no clear date or its master is in another source, the result can be wrong. The existing "two documents conflict, ask" rule is the backstop.
 7. **Search runs only on Postgres.** Records and the catalog also run on SQLite, so a bug could show on one engine only. Mitigation: test both for records, and run the search tests against the local Postgres already used for decision 0008.
-8. **The local embedding model is a new component to host and version.** Its quality on pharma contract wording is untested, it needs CPU and memory on the VM (**verify** the VM's size, Aditya provisions it), and changing it means re-embedding everything. Mitigation: test candidates on the synthetic set before fixing one; store the model name and version with every vector.
+8. **The local embedding model is a new component to host and version.** Its quality on pharma contract wording is untested, it needs CPU and memory on the VM (**verify** the VM's size, the Principal Architect provisions it), and changing it means re-embedding everything. Mitigation: test candidates on the synthetic set before fixing one; store the model name and version with every vector.
 9. **Effort against "keep it cheap".** This adds tables, tools and a timer for a pilot. It is also the part of the agreed design that makes results repeatable and reviewable, which is what Abhishek asked for. Steps are ordered so each one stands alone (section 7).
 
 ---
@@ -190,7 +190,7 @@ Keyword alone already fixes part of the "unusual wording" limit of today's page 
 
 | Step | What | Done when | Estimate |
 |---|---|---|---|
-| 0 | Decisions (section 8) | Sridhar and Aditya agree | 0.5 day |
+| 0 | Decisions (section 8) | Systems Designer and Principal Architect agree | 0.5 day |
 | 1 | Source routing and the **catalog** (the [routing proposal](../completed/multi_source_routing_impact_analysis_and_proposal.md)) | A question finds its files in any source; each file names its source; a failed source is reported | 5 to 7 days (already estimated there) |
 | 2 | **Records**: store verified terms; `get_contract_terms`; freshness check; status | Second check of Chain X reuses stored terms; an edited file sets them aside | 3 to 4 days |
 | 3a | **Keyword search**: passages; `search_contracts`; access check | A clause found that the page finder missed; no access means no passage | 3 to 4 days |
@@ -203,7 +203,7 @@ Steps 2 and 3a can stop and still be useful. Step 2 alone gives repeatable check
 
 ## 8. Decisions and questions
 
-**Decided (Sridhar, 23 Oct 2026):**
+**Decided (Systems Designer, 23 Oct 2026):**
 
 | # | Question | Decision |
 |---|---|---|
@@ -214,18 +214,18 @@ Steps 2 and 3a can stop and still be useful. Step 2 alone gives repeatable check
 | 5 | Search without Postgres? | **Postgres only for search**; the catalog and records also work on SQLite |
 | 6 | `compare` when a source may be down? | **Guidance and a flag** (`complete`, per-source status). The server stays stateless. Residual risk is on Claude and the reader (section 6, risk 1) |
 
-**Also decided (Sridhar, 23 Oct 2026):**
+**Also decided (Systems Designer, 23 Oct 2026):**
 
 | # | Question | Decision |
 |---|---|---|
 | 7 | POC storage on the VM | **Postgres**, as decision 0008 does for the audit store. Search needs it |
 | 8 | Retention of stored contract text | **90 days from last use** (confirmed 23 Oct 2026): the clock restarts whenever a file is read or re-checked; an unused file's records and passages are purged. The audit log keeps its own, longer assumption (12 months, **to confirm**) |
-| 9 | Who may read the database | **Through the server's tools only; direct access for admins only** (confirmed 23 Oct 2026). Signed-in users reach stored text only through the tools, which check each user's access to the file on every retrieval. Sridhar and Aditya query the database directly, with a separate role for the server (not `postgres`) and the audit tables in their own schema |
-| 10 | How is meaning search run in Postgres? | **The `pgvector` extension** (Sridhar, 2 Nov 2026), over a plain-array approach. **Install route (2 Nov 2026):** IT's Windows Postgres 18 has no `vector` files and changing it needs admin rights (Visual Studio 2022 has no C++ workload). **Worked without admin:** a user-level Postgres 18.6 in WSL Ubuntu, from the official PostgreSQL apt repository, with `postgresql-18-pgvector` 0.8.7 (sha256-checked), on port 5433; `CREATE EXTENSION vector` and a distance query succeed, and Windows reaches it at `localhost:5433`. Dev only; not the production route. Production Postgres version and OS are **unknown** (ask Aditya) |
+| 9 | Who may read the database | **Through the server's tools only; direct access for admins only** (confirmed 23 Oct 2026). Signed-in users reach stored text only through the tools, which check each user's access to the file on every retrieval. The Systems Designer and the Principal Architect query the database directly, with a separate role for the server (not `postgres`) and the audit tables in their own schema |
+| 10 | How is meaning search run in Postgres? | **The `pgvector` extension** (Systems Designer, 2 Nov 2026), over a plain-array approach. **Install route (2 Nov 2026):** IT's Windows Postgres 18 has no `vector` files and changing it needs admin rights (Visual Studio 2022 has no C++ workload). **Worked without admin:** a user-level Postgres 18.6 in WSL Ubuntu, from the official PostgreSQL apt repository, with `postgresql-18-pgvector` 0.8.7 (sha256-checked), on port 5433; `CREATE EXTENSION vector` and a distance query succeed, and Windows reaches it at `localhost:5433`. Dev only; not the production route. Production Postgres version and OS are **unknown** (ask the Principal Architect) |
 
 Why decision 9 is set this way: stored passages and records are copies of text that SharePoint and OneDrive show only to people who may open the file, and the same database holds the audit log with other people's names. Direct access for all signed-in users would bypass both. Direct access for all users is acceptable only on synthetic data, and is not the setup to show Ingenus.
 
-**Still to decide (Sridhar, Aditya):** which local embedding models to test. Candidates and what to check are in section 10.
+**Still to decide (Systems Designer, Principal Architect):** which local embedding models to test. Candidates and what to check are in section 10.
 
 **To ask Ingenus (Abhishek, Dan, Harish):**
 1. How many contract files, and how is an amendment linked to its master in your folders? (Names, folders or a register.)
@@ -259,7 +259,7 @@ I have not run any of these. The comparison to make is on **our** data: the synt
 
 **Things to check before fixing one (all **verify**):**
 - **Licence on the model card**, not in a directory.
-- **Hardware:** these run on CPU; the corpus is small (hundreds of passages in the POC). Check the VM's memory and CPU, which Aditya provisions.
+- **Hardware:** these run on CPU; the corpus is small (hundreds of passages in the POC). Check the VM's memory and CPU, which the Principal Architect provisions.
 - **Libraries:** the usual route (sentence-transformers) pulls in PyTorch, which is large. A lighter ONNX route may exist; check what suits the VM.
 - **Offline use:** download once, check the file hashes, then copy the model onto the VM and run it with no internet. Ingenus's network will not allow downloads at run time.
 - **Versioning:** store the model name and version with every vector; a changed model means re-embedding every passage.

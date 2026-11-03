@@ -3,7 +3,7 @@
 Short checklist. Background and reasons are in `psiog_it_request_v1-4_v1-6.md`.
 All data is synthetic. Everything is read-only. Needed for about six weeks.
 
-Users: Sridhar Vetrivel, Aditya Manthena, and up to two testers (names to follow).
+Users: Systems Designer, Principal Architect, and up to two testers (names to follow).
 
 ## Step 1. Create the server app (Entra admin center > App registrations > New registration)
 
@@ -45,7 +45,7 @@ Users: Sridhar Vetrivel, Aditya Manthena, and up to two testers (names to follow
 | Inbound         | TCP 443 from the office network and VPN only. Nothing from the internet                                                                        |
 | Outbound        | HTTPS 443 to `login.microsoftonline.com`, `graph.microsoft.com`, `pypi.org`, `files.pythonhosted.org` (or give us your package mirror) |
 | Software        | Python 3.13                                                                                                                                    |
-| Access          | Remote desktop or SSH for Sridhar                                                                                                              |
+| Access          | Remote desktop or SSH for the Systems Designer                                                                                                              |
 | DNS             | An internal name, for example `ingenus-poc.psiog.local`                                                                                      |
 | Service account | One account the server runs as. No admin rights after setup                                                                                    |
 

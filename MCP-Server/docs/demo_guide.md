@@ -97,7 +97,7 @@ instead of the folder. The mock SAP stays a local file on the server until the r
 
 ## 5. Pre-flight checklist
 
-Run from `C:\Users\sridhar.vetrivel\INGENUS\POC`, with the venv active.
+Run from `C:\Users\<username>\INGENUS\POC`, with the venv active. That is a **root path**: replace `<username>` with your Windows user name (and use your own folder if the repo is somewhere else).
 
 - [ ] `python scripts/check.py --fast` ends with `0 failed`
 - [ ] The bridge is built: `cd MCP-Server\bridge; npm ci; cd ..\..` then `python MCP-Server/bridge/build_bridge.py`
@@ -190,7 +190,7 @@ questions in new chats and compare with section 7.
 
 Setup: server started with `INGENUS_AUTH=entra`, `INGENUS_DOC_SOURCE=sharepoint` (from `MCP-Server/.env`), dev tenant
 `vvrzl` (apps, certificate, group and the `mcp-sharepoint-test` site made by the repo owner); bridge `0.3.0` installed
-unpacked with the three IDs filled in; Claude Desktop signed in to Claude as `sridhar.vetrivel@psiog.com` and to the bridge
+unpacked with the three IDs filled in; Claude Desktop signed in to Claude as `<name>@psiog.com` and to the bridge
 as `develop.admin@vvrzl.onmicrosoft.com`. These are two different logins.
 
 | Check | Result |
@@ -322,7 +322,7 @@ or a mounted one. For this POC use a normal folder, and optionally a drive lette
 
    ```
    INGENUS_DOC_SOURCE=network
-   INGENUS_NETWORK_ROOT=C:\Users\sridhar.vetrivel\IngenusPOC\network_contracts
+   INGENUS_NETWORK_ROOT=C:\Users\<username>\IngenusPOC\network_contracts   # a root path: replace <username> with your Windows user name
    INGENUS_NETWORK_TIMEOUT=20
    ```
 
@@ -389,6 +389,8 @@ What Postgres held after the run: the audit `events` (one row per login and tool
 
 ### Per-user tests (optional, needs a second dev-tenant user)
 
+The full step-by-step version, with history, stored terms, search and the audit log, is in [`second_person_test.md`](second_person_test.md).
+
 | Test | Expected | Result |
 |---|---|---|
 | SharePoint: a user who is **not** a member of the site asks SP-1 | Refused or no files; sees nothing (the server reads as each user) | |
@@ -451,7 +453,7 @@ Record each result here (pass or fail, and what Claude did) with the chat and th
 
 **SQ-2 third run (2 Nov 2026): invalid again, cause found.** The connector was on (Claude listed all 10 tools) but the tools were **deferred** and Claude did not load them: "Which Chain A file mentions payment terms?" reads like a local file lookup, so it searched its sandbox (`/home/claude`, `/mnt/user-data`); "Check Chain A against SAP" names the job, so it loaded them and worked (log 10:22 UTC: `get_guide`, `resolve_customer`, `get_contract_terms`, three `get_contract_pages`, `compare`; 1,800.00 / 12,600.00 as before). **Fix (2 Nov):** the first lines of `search_contracts`, `find_contract_files`, `get_contract_pages` and `get_contract_terms` now say the contracts are in SharePoint, OneDrive and the network drive, not the local file system. **Re-run SQ-2 without any hint** (restart the server first). **Result of that re-run (2 Nov, server restarted 11:33 UTC): still invalid.** Log: a `login` at 11:33:03 and **no tool call**: the chat connected but Claude did not load the tools, so the new descriptions did not change its choice. **Next fix (same day):** the server's own `instructions` (sent to the client when it connects) now start with "customer contracts are only reachable through these tools, never in local folders or uploads; for which-file-mentions questions use search_contracts / find_contract_files". If Claude Desktop ignores that too, the remaining lever is on the client: a line in the Desktop profile preferences or a Project instruction ("Customer contracts are in the Ingenus connector, not in files"), or say "using the Ingenus tools" in the question.
 
-**SQ-2 reworded (2 Nov, 11:39 UTC): ✅, and the cause is the word "file".** "Which Chain A **contract** mentions payment terms? Quote the clause." worked with no hint: `search_contracts` (Chain A, "payment terms", 2 hits), then `get_contract_pages` on the Master and Amendment 3 to read the pages. Claude quoted the Master p.5 ("Payment terms: net 45 days from invoice date.") and Amendment 3 p.2 ("Payment terms change from net 45 days to net 30 days. All other terms are unchanged."), with file names and the effective date, and said it had not reviewed every file. Same customer, same topic, the same server; the only change was "file" to "contract" (the four failed runs said "file" and made no tool call). So Claude's choice of tools depends on how the question is worded; a client-side instruction (profile preference or shared Project) is the reliable fix for a rollout, to list for Aditya as a limit.
+**SQ-2 reworded (2 Nov, 11:39 UTC): ✅, and the cause is the word "file".** "Which Chain A **contract** mentions payment terms? Quote the clause." worked with no hint: `search_contracts` (Chain A, "payment terms", 2 hits), then `get_contract_pages` on the Master and Amendment 3 to read the pages. Claude quoted the Master p.5 ("Payment terms: net 45 days from invoice date.") and Amendment 3 p.2 ("Payment terms change from net 45 days to net 30 days. All other terms are unchanged."), with file names and the effective date, and said it had not reviewed every file. Same customer, same topic, the same server; the only change was "file" to "contract" (the four failed runs said "file" and made no tool call). So Claude's choice of tools depends on how the question is worded; a client-side instruction (profile preference or shared Project) is the reliable fix for a rollout, to list for the Principal Architect as a limit.
 
 **SQ-3 (2 Nov, 11:42 UTC): ✅.** Three `search_contracts` calls for Chain A ("retrospective discount", "retrospective", "retro rebate"), each 0 hits, `available` and `complete` true. Claude said it found no matching passages, that the search matches words literally so a clause may use other wording (volume rebate, year-end rebate, back-dated discount), and offered to try another term or to read the pages. It did **not** claim the contract has no such clause. This is the keyword-only limit, as expected: meaning search (step 3b) is what would bridge "retrospective discount" and "rebate".
 

@@ -4,7 +4,7 @@
 
 The decisions D1 to D7 in `MCP-PlugIn/Plan.md` section 3 each had a proposed approach and an alternative. The
 repo owner decided to **build the proposed approaches as v0 and move to the alternatives later if needed**.
-Nothing here is confirmed with Ingenus; Aditya and Ingenus can still change any of it.
+Nothing here is confirmed with Ingenus; the Principal Architect and Ingenus can still change any of it.
 
 | # | Decision | v0 (built now) | Alternative (later, if needed) | Revisit when |
 |---|---|---|---|---|
@@ -12,7 +12,7 @@ Nothing here is confirmed with Ingenus; Aditya and Ingenus can still change any 
 | D2 | Who extracts contract terms | **Option X:** Claude on the user's own plan; our code checks every quote | Option Y: our own LLM inside a tool (needs a provider approval) | S5 shows extraction errors that differ by person, or audit or validation of the reading is required |
 | D3 | SAP access route | Mock adapter with synthetic data | Real route agreed with Dan (report export, API or CDS views; unknown) | Dan answers the access questions |
 | D4 | Data used | Synthetic and public only | Anonymised real contracts | Data policy received and signed off |
-| D5 | Scope | Contract-to-SAP only | Add order-status or packing-slip lookups | After S4, if Aditya agrees |
+| D5 | Scope | Contract-to-SAP only | Add order-status or packing-slip lookups | After S4, if the Principal Architect agrees |
 | D6 | Domain-neutral rule for `MCP-PlugIn/` | Exception for phase 1 (the domain-word test skips `MCP-PlugIn/` only) | Keep the rule and move tool code into the foundation | Phase 2 starts |
 | D7 | Where the tool-call log goes | A configured folder (`INGENUS_LOG_PATH` / the extension's log folder setting) | Each laptop keeps its own log | Ingenus agrees a shared location; until then usage data is split per machine |
 

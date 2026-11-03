@@ -13,15 +13,15 @@ written. Tags: **SAID** = someone stated it; **ASSUMED** = my reading, not confi
 
 ## 2. Next up (suggested order)
 
-**Order locked 21 Oct 2026 (Sridhar):** build the project end to end on the local machine first, then host it at the end. So 2.1 (the AWS VM) is the last item, and every other item below is worked locally.
+**Order locked 21 Oct 2026 (Systems Designer):** build the project end to end on the local machine first, then host it at the end. So 2.1 (the AWS VM) is the last item, and every other item below is worked locally.
 
-### 2.1 Put the server on a VM and reach it from another machine (rest of V1-4) — **LAST: build and test everything locally first, host at the end (Sridhar, 21 Oct 2026)**
+### 2.1 Put the server on a VM and reach it from another machine (rest of V1-4) — **LAST: build and test everything locally first, host at the end (Systems Designer, 21 Oct 2026)**
 
-Why: so a second person (Aditya, a tester) can use it. Today it listens on `127.0.0.1` of one laptop.
-Depends on: **Aditya, who provisions the VM on AWS (SAID, 21 Oct 2026; decision [0009](decisions/0009-v1-poc-vm-on-aws-provisioned-by-aditya.md)).** Psiog IT is not on this path, so steps 5 and 6 of [`psiog_it_steps_v1-4_v1-6.md`](psiog_it_steps_v1-4_v1-6.md) are not sent to them.
+Why: so a second person (Principal Architect, a tester) can use it. Today it listens on `127.0.0.1` of one laptop.
+Depends on: **Principal Architect, who provisions the VM on AWS (SAID, 21 Oct 2026; decision [0009](decisions/0009-v1-poc-vm-on-aws-provisioned-by-principal-architect.md)).** Psiog IT is not on this path, so steps 5 and 6 of [`psiog_it_steps_v1-4_v1-6.md`](psiog_it_steps_v1-4_v1-6.md) are not sent to them.
 
-- [ ] **Ask Aditya:** AWS account and region, OS (Windows or Linux; Linux is untested), who provides the DNS name and HTTPS certificate, who may reach the port, Postgres on the VM or managed (all **UNKNOWN**)
-- [ ] Aditya delivers: the AWS VM, a DNS name, an HTTPS certificate (public CA, or a private CA plus its root `.cer`)
+- [ ] **Ask the Principal Architect:** AWS account and region, OS (Windows or Linux; Linux is untested), who provides the DNS name and HTTPS certificate, who may reach the port, Postgres on the VM or managed (all **UNKNOWN**)
+- [ ] The Principal Architect delivers: the AWS VM, a DNS name, an HTTPS certificate (public CA, or a private CA plus its root `.cer`)
 - [ ] Install Python and the server on the VM; run it as a service account (no admin rights)
 - [ ] Make a **new** certificate key pair **on the VM** (do not copy the laptop's key); upload its `.cer` to the server app; set the thumbprint and key path as service environment variables, with no `.env` file ([`developer_guide.md`](../developer_guide.md) section 5.1)
 - [ ] Put HTTPS in front of the server (the bridge refuses plain `http://` to another machine)
@@ -29,16 +29,16 @@ Depends on: **Aditya, who provisions the VM on AWS (SAID, 21 Oct 2026; decision 
 - [ ] Check the SDK's host-header protection accepts the VM's name (**UNKNOWN**: not tested; it protects loopback by default)
 - [ ] Bridge on a second laptop: Server URL = the HTTPS address, plus the three IDs; first sign-in works
 - [ ] **Done when:** a second person's Claude Desktop runs Q1 against the VM, and the log shows that person's name
-- [ ] **Purpose of the AWS VM (Sridhar, 21 Oct): QA of multiple users calling and the logging.** QA list: two or more people calling at the same time; each call logged under the right name; login events (accepted, refused); the hash chain verifies after concurrent writes (**tested locally 21 Oct**: 6 threads, 4 processes; re-run on the VM with real requests); Postgres receives every event; check history seen across people; `audit ship` and `prune` against the real database
+- [ ] **Purpose of the AWS VM (Systems Designer, 21 Oct): QA of multiple users calling and the logging.** QA list: two or more people calling at the same time; each call logged under the right name; login events (accepted, refused); the hash chain verifies after concurrent writes (**tested locally 21 Oct**: 6 threads, 4 processes; re-run on the VM with real requests); Postgres receives every event; check history seen across people; `audit ship` and `prune` against the real database
 
 - Unknown: whether Node (inside Claude Desktop) trusts the certificate chain; Psiog's Conditional Access policies; which Entra tenant the AWS-hosted POC signs people in against, and who creates the app registrations there (the dev tenant is for testing only)
 
 ### 2.0 Per-source datasets (built 21 Oct 2026, reshaped 22 Oct)
 
-Three source folders with their own chains: `MCP-PlugIn/data/synthetic/Sharepoint` (Chain_A, B), `Onedrive` (Chain_C, D) and `Network-Drive` (Chain_E, F); see [its README](../MCP-PlugIn/data/synthetic/README.md). Each holds PDFs only. The ontology, the mock SAP, the rules and the expected results are **shared** (one of each), because the source only decides where the PDFs are read from. Sridhar copies each folder's contents to the matching real location.
+Three source folders with their own chains: `MCP-PlugIn/data/synthetic/Sharepoint` (Chain_A, B), `Onedrive` (Chain_C, D) and `Network-Drive` (Chain_E, F); see [its README](../MCP-PlugIn/data/synthetic/README.md). Each holds PDFs only. The ontology, the mock SAP, the rules and the expected results are **shared** (one of each), because the source only decides where the PDFs are read from. The Systems Designer copies each folder's contents to the matching real location.
 
 - [x] Generated and tested locally (`test_v1_datasets.py`: figures worked out by hand match the engine)
-- [ ] Sridhar copies `Sharepoint/*` to the SharePoint folder, `Onedrive/*` to a OneDrive folder, `Network-Drive/*` to the share
+- [ ] The Systems Designer copies `Sharepoint/*` to the SharePoint folder, `Onedrive/*` to a OneDrive folder, `Network-Drive/*` to the share
 - [ ] Live Q1 per source, with no slice or SAP settings to change: Chain_A gap 1,800.00 / exposure 12,600.00 (SharePoint); Chain_C 750.00 / 3,750.00 (OneDrive); Chain_E 1,100.00 / 8,800.00 (network)
 
 ### 2.2 Central audit log and login log (built and tested offline; the real store is not chosen)
@@ -51,9 +51,9 @@ Built (decision [0005](decisions/0005-v1-audit-log-with-hash-chain-and-central-s
 
 Still open:
 - [~] **Real store, partly decided (21 Oct 2026):**
-  - **SAID** (Aditya suggested a custom database; Sridhar chose **Postgres**).
-  - **Where, SAID by Sridhar:** local for the POC, the AWS VM Aditya provisions for the POC only (SAID, relayed 21 Oct; replaces "Psiog Azure"), then Ingenus's choice, possibly Azure or on-prem, by a later decision (Ingenus leaned on-prem on 8 Oct, SAID).
-  - **ASSUMED for the POC, Ingenus to confirm:** keep audit log 12 months; keep check history 12 months; audit database read by admins only (Sridhar, Aditya); history shows other people's names.
+  - **SAID** (the Principal Architect suggested a custom database; the Systems Designer chose **Postgres**).
+  - **Where, SAID by the Systems Designer:** local for the POC, the AWS VM the Principal Architect provisions for the POC only (SAID, relayed 21 Oct; replaces "Psiog Azure"), then Ingenus's choice, possibly Azure or on-prem, by a later decision (Ingenus leaned on-prem on 8 Oct, SAID).
+  - **ASSUMED for the POC, Ingenus to confirm:** keep audit log 12 months; keep check history 12 months; audit database read by admins only (Systems Designer, Principal Architect); history shows other people's names.
   - **Built and tested (decision 0008):** a Postgres back end for the audit store and the check history (`INGENUS_PG_HOST`), tested on a local Postgres 17 (12 tests), and `python -m ingenus_mcp.audit prune` for the 12-month delete (a command to schedule; no timer yet).
   - **Not built or not verified:** separate Postgres roles (write-only for the server, read-only for reviewers), TLS to a remote database, the VM copy, and pruning the local log.
 - [ ] **Decide:** store down means keep serving and ship later (built) or stop serving (a regulated setting might require it). Whether 21 CFR Part 11 or similar applies: **UNKNOWN**, do not assume
@@ -71,7 +71,7 @@ Built (decision [0006](decisions/0006-v1-shared-check-history-tool.md)): every `
 - [x] 11 offline tests (a second person sees the first person's check; a person who cannot open the file sees nothing)
 
 Still open:
-- [x] **"Memory" means findings only** (what the server can reach): **SAID** by Sridhar, relaying Aditya, 21 Oct 2026. Notes and decisions (a write tool) are out of scope.
+- [x] **"Memory" means findings only** (what the server can reach): **SAID** by the Systems Designer, relaying the Principal Architect, 21 Oct 2026. Notes and decisions (a write tool) are out of scope.
 - [ ] Data policy: may contract-derived figures (rates, gaps) be stored? Is showing other people's names acceptable? (**UNKNOWN**; synthetic data only today)
 - [ ] Guidance: the `v2` guides are not edited in place; add a `v3` playbook line "read the history first". Today only the server instructions and the tool description steer Claude
 - [ ] **Done when (live):** in Claude Desktop, person B's Claude shows person A's earlier check of the same file, without being told to, and a person who cannot read the file sees nothing. Needs two real sign-ins on one server (2.1, or two accounts in the dev tenant)
@@ -99,8 +99,8 @@ Built (decision [0007](decisions/0007-v1-onedrive-and-network-share-sources.md))
 
 The proposal is now in [`completed/`](completed/multi_source_routing_impact_analysis_and_proposal.md) (its section 10 and section 8 are the source of these items). The routing itself is built; these were left open:
 
-- [ ] **Optional `source` argument** (proposal 10.1): let a caller limit a search to one source (`sharepoint`, `onedrive`, `network`). Not built. Decide (Sridhar, Aditya) whether it is wanted at all
-- [ ] **`compare` when it cannot tell whether every source answered** (proposal 10.2, risk 1): today the guidance plus the `complete` flag cover it. The proposal's view was a **health re-check inside `compare` before any real Ingenus data**: not built. Decide (Sridhar, Aditya)
+- [ ] **Optional `source` argument** (proposal 10.1): let a caller limit a search to one source (`sharepoint`, `onedrive`, `network`). Not built. Decide (Systems Designer, Principal Architect) whether it is wanted at all
+- [ ] **`compare` when it cannot tell whether every source answered** (proposal 10.2, risk 1): today the guidance plus the `complete` flag cover it. The proposal's view was a **health re-check inside `compare` before any real Ingenus data**: not built. Decide (Systems Designer, Principal Architect)
 - [ ] **Old check-history rows without a source prefix** (proposal 10.3): keep them (treat as the single source) or hide them. Not decided
 - [ ] **Take the six questions below to Ingenus (Abhishek, Dan).** Their answers decide whether a simpler "one known place per customer" design, or a catalog for thousands of files, is needed later (proposal section 9). Also a security question that could change the design: must the network share and personal OneDrive never be answered in one result? (then split by role or tool)
 
@@ -134,14 +134,14 @@ The proposal is now in [`completed/`](completed/multi_source_routing_impact_anal
 The apps, certificate, group and site were made in a developer tenant (`vvrzl`) by the repo owner. Its lifetime is **UNKNOWN**: check the expiry in the developer programme. For Psiog's tenant, and later Ingenus's, the same steps repeat with their admins ([`psiog_it_steps_v1-4_v1-6.md`](psiog_it_steps_v1-4_v1-6.md)); the IDs and the site URL are settings, not code. What was done in the dev tenant, step by step: [`dev_tenant_setup_steps.md`](completed/dev_tenant_setup_steps.md).
 
 - [ ] Check when the developer tenant expires
-- [ ] Update the Psiog IT request: the app, group and SharePoint parts are proven in the dev tenant; the VM and HTTPS no longer go to Psiog IT (AWS, Aditya; decision 0009); what may still need IT is the app registration in the real tenant and, later, the file share
+- [ ] Update the Psiog IT request: the app, group and SharePoint parts are proven in the dev tenant; the VM and HTTPS no longer go to Psiog IT (AWS, the Principal Architect; decision 0009); what may still need IT is the app registration in the real tenant and, later, the file share
 - [ ] Before any real data: Ingenus's data policy signed off (CLAUDE.md rule 9); until then synthetic only
 
 ## 5. Decisions waiting on people
 
 | Decision                                                             | Who                                               | Blocks                           |
 | -------------------------------------------------------------------- | ------------------------------------------------- | -------------------------------- |
-| Central log store: Postgres chosen; retention and readers assumed; fail open or closed; Ingenus to confirm | Aditya, then Ingenus | 2.2, 2.3 |
-| Ingenus on-prem or cloud for the store and the server (later; the POC VM is AWS) | Aditya, Ingenus                                   | 2.1, 2.2                         |
+| Central log store: Postgres chosen; retention and readers assumed; fail open or closed; Ingenus to confirm | Principal Architect, then Ingenus | 2.2, 2.3 |
+| Ingenus on-prem or cloud for the store and the server (later; the POC VM is AWS) | Principal Architect, Ingenus                                   | 2.1, 2.2                         |
 | Per-person access or one shared server identity                      | Ingenus (do folder permissions differ by person?) | 2.5, the design in decision 0004 |
 | Does Ingenus's data policy allow storing contract-derived figures    | Ingenus                                           | 2.3                              |

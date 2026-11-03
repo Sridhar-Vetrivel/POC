@@ -5,7 +5,7 @@
 
 ## Context
 
-- **SAID (Sridhar, 23 Oct 2026):** build the records (key values plus quote) and the search index we agreed. The agreed design (Guidelines note section 1, Ontology approach section 9, P4): read a document once, keep its facts with proof of where they came from, check the file's fingerprint before using them, and let the file stay the truth.
+- **SAID (Systems Designer, 23 Oct 2026):** build the records (key values plus quote) and the search index we agreed. The agreed design (Guidelines note section 1, Ontology approach section 9, P4): read a document once, keep its facts with proof of where they came from, check the file's fingerprint before using them, and let the file stay the truth.
 - Today Claude reads and extracts the same terms again on every question. That is slow, can give slightly different terms each time, and leaves nothing to review once.
 - Decisions taken on 23 Oct 2026 and carried here: per-user (lazy) access; records stay `verified` only (no accept or reject tool yet); Postgres on the VM.
 
@@ -16,8 +16,8 @@
 3. **New tool `get_contract_terms(customer)`.** It resolves the customer, lists that customer's files (all sources, as `find_contract_files` does) and, for each file, says `use_stored_terms` (its terms are in `stored`) or `read_pages` (none stored for this content: read it and extract as today). Stored terms are returned as ready-made `ExtractedTerm` objects to pass unchanged in `terms` of `compare_contract_to_sap`, which **checks every quote against the page again**, so a stored term gets no shortcut past the proof.
 4. **Freshness: the file stays the truth.** A stored term is returned only while the file's fingerprint equals the one it was stored with. If the file is listed and its fingerprint differs, the term is set aside (`status` stale) and is not returned; the file shows `read_pages`. The result says how many were set aside.
 5. **Who sees what.** Stored terms are returned only for files in **the asking person's own listing**. SharePoint and OneDrive list as that person, so a file they cannot open is not listed and its terms are not returned. A term whose file is not listed is left alone, neither shown nor set aside. The network share is listed as the service account, as in decision 0007.
-6. **Retention (Sridhar, 23 Oct 2026): 90 days from last use.** Returning a term restarts its clock. `python -m ingenus_mcp.audit prune` deletes terms not used for N days (`--days`; the audit and history use their own, longer limit, so run it with `--days 90` for terms or keep one schedule). **Assumed:** the same N for everything is acceptable for the POC (**to confirm**).
-7. **Who reads the database (Sridhar, 23 Oct 2026):** users reach stored terms only through the tool; direct database access is for admins, with a separate server role (`ingenus_server`, not `postgres`).
+6. **Retention (Systems Designer, 23 Oct 2026): 90 days from last use.** Returning a term restarts its clock. `python -m ingenus_mcp.audit prune` deletes terms not used for N days (`--days`; the audit and history use their own, longer limit, so run it with `--days 90` for terms or keep one schedule). **Assumed:** the same N for everything is acceptable for the POC (**to confirm**).
+7. **Who reads the database (Systems Designer, 23 Oct 2026):** users reach stored terms only through the tool; direct database access is for admins, with a separate server role (`ingenus_server`, not `postgres`).
 8. **Where it lives:** `INGENUS_RECORDS_DB`: a file (default `MCP-Server/data/runtime/records.sqlite`), `off`, or, when `INGENUS_PG_HOST` is set, the Postgres database. With `off`, no term is kept and every file shows `read_pages`.
 
 ## Options considered

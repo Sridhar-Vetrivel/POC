@@ -1,9 +1,9 @@
 # Audit log, login log and shared check memory: how they work and what we learned
 
-**Status (26 Oct 2026):** built and live-tested on a laptop with a local Postgres 18 and synthetic data. **Not** on the VM (Aditya provisions it, decision 0009) and **not** accepted by Ingenus (unknown).
+**Status (26 Oct 2026):** built and live-tested on a laptop with a local Postgres 18 and synthetic data. **Not** on the VM (the Principal Architect provisions it, decision 0009) and **not** accepted by Ingenus (unknown).
 **Diagram:** ![Audit log, login log and shared check memory](../images/audit_and_check_memory.png) (a copy of the PNG is in `2026/Solution_Approach/Audit_and_Check_Memory.png`).
 
-**What "per-process memory" means here.** Aditya asked for a shared memory: one person checks a file on Day 1, another on Day 3, and a third sees what was found. **What he means exactly is not confirmed** (decision 0006). Our reading: the server keeps what passed through its tools. It cannot share anyone's Claude chat.
+**What "per-process memory" means here.** The Principal Architect asked for a shared memory: one person checks a file on Day 1, another on Day 3, and a third sees what was found. **What he means exactly is not confirmed** (decision 0006). Our reading: the server keeps what passed through its tools. It cannot share anyone's Claude chat.
 
 ## 1. Audit log and login log, with history (decisions 0005, 0008)
 

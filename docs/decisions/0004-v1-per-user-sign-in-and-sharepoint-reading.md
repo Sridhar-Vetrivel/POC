@@ -13,7 +13,7 @@ read SharePoint, so the server must. Two ways to give the server access:
    read, and the log names the person.
 
 Ingenus's real folder permissions are unknown (do they differ by person?), and the audit log is a stated need.
-The user's Claude account (`sridhar.vetrivel@psiog.com`) is unrelated to Microsoft: Microsoft has never heard of it,
+The user's Claude account (`<name>@psiog.com`) is unrelated to Microsoft: Microsoft has never heard of it,
 so a separate Microsoft sign-in is needed to say who is asking.
 
 ## Decision

@@ -24,7 +24,7 @@ Labels: **Doc** (stated in this repo), **Expected** (what the design says should
 ## 2. Before you start
 
 1. **Postgres is up** (WSL, port 5433): `Test-NetConnection localhost -Port 5433` shows `TcpTestSucceeded : True` (cheat sheet has the start command).
-2. **The server runs with sign-in on** (`INGENUS_AUTH=entra` in `MCP-Server\.env`). If sign-in is off, the log names a local user and **this test is not valid**. Quick check: the last `login` or `tool_call` lines in the log show `develop.admin@vvrzl.onmicrosoft.com`, not `tester`.
+2. **The server runs with sign-in on** (`INGENUS_AUTH=entra` in `MCP-Server\.env`). If sign-in is off, the log names a local user and **this test is not valid**. Quick check: the last `login` or `tool_call` lines in the log show `develop.admin@vvrzl.onmicrosoft.com`, not `ingenus.tester`.
 3. **Meaning search is on** (`INGENUS_EMBED_MODEL=nomic` in `.env`), synthetic data only (the AI admin has not answered yet). Restart the server after any `.env` change.
 4. **Baseline as A** (new Chat, Ingenus connector on): "Check Chain A against SAP as of 31 Aug 2026". Expected **1,800.00 a month, 12,600.00 exposure**. This also makes A's check record, A's stored terms and A's passages, which B's tests need. Paste nothing yet; just confirm.
 5. **Amendment 3 is under its normal name** in SharePoint (`Chain_A/Chain_A_Amendment_3_2026.pdf`).
@@ -34,7 +34,7 @@ Log command (last 10 lines): `Get-Content C:\Users\<username>\INGENUS\POC\MCP-Se
 
 ## 3. Create user B (tenant admin does this, as A)
 
-1. **Microsoft 365 admin center** > Users > Active users > **Add a user**. Name `Ingenus Tester B`, username `tester.b@vvrzl.onmicrosoft.com` (use your tenant's domain), set a password. **Assign a licence** from the developer subscription (SharePoint and OneDrive need one; **Unknown:** confirm on screen what the tenant offers).
+1. **Microsoft 365 admin center** > Users > Active users > **Add a user**. Name `Ingenus Tester` (first name Ingenus, last name Tester), username `ingenus.tester@vvrzl.onmicrosoft.com` (use your tenant's domain), set a password. **Assign a licence** from the developer subscription (SharePoint and OneDrive need one; **Unknown:** confirm on screen what the tenant offers).
 2. **Do not add B to anything yet.** The first test needs B outside the group.
 3. Write B's sign-in name and password in a safe place (not in the repo, not in chat).
 
@@ -60,7 +60,7 @@ Use a **new Chat for every question**, in Chat (not Cowork or Code) with the Ing
 |---|---|---|---|
 | TP-0 | Sign in as B (section 4) while B is **not** in `SG-Ingenus-POC` | Entra **refuses** the sign-in (typically a message that the user is not assigned to the application; **Unknown:** exact wording). No Ingenus tool works. The log has **no** `tool_call` by B | |
 
-Now add B: Entra admin center > Groups > `SG-Ingenus-POC` > Members > Add `tester.b`. Wait one to two minutes, then sign in as B again (section 4).
+Now add B: Entra admin center > Groups > `SG-Ingenus-POC` > Members > Add `ingenus.tester`. Wait one to two minutes, then sign in as B again (section 4).
 
 **Part 2: B is in the group but is NOT a member of the SharePoint site** (site `mcp-sharepoint-test`; do not add B to the site yet)
 
@@ -74,7 +74,7 @@ Now add B: Entra admin center > Groups > `SG-Ingenus-POC` > Members > Add `teste
 | TP-6 | "Check Chain C against SAP as of 31 Aug 2026." (Chain C is in **A's** OneDrive) | **No Chain C files and no figures** (750.00 / 3,750.00 must not appear): B reads B's own, empty OneDrive | |
 | TP-7 | "Check Chain E against SAP as of 31 Aug 2026." (network drive) | **The same as for A: 1,100.00 / 8,800.00.** The network drive is read by the server's service account, so everyone sees it (decision 0007). Write this down as expected behaviour, not a failure. **Unknown:** whether Ingenus wants it this way | |
 
-**Part 3: add B to the SharePoint site** (site gear > Site permissions > add `tester.b` as **Member**, read is enough; wait about a minute: the server trusts a cached SharePoint file for up to 60 seconds, so a repeat sooner can still show the old state)
+**Part 3: add B to the SharePoint site** (site gear > Site permissions > add `ingenus.tester` as **Member**, read is enough; wait about a minute: the server trusts a cached SharePoint file for up to 60 seconds, so a repeat sooner can still show the old state)
 
 | # | Ask (as B) | Expected | Result |
 |---|---|---|---|
@@ -93,7 +93,7 @@ Now add B: Entra admin center > Groups > `SG-Ingenus-POC` > Members > Add `teste
 
 | # | Do | Expected | Result |
 |---|---|---|---|
-| TP-13 | `..\.venv\Scripts\python.exe -m ingenus_mcp.audit query --user tester.b@vvrzl.onmicrosoft.com --limit 30` | B's logins and tool calls, with B's name, and **none** of A's | |
+| TP-13 | `..\.venv\Scripts\python.exe -m ingenus_mcp.audit query --user ingenus.tester@vvrzl.onmicrosoft.com --limit 30` | B's logins and tool calls, with B's name, and **none** of A's | |
 | TP-14 | `..\.venv\Scripts\python.exe -m ingenus_mcp.audit query --user develop.admin@vvrzl.onmicrosoft.com --limit 30` | A's events, none of B's | |
 | TP-15 | `..\.venv\Scripts\python.exe -m ingenus_mcp.audit verify` | `Chain: OK` (the hash chain is intact after two people) | |
 
@@ -124,7 +124,7 @@ Now add B: Entra admin center > Groups > `SG-Ingenus-POC` > Members > Add `teste
 ## 8. Clean up and write down
 
 1. Sign in as A again (section 4).
-2. Remove B from the SharePoint site and from `SG-Ingenus-POC`, or delete B (`tester.b`).
+2. Remove B from the SharePoint site and from `SG-Ingenus-POC`, or delete B (`ingenus.tester`).
 3. Rename nothing else: no file was renamed in this test.
 4. Fill in the Result column, add a summary in the demo guide (section 8f, "Second-person QA") and findings in section 13 of the demo guide. Tick the open item "second-person test" in [`../../docs/v1_open_items_checklist.md`](../../docs/v1_open_items_checklist.md).
 

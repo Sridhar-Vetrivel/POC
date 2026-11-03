@@ -13,6 +13,8 @@ A proof of concept for Psiog's pre-sales proposal to Ingenus: **one reusable, re
 3. **The rest of this file is the bigger picture**: where Phase 1 sits, and the larger foundation that later phases would add. **Do not build Phase 2 work unless the repo owner asks.**
 4. When you finish a step, update the status table below.
 
+**New here? Go to [Set up the repo (new user)](#set-up-the-repo-new-user).**
+
 **Guides:** [`developer_guide.md`](developer_guide.md) (how to work in the code) · [`design_guide.md`](design_guide.md) (why it is built this way, from a systems-design view) · [`MCP-PlugIn/docs/demo_guide.md`](MCP-PlugIn/docs/demo_guide.md) (hands-on test in Claude Desktop).
 
 ### Where we are now
@@ -176,23 +178,86 @@ Phase 1 uses **steps S0 to S6** from [`MCP-PlugIn/Plan.md`](MCP-PlugIn/Plan.md).
 
 **Phase 1 also excludes:** a watcher or scheduler · a review queue, recorded decision or pause and resume · an audit of the AI's answer · any agent of ours · a portal or Teams front door · the COA slice.
 
-## Getting started
+## Set up the repo (new user)
 
-**Phase 1 needs:** Python 3.12+, and Claude Desktop with a Claude plan for the spikes and the demo. **Phase 1 makes no Claude API calls by default** (Claude on the user's own plan does the extraction), so no API key is needed unless a decision record says otherwise. Phase 2 needs Claude API access.
+This gets a new person from a fresh clone to a running server and green tests on a Windows laptop, with **synthetic data only**. `C:\Users\<username>\INGENUS\POC` is a **root path**: replace `<username>` with your Windows user name, or use your own folder.
 
-```bash
+**You need:** Git, Python 3.12 or newer. Node.js only to build the Claude Desktop bridge. Claude Desktop only for the live demo. Nothing here calls the Claude API, so no API key is needed.
+
+### 1. Get the code and install
+
+```powershell
+git clone https://github.com/Sridhar-Vetrivel/POC.git C:\Users\<username>\INGENUS\POC
+cd C:\Users\<username>\INGENUS\POC
 python -m venv .venv
-# Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
+.venv\Scripts\activate
 pip install -e ".[dev]"
-pytest                                   # 80 offline tests, including the domain-word and read-only tests
-ruff check . && ruff format .
-python scripts/check.py                  # all quality gates; run once at the end of a complete change
-python -m ingenus_plugin.server          # the MCP server on stdio (an MCP client talks to it)
-python -m ingenus_plugin.report          # usage report from the tool-call log
-python -m ingenus_plugin.evals page-finder
 ```
 
-More commands (build the desktop extension, regenerate the synthetic contracts) are in [`MCP-PlugIn/README.md`](MCP-PlugIn/README.md). Do not run `ruff` on the generated `MCP-PlugIn/build/` folder; it is excluded in `pyproject.toml`.
+Keep the repo out of a OneDrive-synced folder if you can: git and OneDrive sync can conflict.
+
+### 2. Check it works (no settings needed)
+
+```powershell
+python -m pytest MCP-Server/tests -q      # offline; the Postgres and meaning-search tests skip without a database
+python scripts/check.py --fast            # the 10 quality gates
+```
+
+### 3. Start the server on synthetic data
+
+```powershell
+python -m ingenus_mcp.server              # HTTP on 127.0.0.1:8765, path /mcp, sign-in off, loopback only
+```
+
+With no `.env` it reads the synthetic contracts in `MCP-PlugIn/data/synthetic/contracts` and a mock SAP, and keeps its log and local files in `MCP-Server/data/runtime/` (git-ignored). Test it by asking Claude Code (start `claude` from `MCP-Server/demo`, see [`MCP-Server/demo/README.md`](MCP-Server/demo/README.md)) "Check Chain X's contract against SAP as of 31 Aug 2026." Expected: **8,500.00 a month, 17,000.00 exposure**.
+
+### 4. Settings (only when you need more than step 3)
+
+Copy `MCP-Server/.env.example` to `MCP-Server/.env` (git-ignored) and uncomment what you need. Restart the server after every change. The full list and what is a secret are in [`developer_guide.md`](developer_guide.md), section 5.1. Do not put secrets in `.env`: the certificate key and any password go in `MCP-Server/secrets/` (git-ignored). Never commit that folder.
+
+| You want | Set |
+|---|---|
+| Contracts from the dev tenant's SharePoint, OneDrive or a network folder | `INGENUS_SOURCES=sharepoint,onedrive,network` plus each source's settings, and sign-in on (`INGENUS_AUTH=entra`, tenant and app ids, certificate). Needs a dev-tenant account and the certificate key from the repo owner |
+| Check history, stored terms and search saved in a database | `INGENUS_PG_HOST` and the `INGENUS_PG_*` settings (step 5) |
+| Meaning search | `INGENUS_EMBED_MODEL=nomic`, then `python -m ingenus_mcp.embeddings fetch` once (step 6) |
+
+### 5. Postgres (optional; needed for stored terms in a database, keyword search and meaning search)
+
+Without `INGENUS_PG_HOST` the server keeps audit events, check history and stored terms in local files, and `search_contracts` is not available. The dev setup is a user-level **Postgres 18 with pgvector** in WSL Ubuntu on **port 5433**, localhost only, no password, synthetic data only. The start, stop and check commands are in [`MCP-Server/docs/cheatsheet.md`](MCP-Server/docs/cheatsheet.md) ("Postgres with pgvector"). The one-time install of that Postgres in WSL is **not scripted yet**: ask the repo owner, or use any Postgres 18 with pgvector.
+
+Then in `MCP-Server/.env`:
+
+```
+INGENUS_PG_HOST=127.0.0.1
+INGENUS_PG_PORT=5433
+INGENUS_PG_DB=ingenus_audit
+INGENUS_PG_USER=ingenus_server
+```
+
+The database `ingenus_audit` and the role must exist; the server creates its own tables on first use. Do not use the password file line for the WSL database.
+
+### 6. Meaning search (optional; synthetic data only)
+
+```powershell
+pip install -e ".[meaning]"                       # the local embedding runtime
+# set INGENUS_EMBED_MODEL=nomic in MCP-Server\.env, then:
+python -m ingenus_mcp.embeddings fetch            # downloads the model once (134 MB); the server never downloads
+python -m ingenus_mcp.embeddings status
+```
+
+Keep it on synthetic data until the Psiog AI admin answers (decision 0013). `INGENUS_EMBED_MODEL=off` turns it off and keyword search stays.
+
+### 7. Claude Desktop (primary client)
+
+Needs Node.js on the build machine. Build and install the bridge as in [`MCP-Server/README.md`](MCP-Server/README.md), "Connect Claude Desktop". The step-by-step demo with expected answers is [`MCP-Server/docs/demo_guide.md`](MCP-Server/docs/demo_guide.md). To test with a second person, use [`MCP-Server/docs/second_person_test.md`](MCP-Server/docs/second_person_test.md).
+
+### Rules for every change
+
+Read [`CLAUDE.md`](CLAUDE.md) first. In short: SAP is read-only, synthetic data only, no client files in the repo, and run `python scripts/check.py --fast` before you commit. Do not run `ruff` on the generated `MCP-PlugIn/build/` or `MCP-Server/build/` folders.
+
+### Phase 1 (v0, frozen)
+
+The older desktop-extension plug-in in `MCP-PlugIn/` is frozen (git tag `v0`). Its commands (`python -m ingenus_plugin.server`, `python -m ingenus_plugin.report`, building the `.mcpb`) are in [`MCP-PlugIn/README.md`](MCP-PlugIn/README.md).
 
 ## Open decisions
 

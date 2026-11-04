@@ -1,6 +1,6 @@
 # 0013: v1 adds meaning search to `search_contracts`, with a local embedding model and pgvector
 
-**Date:** 2 Nov 2026 · **Status:** built and tested offline and on the local Postgres 18 with pgvector (synthetic data, 2 Nov 2026); **not yet tried through Claude Desktop** · **Phase:** 1, v1 (`MCP-Server/`), step 3b of the [records and search index proposal](../proposal/records_and_search_index_impact_analysis_and_proposal.md)
+**Date:** 2 Nov 2026 · **Status:** built and tested offline and on the local Postgres 18 with pgvector (synthetic data, 2 Nov 2026); tried live through Claude Desktop (MQ-1 to MQ-6 pass, 2 Nov 2026, demo guide 8e) · **Phase:** 1, v1 (`MCP-Server/`), step 3b of the [records and search index proposal](../proposal/records_and_search_index_impact_analysis_and_proposal.md)
 **Adds:** no new tool (it extends `search_contracts`, [0012](0012-v1-keyword-search-over-stored-passages.md)), one table (`passage_vec`), one local model and one command line (`python -m ingenus_mcp.embeddings`).
 
 ## Context
@@ -12,7 +12,7 @@
 ## Policy check (Psiog AI Policy v1, revision received 27 Oct 2026)
 
 - **Result: not addressed.** The policy has no tier for a locally run open-source model (`[TOOLS-TIERS]`), says nothing about downloading models, and `[SCOPE-COVERAGE]` leaves three tool categories "not yet covered in operating detail", with ambiguity "clarified with the AI admin". The licence of the model is a question for Legal, InfoSec and BD (`[SCOPE-ACCOUNT]`).
-- **Systems Designer decided to proceed (2 Nov 2026).** **Open:** the AI admin has not been asked. **Condition kept in the meantime:** the model is used with **synthetic data only**. Real Ingenus contract text is C2 at least (`[DATA-MATRIX]`: Delivery head checks the customer contract first, and `[TOOLS-CUSTWORK]` names AI, sub-processor, third-party-processing and residency clauses), so it needs that clearance **before** it reaches any model, local or not.
+- **Systems Designer decided to proceed (2 Nov 2026).** **AI admin (answer relayed by the Systems Designer, 4 Nov 2026; asked 3 Nov, not seen in writing): since this is a POC, no issues, go ahead.** The answer is taken to cover the POC only. **Still open:** Legal on the model licence; real Ingenus data (below). **Condition kept:** the model is used with **synthetic data only**. Real Ingenus contract text is C2 at least (`[DATA-MATRIX]`: Delivery head checks the customer contract first, and `[TOOLS-CUSTWORK]` names AI, sub-processor, third-party-processing and residency clauses), so it needs that clearance **before** it reaches any model, local or not.
 
 ## Decision
 
@@ -52,7 +52,7 @@
 - **First meaning search of a process loads the model** (a few seconds) and embeds missing passages (about 0.03 s each here).
 - **Production:** the model runs where the server runs, on the CPU. Memory and time on the Ingenus server are **unknown** (the Principal Architect provisions it). pgvector availability on the production Postgres is **unknown (verify)**.
 - **A model change means re-embedding** every passage (done automatically at the next search).
-- **Not verified:** a live run through Claude Desktop (steps MQ-1 to MQ-5 in `MCP-Server/docs/demo_guide.md`, section 8e); two server processes embedding at once; model licences on their cards.
+- **Not verified:** two server processes embedding at once; model licences on their cards.
 
 ## Tests
 

@@ -354,7 +354,7 @@ def search(
 
     source = get_source(settings)
     verdict: dict[str, str | None] = {}  # document -> its current sha12 if this person can open it
-    not_checked: list[NotChecked] = []
+    unopened = 0  # files this person cannot open: counted, never named (finding 14)
     for entry in ranked:
         document = entry["row"][1]
         if document in verdict:
@@ -365,12 +365,20 @@ def search(
             save(settings, document, doc.sha12, doc.pages)  # a changed file replaces its passages
         except Exception as exc:  # noqa: BLE001 - not openable by this person, or its source is down
             verdict[document] = None
-            not_checked.append(
-                NotChecked(
-                    item=document,
-                    reason=f"Could not be opened as you ({type(exc).__name__}); its passages were left out.",
-                )
+            unopened += 1
+            print(
+                f"[ingenus_mcp] search could not open a file ({type(exc).__name__})",
+                file=sys.stderr,
             )
+    not_checked: list[NotChecked] = []
+    if unopened:
+        # The names of files a person cannot open are not shown to them: only how many were left out.
+        not_checked.append(
+            NotChecked(
+                item=f"{unopened} file(s) could not be opened as you",
+                reason="Their passages were left out. You may lack access, or their source may be down.",
+            )
+        )
 
     hits: list[SearchHit] = []
     used: list[str] = []

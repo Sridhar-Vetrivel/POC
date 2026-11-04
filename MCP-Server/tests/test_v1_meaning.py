@@ -128,7 +128,8 @@ def test_a_file_the_person_cannot_open_is_left_out_of_meaning_hits_too(
     documents.clear_cache()
     result = search_contracts("returns expired stock goods")
     assert result.hits == [] and result.complete is False
-    assert [n.item for n in result.not_checked] == [rel]
+    assert [n.item for n in result.not_checked] == ["1 file(s) could not be opened as you"]
+    assert rel not in repr(result.model_dump())  # the name is not shown (finding 14)
 
 
 def test_a_missing_model_leaves_keyword_search_working_and_says_so(

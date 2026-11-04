@@ -153,7 +153,8 @@ def test_a_file_the_person_cannot_open_is_left_out_and_the_result_says_so(pg, ma
     documents.clear_cache()
     result = search_contracts("expired goods")
     assert result.hits == [] and result.complete is False
-    assert [n.item for n in result.not_checked] == [rel]
+    assert [n.item for n in result.not_checked] == ["1 file(s) could not be opened as you"]
+    assert rel not in repr(result.model_dump())  # the name is not shown (finding 14)
 
 
 def test_passage_text_never_reaches_the_audit_log(pg, make_world, tmp_path):

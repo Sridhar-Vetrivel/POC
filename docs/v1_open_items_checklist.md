@@ -114,7 +114,10 @@ The proposal is now in [`completed/`](completed/multi_source_routing_impact_anal
 ### 2.6 More demo runs (V1-9)
 
 - [ ] Run the 16 questions with sign-in and SharePoint, not only Q1 (record in [`MCP-Server/docs/demo_guide.md`](../MCP-Server/docs/demo_guide.md))
-- [ ] Two people, same questions (section 8 of the guide is still empty): the main thing this stage is for
+- [~] Two people, same questions: **done on one laptop 3 Nov 2026** (TP-0 to TP-3, TP-6 to TP-8, TP-10, TP-11, TP-13 to TP-15; guide section 8f). **Left:**
+  - [ ] **Repeat TP-4, TP-5, TP-9 and TP-12 on a second laptop with the second person's own Claude account** (earlier checks and stored terms; on one laptop Claude answered from the user's earlier chats). Needs the server reachable from that laptop over HTTPS: this waits for 2.1. Steps: [`second_person_test.md`](../MCP-Server/docs/second_person_test.md)
+  - [ ] Decide the file-name question: names of files B cannot open are shown to B (guide finding 14); hide them or accept them and change the test's pass rule
+  - [ ] Clean up the test user `ingenus.tester`: remove from the SharePoint site and `SG-Ingenus-POC`, or keep for the second-laptop repeat; optional TP-16 and TP-17
 - [ ] Repeat test for guidance: the same question in 5 fresh chats, count how often `get_guide` is called first (one run is not a measure)
 - [ ] Break-it tests (change the SAP file, bad quote, paraphrase) for v1
 

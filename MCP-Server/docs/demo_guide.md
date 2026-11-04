@@ -495,6 +495,20 @@ Record each result here. Known limit to watch: a topic that is absent can still 
 
 **Meaning search QA summary (2 Nov 2026): MQ-1 to MQ-6 pass.** Found and fixed during it: a long tail of loosely related meaning hits (MQ-3: 8 of 10 noise), now cut by a band of 0.10 below the best meaning hit (MQ-3 re-run: 2 hits). Open: a flat tail still passes when nothing is clearly best (\"which law applies\" on Chain A: 10 hits); the cut-off is tuned on synthetic text; production Postgres and pgvector availability; AI admin answer on local models; the second person's view.
 
+## 8f. Second-person QA (run live 3 Nov 2026, one laptop; full steps and results in [`second_person_test.md`](second_person_test.md))
+
+Two people, one laptop: A (`develop.admin`) and B (`ingenus.tester`, a new dev-tenant user), signed in one after the other. The bridge's sign-in cache is in the Desktop package folder (`...\AppData\Local\Packages\Claude_*\LocalCache\Local\Ingenusridge\`), not in `%LOCALAPPDATA%`, and the browser must not be signed in as A or it signs in silently as A.
+
+| Tests | Result |
+|---|---|
+| TP-0 B outside the group | **Pass.** Entra refused B (AADSTS50105); the log has no event by B before the first login |
+| TP-1 to TP-3, TP-6 B in the group, not on the SharePoint site | **Pass on content, log checked.** No Chain A or Chain C figure, quote or passage; checks marked incomplete; `hits_count` 0 and `stored_count` 0. **Fail on one clause of the pass rule:** the names of Chain A's files were shown to B (finding 14) |
+| TP-7 Chain E on the network drive | **As expected.** B gets 1,100.00 / 8,800.00, the same as A (the drive is read by the server's account) |
+| TP-8, TP-10, TP-11 B added to the site | **Pass, log checked.** 1,800.00 / 12,600.00; A's stored terms reused (`stored_count` 6), only Amendment 3 read |
+| TP-13 to TP-15 audit log | **Pass.** B's 29 and A's 208 events are separate, 237 in all, `Chain: OK` |
+| TP-4, TP-5, TP-9, TP-12 earlier checks and stored terms | **Not valid on one laptop.** Claude answered from the user's earlier chats (same Claude account), not from the tool. The server's own answers are on record (`hidden_count` 3, `stored_count` 0). **Repeat on a second laptop** |
+| TP-16, TP-17, clean-up (section 8 of the test) | Not done |
+
 ## 9. v1-specific tests
 
 These test what is new in v1: the server is central and the laptop holds nothing.
@@ -589,6 +603,10 @@ Severity: **blocker** (cannot demo), **wrong answer**, **risk**, **polish**.
 | 11 | With INGENUS_SOURCES set, SharePoint and OneDrive were reported as needing a signed-in user (23 Oct) | blocker (fixed) | First MB-1 | Each source was built in a worker thread, which lacks the request's signed-in user | **Fixed:** sources built in the request thread; test fails on the old code (commit 4125a54) |
 | 12 | The MB-5 expectation said the listing would mention the master's blank page; it cannot (listing reads no page text) | polish (my error) | MB-5 | Wrong expectation | **Fixed:** expectation corrected. Optional: report pages with no text at listing time |
 | 13 | `MCP-Server/.env` disappeared from disk during the session (git-ignored, so not restorable from Git) | risk | Environment | Unknown | Recreated from the content read earlier; check nothing local was lost |
+| 14 | B, who cannot open Chain A's files, was shown their **names** (including `Chain_A_Amendment_3_2026_hidden.pdf`) in the "could not open" part of search results (TP-2, TP-3, 3 Nov 2026) | risk | Search, second-person test | The candidate files come from the shared passage store; when B cannot open one it is listed by name as not checked. The test's pass rule counts a shown file name as a fail | **Decision:** hide the names and report a count for files the person cannot open, or accept names and say so in the pass rule. Not changed yet |
+| 15 | A renamed file's old passages appear as "could not open" for other people (`..._hidden.pdf`, TP-2 and TP-10) | polish | Search, passages | Same as the MQ-6 side effect: passages of a name no longer used stay until the 90-day prune. Not confirmed for this case: check whether the file is in the SharePoint folder | Delete passages whose file is no longer listed, or accept |
+| 16 | The earlier-checks and stored-terms tests (TP-4, TP-5, TP-9, TP-12) cannot be judged on one laptop: Claude read the user's earlier chats instead of calling the tool | polish (test limit) | Second-person test | A and B share one Claude account | Repeat with a second person on another laptop (needs the server reachable from it, checklist 2.1) |
+| 17 | Every check by a person with no `Ingenus_POC/contracts` folder in their OneDrive is marked incomplete ("Not found in OneDrive") | polish | TP-8, TP-11 | OneDrive is each person's own, so a missing folder is a source that cannot be read | Say so in the report format, or treat a missing folder as an empty source |
 
 ## 14. Sign-off
 

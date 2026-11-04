@@ -24,6 +24,12 @@
    that can reach `login.microsoftonline.com` and `graph.microsoft.com`. The certificate key for the server app is made **on the AWS VM**
    (developer guide 5.1), and the VM uses service environment variables, not `.env`.
 
+## Production hosting (added 4 Nov 2026)
+
+- **SAID (the Principal Architect's comment on the SOW, relayed by the Systems Designer):** production runs on an **Ingenus on-prem server**; AWS is for the POC only. The SOW and the architecture diagram say so.
+- This keeps the scope above (AWS for the POC completion only) and settles the "Azure or on-prem" question in item 3 in favour of on-prem. It is not a new design change: nothing in the code assumes AWS.
+- **UNKNOWN:** the on-prem server's OS, its Postgres version, and whether pgvector can be installed on it (meaning search needs it; without it only keyword search runs). Ask the Principal Architect and Ingenus IT.
+
 ## UNKNOWN (ask the Principal Architect)
 
 - Whose AWS account, which region, and OS (the server runs on Windows or Linux; the code is untested on Linux).

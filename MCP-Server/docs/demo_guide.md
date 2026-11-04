@@ -428,7 +428,7 @@ no figures; the unsigned DRAFTs are never used; the call log shows no errors exc
 **Note:** Chain E's Amendment 3 (payment terms only) has no stored terms and shows `read_pages` every time; that is expected (ADR 0011).
 **Unverified:** SR-5 follows from the code (the stored id includes the file fingerprint, and saving sets a matching row back to `verified`); record what you see.
 
-## 8d. Search QA (decision 0012; guidance v6; **not run yet**)
+## 8d. Search QA (decision 0012; guidance v6; run live 2 Nov 2026)
 
 Setup: the WSL Postgres is up (cheat sheet), `INGENUS_PG_HOST` and `INGENUS_PG_PORT=5433` are set in `.env`, restart the server, new chat for every question, in **Chat** with the Ingenus connector on. Word each question with "contract" and the customer name: a question about a "file" can send Claude to its own workspace (SQ-2, 2 Nov). Passages exist only for files someone has listed, so SQ-1 comes first.
 
@@ -468,7 +468,7 @@ Record each result here (pass or fail, and what Claude did) with the chat and th
 **Search QA summary (2 Nov 2026):** SQ-1 to SQ-6 pass; extra: an unknown customer ("Chain J") gets the similar names and no clause (SQ-7). Found and fixed during the QA: headings not split or searched, Claude not searching after listing (the server now lists the customer's files itself), Claude not using the tools for a question that says "file". Open: the automatic listing path live (`DELETE FROM passage`), a second person's view (per-user access across two users), meaning search (3b).
  Side note: that check showed `stored_count` 0 because the old terms were in the Windows Postgres (port 5432) and the server moved to the WSL Postgres (5433) the same day; the 6 terms now stored come from that check, so the next one should use them (SR-3).
 
-## 8e. Meaning search QA (decision 0013; guidance v7; **not run yet**)
+## 8e. Meaning search QA (decision 0013; guidance v7; run live 2 Nov 2026)
 
 Setup: WSL Postgres up, `fastembed` installed, the model downloaded (`python -m ingenus_mcp.embeddings fetch`), `INGENUS_EMBED_MODEL=nomic-ai/nomic-embed-text-v1.5-Q` in `.env`, server restarted, new Chat with the Ingenus connector on. Say "contract" and the customer name.
 

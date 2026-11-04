@@ -1,6 +1,6 @@
 # v1 open items: checklist
 
-**As of 21 Oct 2026, updated after building 2.2 to 2.5 offline.** What is left after V1-0 to V1-6 (see [the proposal](v1_impact_analysis_and_proposal.md) and
+**As of 21 Oct 2026, updated after building 2.2 to 2.5 offline; items updated 4 Nov 2026 (search, stored terms, findings 14, 15, 17 and the decisions below).** What is left after V1-0 to V1-6 (see [the proposal](v1_impact_analysis_and_proposal.md) and
 [`MCP-Server/README.md`](../MCP-Server/README.md)). Tick a box only when the "done when" is shown, not when the code is
 written. Tags: **SAID** = someone stated it; **ASSUMED** = my reading, not confirmed; **UNKNOWN** = nobody knows yet.
 
@@ -10,6 +10,9 @@ written. Tags: **SAID** = someone stated it; **ASSUMED** = my reading, not confi
 - [X] V1-4 (the sign-in half): server checks the Entra token on every request; bridge signs the user in; log names the person
 - [X] V1-6 SharePoint reading as the signed-in user; verified live and in Claude Desktop (20 Oct 2026), decision [0004](decisions/0004-v1-per-user-sign-in-and-sharepoint-reading.md)
 - [X] 2.2, 2.3, 2.4 and 2.5 built and tested offline (21 Oct 2026; 206 v1 tests): audit log and login log, check history, OneDrive and network share. What each still needs is below
+
+- [X] Stored terms (decision 0011), keyword search (0012) and meaning search with a local model (0013): built and QA'd live 26 Oct to 2 Nov 2026 (demo guide 8c, 8d, 8e). pgvector runs in a user-level WSL Postgres 18.6 on port 5433. The AI admin said go ahead for the POC (relayed 4 Nov 2026); Legal on the model licence and real Ingenus data are still open
+- [X] Second-person QA on one laptop (3 Nov 2026, demo guide 8f). Decisions taken 4 Nov 2026 on its findings: 14 built (search counts files a person cannot open, never names them), 15 left to the 90-day prune, 17 handled in guidance v8 (a missing OneDrive folder is "not covered", never "no contracts")
 
 ## 2. Next up (suggested order)
 
@@ -56,7 +59,7 @@ Still open:
   - **ASSUMED for the POC, Ingenus to confirm:** keep audit log 12 months; keep check history 12 months; audit database read by admins only (Systems Designer, Principal Architect); history shows other people's names.
   - **Built and tested (decision 0008):** a Postgres back end for the audit store and the check history (`INGENUS_PG_HOST`), tested on a local Postgres 17 (12 tests), and `python -m ingenus_mcp.audit prune` for the 12-month delete (a command to schedule; no timer yet).
   - **Not built or not verified:** separate Postgres roles (write-only for the server, read-only for reviewers), TLS to a remote database, the VM copy, and pruning the local log.
-- [ ] **Decide:** store down means keep serving and ship later (built) or stop serving (a regulated setting might require it). Whether 21 CFR Part 11 or similar applies: **UNKNOWN**, do not assume
+- [x] **Decided 4 Nov 2026 for the POC: keep serving and ship later (built).** Revisit with Ingenus before real data: a regulated setting might require stopping. Whether 21 CFR Part 11 or similar applies: **UNKNOWN**, do not assume
 - [ ] Implement the chosen store: one more implementation of `add`, `emit` and `query` in `core/auditstore.py`
 - [ ] Correlate with Entra's own sign-in log (authoritative for MFA; retention depends on the licence, **UNKNOWN**)
 - [ ] Keep a copy of the last hash elsewhere (lines cut off the END of the log cannot be seen); log rotation is not designed; one server process per log
@@ -99,9 +102,9 @@ Built (decision [0007](decisions/0007-v1-onedrive-and-network-share-sources.md))
 
 The proposal is now in [`completed/`](completed/multi_source_routing_impact_analysis_and_proposal.md) (its section 10 and section 8 are the source of these items). The routing itself is built; these were left open:
 
-- [ ] **Optional `source` argument** (proposal 10.1): let a caller limit a search to one source (`sharepoint`, `onedrive`, `network`). Not built. Decide (Systems Designer, Principal Architect) whether it is wanted at all
-- [ ] **`compare` when it cannot tell whether every source answered** (proposal 10.2, risk 1): today the guidance plus the `complete` flag cover it. The proposal's view was a **health re-check inside `compare` before any real Ingenus data**: not built. Decide (Systems Designer, Principal Architect)
-- [ ] **Old check-history rows without a source prefix** (proposal 10.3): keep them (treat as the single source) or hide them. Not decided
+- [x] **Optional `source` argument** (proposal 10.1): **decided 4 Nov 2026: not built.** Routing already searches every source and reports one that is down
+- [ ] **`compare` when it cannot tell whether every source answered** (proposal 10.2, risk 1): today the guidance plus the `complete` flag cover it. The proposal's view was a **health re-check inside `compare` before any real Ingenus data**: **decided 4 Nov 2026: build it before any real Ingenus data** (a gate, not needed for synthetic data). Not built
+- [x] **Old check-history rows without a source prefix** (proposal 10.3): **decided 4 Nov 2026: stay hidden** (current behaviour; they are synthetic test rows)
 - [ ] **Take the six questions below to Ingenus (Abhishek, Dan).** Their answers decide whether a simpler "one known place per customer" design, or a catalog for thousands of files, is needed later (proposal section 9). Also a security question that could change the design: must the network share and personal OneDrive never be answered in one result? (then split by role or tool)
 
   1. For one customer, where do the master agreement, each amendment and any draft live? Always the same place, or split?
@@ -116,7 +119,8 @@ The proposal is now in [`completed/`](completed/multi_source_routing_impact_anal
 - [ ] Run the 16 questions with sign-in and SharePoint, not only Q1 (record in [`MCP-Server/docs/demo_guide.md`](../MCP-Server/docs/demo_guide.md))
 - [~] Two people, same questions: **done on one laptop 3 Nov 2026** (TP-0 to TP-3, TP-6 to TP-8, TP-10, TP-11, TP-13 to TP-15; guide section 8f). **Left:**
   - [ ] **Repeat TP-4, TP-5, TP-9 and TP-12 on a second laptop with the second person's own Claude account** (earlier checks and stored terms; on one laptop Claude answered from the user's earlier chats). Needs the server reachable from that laptop over HTTPS: this waits for 2.1. Steps: [`second_person_test.md`](../MCP-Server/docs/second_person_test.md)
-  - [ ] Decide the file-name question: names of files B cannot open are shown to B (guide finding 14); hide them or accept them and change the test's pass rule
+  - [x] File-name question (guide finding 14): **decided and built 4 Nov 2026**: B sees a count, not the names. Live repeat of TP-2 and TP-3 not done
+  - [ ] Live check of guidance v8 (finding 17) as `ingenus.tester`, who has no OneDrive folder: the report must say the folder was not found, not "no contracts" and not "OneDrive is down"
   - [ ] Clean up the test user `ingenus.tester`: remove from the SharePoint site and `SG-Ingenus-POC`, or keep for the second-laptop repeat; optional TP-16 and TP-17
 - [ ] Repeat test for guidance: the same question in 5 fresh chats, count how often `get_guide` is called first (one run is not a measure)
 - [ ] Break-it tests (change the SAP file, bad quote, paraphrase) for v1

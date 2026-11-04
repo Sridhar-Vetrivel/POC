@@ -38,8 +38,8 @@ def test_the_server_serves_the_eight_guides():
     assert set(load_guides(load_settings().guidance_dir)) == V2
 
 
-def test_the_default_guidance_is_v7():
-    assert load_settings().guidance_dir.name == "v7"
+def test_the_default_guidance_is_v8():
+    assert load_settings().guidance_dir.name == "v8"
 
 
 def test_guidance_v2_is_still_an_exact_copy_of_skills_v2():
@@ -209,6 +209,24 @@ def test_guidance_v7_changes_only_the_playbook_and_leaves_v6_alone():
             GUIDANCE / "v6" / name / "SKILL.md"
         ).read_bytes()
         assert same == (name != "contract-check-playbook"), name
+
+
+def test_guidance_v8_changes_only_not_checked_rules_and_leaves_v7_alone():
+    # v7 is what the meaning-search QA of 2 Nov 2026 used: it must not be edited in place.
+    for name in V2:
+        same = (GUIDANCE / "v8" / name / "SKILL.md").read_bytes() == (
+            GUIDANCE / "v7" / name / "SKILL.md"
+        ).read_bytes()
+        assert same == (name != "not-checked-rules"), name
+
+
+def test_guidance_v8_explains_a_missing_onedrive_folder():
+    rules = (load_settings().guidance_dir / "not-checked-rules" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    assert "`Not found in OneDrive`" in rules
+    assert "not that the source is down" in rules
+    assert "Never say there are no contracts" in rules
 
 
 def test_guidance_v7_explains_meaning_hits_and_keeps_the_pointer_rule():

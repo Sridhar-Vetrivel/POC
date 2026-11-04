@@ -118,7 +118,7 @@ Choose the model with one word in `MCP-Server\.env`: `INGENUS_EMBED_MODEL=nomic`
 | `INGENUS_RECORDS_DB` | Unset: Postgres when `INGENUS_PG_HOST` is set, else a local file. `off`: keep no terms |
 | `INGENUS_EMBED_MODEL` | `nomic`, `bge` or `minilm` (or the full name): meaning search on (download the model first). Unset or `off`: keyword search only. `INGENUS_EMBED_MIN_SIM` changes the similarity cut-off (default 0.55) |
 | `INGENUS_PG_HOST` | Present: Postgres for audit, check history and stored terms. Comment out to fall back to local files |
-| `INGENUS_GUIDANCE_DIR` | Pin a guidance version, for example `...\guidance\v4`. Default is `v7` |
+| `INGENUS_GUIDANCE_DIR` | Pin a guidance version, for example `...\guidance\v4`. Default is `v8` |
 
 ## Git
 

@@ -18,6 +18,7 @@ from __future__ import annotations
 import threading
 import time
 from collections.abc import Callable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from urllib.parse import quote, urlparse
 
@@ -157,6 +158,9 @@ class GraphSource:
             self._drive_key = (host, site_path)
             self._folder = settings.sharepoint_folder.strip("/")
             self.identity = f"graph:{user_id}:{host}{site_path}/{self._folder}"
+        self._list_workers = (
+            settings.list_workers
+        )  # Graph's 429 is retried by _get: keep this small
         self._token = token
         self._session = session or requests.Session()
         self._sleep = sleep
@@ -236,26 +240,39 @@ class GraphSource:
             next_url = body.get("@odata.nextLink")
 
     # -- DocumentSource -------------------------------------------------------------------------
+    def _list_folder(self, drive: str, folder: str) -> tuple[list[str], list[DocItem]]:
+        """One folder's sub-folders (as paths) and files."""
+        subfolders: list[str] = []
+        files: list[DocItem] = []
+        for entries in self._pages(self._children_url(drive, folder)):
+            for entry in entries:
+                name = entry.get("name", "")
+                if not name or name.startswith("."):
+                    continue
+                rel = f"{folder}/{name}" if folder else name
+                if "folder" in entry:
+                    subfolders.append(rel)
+                elif "file" in entry:
+                    files.append(self._item(rel, entry))
+        return subfolders, files
+
     def list_items(self) -> list[DocItem]:
+        """Walk the folders one level at a time, the folders of a level in parallel (a library with many
+        folders took 14.5 s one request at a time). The result is sorted, so the order does not depend on
+        which folder answered first. Any folder's error is raised, as before."""
         drive = self._drive_id()
         items: list[DocItem] = []
-        pending = [""]
+        level = [""]
         folders_seen = 0
-        while pending:
-            folder = pending.pop()
-            folders_seen += 1
-            if folders_seen > MAX_FOLDERS:
-                break
-            for entries in self._pages(self._children_url(drive, folder)):
-                for entry in entries:
-                    name = entry.get("name", "")
-                    if not name or name.startswith("."):
-                        continue
-                    rel = f"{folder}/{name}" if folder else name
-                    if "folder" in entry:
-                        pending.append(rel)
-                    elif "file" in entry:
-                        items.append(self._item(rel, entry))
+        with ThreadPoolExecutor(max_workers=self._list_workers) as pool:
+            while level and folders_seen < MAX_FOLDERS:
+                level = level[: MAX_FOLDERS - folders_seen]
+                folders_seen += len(level)
+                next_level: list[str] = []
+                for subfolders, files in pool.map(lambda f: self._list_folder(drive, f), level):
+                    next_level.extend(subfolders)
+                    items.extend(files)
+                level = next_level
         return sorted(items, key=lambda i: i.rel_path.casefold())
 
     def stat(self, rel_path: str) -> DocItem:

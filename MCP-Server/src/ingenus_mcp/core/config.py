@@ -70,6 +70,9 @@ class Settings:
     # V1-8: a shared folder reached by path (UNC such as \\\\server\\share\\contracts, or a mounted share).
     network_root: Path | None = None
     network_timeout: float = 20.0  # seconds to wait for the share before failing the call
+    list_workers: int = (
+        6  # SharePoint and OneDrive folders listed at the same time; 1 = one after another
+    )
     exclude_patterns: tuple[str, ...] = ("~$*", "*.tmp", "Thumbs.db", "desktop.ini")
     # Decision 0005: copy every audit event to a central store (SQLite here), and keep check records.
     # Decision 0008: when Postgres is configured (INGENUS_PG_HOST), both go there unless set explicitly.
@@ -225,6 +228,7 @@ def load_settings() -> Settings:
         if os.environ.get("INGENUS_NETWORK_ROOT")
         else None,
         network_timeout=float(os.environ.get("INGENUS_NETWORK_TIMEOUT", "20")),
+        list_workers=max(1, int(os.environ.get("INGENUS_LIST_WORKERS", "6"))),
         exclude_patterns=_patterns(os.environ.get("INGENUS_EXCLUDE_PATTERNS")),
         auth_mode=os.environ.get("INGENUS_AUTH", "off").strip().lower(),
         tenant_id=os.environ.get("INGENUS_TENANT_ID", "").strip(),

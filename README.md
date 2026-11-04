@@ -213,7 +213,7 @@ With no `.env` it reads the synthetic contracts in `MCP-PlugIn/data/synthetic/co
 
 ### 4. Settings (only when you need more than step 3)
 
-Copy `MCP-Server/.env.example` to `MCP-Server/.env` (git-ignored) and uncomment what you need. Restart the server after every change. The full list and what is a secret are in [`developer_guide.md`](developer_guide.md), section 5.1. Do not put secrets in `.env`: the certificate key and any password go in `MCP-Server/secrets/` (git-ignored). Never commit that folder.
+Copy `MCP-Server/.env.example` to `MCP-Server/.env` (git-ignored) and fill in the `<...>` values (the lines under "Optional" are commented out on purpose). Restart the server after every change. The full list and what is a secret are in [`developer_guide.md`](developer_guide.md), section 5.1. Do not put secrets in `.env`: the certificate key and any password go in `MCP-Server/secrets/` (git-ignored). Never commit that folder.
 
 | You want | Set |
 |---|---|

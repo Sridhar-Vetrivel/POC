@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import hashlib
 import re
+import threading
+import time
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -170,6 +172,89 @@ def test_it_lists_the_same_30_files_as_the_local_folder():
     assert {i.size for i in items} == {i.size for i in local}
     # Several folders and a page size of 7 mean the listing followed @odata.nextLink.
     assert any("skiptoken" in url for url in fake.calls)
+
+
+class SlowGraph(FakeGraph):
+    """Every folder listing takes `delay` seconds, like a slow Graph; counts the most at once."""
+
+    def __init__(self, *args, delay: float = 0.1, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.delay = delay
+        self.fail_on: str | None = None
+        self.active = 0
+        self.peak = 0
+        self._lock = threading.Lock()
+
+    def get(self, url, headers=None, timeout=None, stream=False):
+        if not url.endswith("/children") and "/children?" not in url:
+            return super().get(url, headers, timeout, stream)
+        with self._lock:
+            self.active += 1
+            self.peak = max(self.peak, self.active)
+        try:
+            time.sleep(self.delay)
+            if self.fail_on and self.fail_on in unquote(url):
+                return FakeResponse(403)
+            return super().get(url, headers, timeout, stream)
+        finally:
+            with self._lock:
+                self.active -= 1
+
+
+def make_tree(root: Path, folders: int, depth: int = 1) -> None:
+    for i in range(folders):
+        folder = root / f"F{i:02d}"
+        folder.mkdir()
+        (folder / f"c{i:02d}.pdf").write_bytes(b"%PDF-1.4 x")
+        if depth > 1:
+            make_tree(folder, 2, depth - 1)
+
+
+def test_the_folders_of_a_level_are_listed_at_the_same_time(tmp_path):
+    make_tree(tmp_path, 12)
+    fake = SlowGraph(root=tmp_path, delay=0.1)
+    source, _ = source_for(fake=fake)
+    started = time.monotonic()
+    items = source.list_items()
+    elapsed = time.monotonic() - started
+    assert len(items) == 12
+    assert 1 < fake.peak <= load_settings().list_workers
+    # One request after another would take 13 x 0.1 s; six at a time takes about 0.3 s.
+    assert elapsed < 0.9
+
+
+def test_one_worker_lists_one_folder_at_a_time(tmp_path, monkeypatch):
+    make_tree(tmp_path, 6)
+    monkeypatch.setenv("INGENUS_LIST_WORKERS", "1")
+    fake = SlowGraph(root=tmp_path, delay=0.01)
+    items = source_for(fake=fake)[0].list_items()
+    assert len(items) == 6 and fake.peak == 1
+
+
+def test_the_parallel_listing_gives_the_same_list_in_the_same_order(tmp_path):
+    make_tree(tmp_path, 8, depth=3)
+    parallel = source_for(fake=SlowGraph(root=tmp_path, delay=0.01))[0].list_items()
+    local = LocalFolderSource(tmp_path).list_items()
+    assert [i.rel_path for i in parallel] == [i.rel_path for i in local]
+
+
+def test_an_error_in_one_folder_is_raised_not_skipped(tmp_path):
+    make_tree(tmp_path, 6)
+    fake = SlowGraph(root=tmp_path, delay=0.01)
+    fake.fail_on = "F03"
+    source, _ = source_for(fake=fake)
+    with pytest.raises(graph.GraphAccessError):
+        source.list_items()
+
+
+def test_no_more_than_the_folder_limit_is_listed(tmp_path, monkeypatch):
+    make_tree(tmp_path, 10)
+    monkeypatch.setattr(graph, "MAX_FOLDERS", 4)  # the root and three folders
+    fake = SlowGraph(root=tmp_path, delay=0.0, page_size=100)
+    source, _ = source_for(fake=fake)
+    items = source.list_items()
+    assert len(items) == 3
+    assert sum("/children" in url for url in fake.calls) == 4
 
 
 def test_the_site_and_library_are_looked_up_once():

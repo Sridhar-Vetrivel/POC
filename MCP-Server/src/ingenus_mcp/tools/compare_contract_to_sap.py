@@ -19,7 +19,7 @@ from ingenus_mcp.core.models import (
     NotChecked,
 )
 from ingenus_mcp.core.registry import tool
-from ingenus_mcp.core.sources import get_source
+from ingenus_mcp.core.sources import SourceStatus, check_sources, get_source
 
 
 @tool(read_only=True)
@@ -45,13 +45,16 @@ def compare_contract_to_sap(
     and contains the rate; terms that fail are returned in `not_checked`, never used. It then compares
     each term with SAP and returns variances, matches, terms not set up in SAP, the monthly gap and an
     indicative exposure from each effective date to `as_of`. No AI is involved in the numbers.
-    Report `not_checked` and `caveats` to the user. Read-only: it does not change SAP.
+    Report `not_checked` and `caveats` to the user. If `complete` is false, a contract source did not
+    answer when the figures were given: say the check is incomplete and offer to retry. Read-only: it
+    does not change SAP.
     """
     settings = load_settings()
     reader = sap_access.get_reader(settings)
     setup = sap_access.rebate_setup(reader, customer_id, as_of)
+    statuses = check_sources(settings)  # are all contract sources answering right now?
     if not setup.lines:
-        return CompareResult(
+        empty = CompareResult(
             customer_id=customer_id,
             as_of=as_of,
             findings=[],
@@ -65,6 +68,7 @@ def compare_contract_to_sap(
             summary="Nothing compared: SAP returned no setup lines for this customer on that date.",
             caveats=[f"SAP data source: {setup.source}."],
         )
+        return _mark_sources(empty, statuses)
     if terms:
         earliest = min(t.effective_date for t in terms)
         start = f"{earliest.year}-{earliest.month:02d}"
@@ -72,12 +76,39 @@ def compare_contract_to_sap(
         start = f"{as_of.year}-{as_of.month:02d}"
     end = f"{as_of.year}-{as_of.month:02d}"
     volumes = sap_access.sales_volume(reader, customer_id, min(start, end), end)
-    result = compare(terms, customer_id, as_of, setup, volumes, settings)
+    result = _mark_sources(compare(terms, customer_id, as_of, setup, volumes, settings), statuses)
     _leave_a_record(settings, result)
     records.save_verified(
         settings, get_source(settings), customer_id, terms, calllog.current_user()
     )
     return result
+
+
+def _mark_sources(result: CompareResult, statuses: list[SourceStatus] | None) -> CompareResult:
+    """If a contract source did not answer just now, say the check is incomplete (never changes the figures)."""
+    failed = [st for st in statuses or [] if not st.ok]
+    if not failed:
+        return result
+    names = ", ".join(st.source for st in failed)
+    return result.model_copy(
+        update={
+            "complete": False,
+            "not_checked": [
+                *result.not_checked,
+                *[
+                    NotChecked(item=f"source {st.source}", reason=st.reason or "Did not answer.")
+                    for st in failed
+                ],
+            ],
+            "summary": f"INCOMPLETE (could not read: {names}). {result.summary}",
+            "caveats": [
+                *result.caveats,
+                f"Source(s) not answering when this check ran: {names}. A contract kept only there was "
+                "not seen, so a later amendment could change these figures. Do not present the check as "
+                "complete; ask to retry when the source is back.",
+            ],
+        }
+    )
 
 
 def _leave_a_record(settings, result: CompareResult) -> None:

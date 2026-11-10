@@ -368,3 +368,56 @@ def test_a_source_that_cannot_be_built_is_reported_and_the_others_still_list(iso
     assert [i.rel_path for i in src.list_items()] == ["network:E/e.pdf"]
     bad = next(s for s in src.statuses if s.source == "sharepoint")
     assert bad.ok is False and bad.reason == "no sign-in"
+
+
+def _compare_chain_e(monkeypatch, before=None):
+    """Chain E (on the network share) compared through two sources; `before` runs just before the compare."""
+    from datetime import date
+
+    from test_v1_datasets import SYNTHETIC, as_terms, golden
+
+    from ingenus_mcp.tools.compare_contract_to_sap import compare_contract_to_sap
+
+    monkeypatch.setenv("INGENUS_SOURCES", "local,network")
+    monkeypatch.setenv("INGENUS_CONTRACTS_DIR", str(SYNTHETIC / "Sharepoint"))
+    monkeypatch.setenv("INGENUS_NETWORK_ROOT", str(SYNTHETIC / "Network-Drive"))
+    expected, terms = golden("Network-Drive")
+    customer_id, e = next((c, x) for c, x in expected.items() if x["customer"] == "Chain E")
+    raw = terms[customer_id]
+    for t in raw:
+        t["document"] = f"network:{t['document'].split(':', 1)[-1]}"
+    if before:
+        before()
+    result = compare_contract_to_sap(
+        customer_id=customer_id, as_of=date.fromisoformat(e["as_of"]), terms=as_terms(raw)
+    )
+    return result, e
+
+
+def test_compare_is_complete_when_every_source_answers(isolated_env, monkeypatch):
+    result, _ = _compare_chain_e(monkeypatch)
+    assert result.complete is True and result.not_checked == []
+    assert not result.summary.startswith("INCOMPLETE")
+
+
+def test_compare_says_the_check_is_incomplete_if_a_source_stopped_answering(
+    isolated_env, monkeypatch
+):
+    """The terms cite the share; the other source is down when the figures are given."""
+    from decimal import Decimal
+
+    result, e = _compare_chain_e(
+        monkeypatch,
+        before=lambda: monkeypatch.setenv("INGENUS_CONTRACTS_DIR", str(isolated_env / "gone")),
+    )
+    assert result.complete is False
+    assert result.total_monthly_gap == Decimal(e["gap"])  # figures unchanged, only labelled
+    assert any(n.item == "source local" for n in result.not_checked)
+    assert result.summary.startswith("INCOMPLETE (could not read: local)")
+    assert any("Do not present the check as complete" in c for c in result.caveats)
+
+
+def test_compare_with_one_source_has_no_source_check(isolated_env):
+    from ingenus_mcp.core.sources import check_sources
+
+    assert check_sources(load_settings()) is None

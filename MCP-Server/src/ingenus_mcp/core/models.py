@@ -217,6 +217,14 @@ class CompareResult(BaseModel):
     not_checked: list[NotChecked]
     summary: str
     caveats: list[str]
+    complete: bool = Field(
+        default=True,
+        description=(
+            "False if a contract source did not answer when this check ran (the sources are asked again "
+            "just before the figures are given). Then a file in that source may not have been seen: "
+            "do not present the check as complete."
+        ),
+    )
 
 
 class GuideSummary(BaseModel):

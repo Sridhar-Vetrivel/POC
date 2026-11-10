@@ -385,3 +385,19 @@ class RoutedSource:
     def read_bytes(self, item: DocItem) -> bytes:
         kind, path = split_document_id(item.rel_path, self.kinds)
         return self._source(kind).read_bytes(replace(item, rel_path=path))
+
+
+def check_sources(settings: Settings) -> list[SourceStatus] | None:
+    """Ask every enabled source whether it answers right now. None when there is only one source.
+
+    Used by `compare_contract_to_sap` as a last check before it gives figures: a source that answered when the
+    files were listed may have stopped since. Lists only; no file is opened.
+    """
+    if not settings.sources:
+        return None
+    routed = RoutedSource(settings, settings.sources)
+    try:
+        routed.list_items()
+    except SourceUnavailable:
+        pass  # every source failed: the statuses say so
+    return routed.statuses

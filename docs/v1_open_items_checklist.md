@@ -120,7 +120,7 @@ The proposal is now in [`completed/`](completed/multi_source_routing_impact_anal
 - [~] Two people, same questions: **done on one laptop 3 Nov 2026** (TP-0 to TP-3, TP-6 to TP-8, TP-10, TP-11, TP-13 to TP-15; guide section 8f). **Left:**
   - [ ] **Repeat TP-4, TP-5, TP-9 and TP-12 on a second laptop with the second person's own Claude account** (earlier checks and stored terms; on one laptop Claude answered from the user's earlier chats). Needs the server reachable from that laptop over HTTPS: this waits for 2.1. Steps: [`second_person_test.md`](../MCP-Server/docs/second_person_test.md)
   - [x] File-name question (guide finding 14): **decided and built 4 Nov 2026**: B sees a count, not the names. live repeat of TP-2 and TP-3 as `ingenus.tester` passed 4 Nov 2026 (count shown, no names)
-  - [ ] Live check of guidance v8 (finding 17) as `ingenus.tester`, who has no OneDrive folder: the report must say the folder was not found, not "no contracts" and not "OneDrive is down"
+  - [x] Live check of guidance v8 (finding 17) as `ingenus.tester`, who has no OneDrive folder: **passed 10 Nov 2026** on Chain A (one run; folder-not-found wording used, check marked incomplete, no "no contracts", no "OneDrive is down"; Chain E not run)
   - [ ] Clean up the test user `ingenus.tester`: remove from the SharePoint site and `SG-Ingenus-POC`, or keep for the second-laptop repeat; optional TP-16 and TP-17
 - [ ] Repeat test for guidance: the same question in 5 fresh chats, count how often `get_guide` is called first (one run is not a measure)
 - [ ] Break-it tests (change the SAP file, bad quote, paraphrase) for v1

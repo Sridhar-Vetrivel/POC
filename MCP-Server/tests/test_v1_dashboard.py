@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 from test_v1_compare import CHAIN_X  # noqa: F401
+from test_v1_postgres import pg_env  # noqa: F401  (fixture: a throwaway schema, skips without Postgres)
 from v1_support import (  # noqa: F401  (pytest fixtures and helpers)
     chain_x_terms,
     isolated_env,
@@ -37,7 +38,9 @@ def make_activity() -> None:
 def test_an_empty_server_gives_a_complete_empty_snapshot():
     snap = dashboard.snapshot(load_settings())
     assert snap["activity"]["total_calls"] == 0
-    assert snap["audit"]["chain_ok"] is None  # no log yet: nothing to verify, and not called "intact"
+    assert (
+        snap["audit"]["chain_ok"] is None
+    )  # no log yet: nothing to verify, and not called "intact"
     assert snap["checks"] == {"enabled": True, "store": "SQLite file", "checks": []}
     assert {"error"}.isdisjoint(snap["health"])
 
@@ -129,6 +132,40 @@ def test_if_the_central_store_cannot_be_read_the_local_log_is_shown_and_the_page
     snap = dashboard.snapshot(load_settings())
     assert snap["source"]["kind"] == "log" and "local copy" in snap["source"]["note"]
     assert snap["activity"]["total_calls"] == 2
+
+
+def test_postgres_totals_cover_every_event_not_just_the_recent_slice(pg_env):
+    import psycopg
+
+    make_activity()  # 2 live events, written to Postgres as well as the log
+    with psycopg.connect(
+        host=pg_env.host,
+        port=pg_env.port,
+        dbname=pg_env.dbname,
+        user=pg_env.user,
+        password=pg_env.password(),
+        options=f"-c search_path={pg_env.schema},public",
+        autocommit=True,
+    ) as conn:
+        conn.execute(
+            'INSERT INTO events (event_id, ts, event, "user", tool, record)'
+            " SELECT 'bulk' || i, '2026-10-' || lpad((1 + mod(i, 28))::text, 2, '0') || 'T10:00:00.000+00:00',"
+            " 'tool_call', 'user' || mod(i, 5), 'get_guide',"
+            " json_build_object('event', 'tool_call', 'ts', '2026-10-05T10:00:00.000+00:00',"
+            " 'user', 'u' || mod(i, 5), 'tool', 'get_guide', 'duration_ms', 100, 'not_checked_count', 1,"
+            " 'error', CASE WHEN mod(i, 10) = 0 THEN 'boom' END)::text FROM generate_series(1, 1500) i"
+        )
+    Path(load_settings().log_path).unlink()  # only the store has the events
+    snap = dashboard.snapshot(load_settings())
+    act = snap["activity"]
+    assert "error" not in act, act
+    assert snap["source"]["kind"] == "store"
+    assert act["total_calls"] == 1502 and act["users"] == 6  # 5 bulk users and one real caller
+    assert act["errors"] == 150 and act["incomplete_calls"] == 1500
+    guide = next(t for t in act["tools"] if t["tool"] == "get_guide")
+    assert guide["calls"] == 1500 and guide["avg_ms"] == 100 and guide["max_ms"] == 100
+    assert sum(d["calls"] for d in act["per_day"]) <= 1502 and act["per_user"]
+    assert len(act["recent"]) <= dashboard.RECENT_CALLS
 
 
 def test_without_a_central_store_the_source_is_the_local_log():

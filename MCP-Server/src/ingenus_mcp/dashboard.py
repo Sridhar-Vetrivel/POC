@@ -95,7 +95,8 @@ def _store_label(target: Target | None) -> str:
     return "Postgres" if isinstance(target, PgTarget) else "SQLite file"
 
 
-MAX_EVENTS = 20000  # newest events read from the central store; the page reports on these
+MAX_EVENTS = 20000  # newest events read from a SQLite store, which cannot total in SQL here
+RECENT_FETCH = 200  # newest events read from Postgres, for the "latest" lists: totals come from SQL
 
 
 def load_events(
@@ -113,12 +114,9 @@ def load_events(
             "label": f"Local log: {settings.log_path}",
             "note": "",
         }
+    limit = RECENT_FETCH if isinstance(target, PgTarget) else MAX_EVENTS
     try:
-        rows = _read(
-            target,
-            f"SELECT record FROM events ORDER BY ts DESC LIMIT {MAX_EVENTS}",
-            down,
-        )
+        rows = _read(target, f"SELECT record FROM events ORDER BY ts DESC LIMIT {limit}", down)
     except Exception as exc:  # noqa: BLE001 - fall back, and say why
         return load_records(settings.log_path), {
             "kind": "log",
@@ -127,7 +125,10 @@ def load_events(
             f"({str(exc)[:100]}), so this is the local copy on this machine.",
         }
     records = [json.loads(r[0]) for r in reversed(rows)]  # oldest first, like the log
-    return records, {"kind": "store", "label": f"Central store: {target}", "note": ""}
+    note = ""
+    if not isinstance(target, PgTarget) and len(rows) == limit:
+        note = f"Totals cover only the newest {limit:,} events (this store is a SQLite file)."
+    return records, {"kind": "store", "label": f"Central store: {target}", "note": note}
 
 
 # --- the four sections --------------------------------------------------------------------------
@@ -189,6 +190,76 @@ def activity(records: list[dict[str, Any]]) -> dict[str, Any]:
         "per_user": [{"user": u, "calls": n} for u, n in usage["calls_per_user"].items()],
         "tools": tools,
         "recent": recent,
+    }
+
+
+_ERR = "(record::json->>'error') IS NOT NULL"
+_INCOMPLETE = "COALESCE((record::json->>'not_checked_count')::int, 0) > 0"
+_MS = "(record::json->>'duration_ms')::int"
+
+
+def activity_from_postgres(
+    target: PgTarget, recent: list[dict[str, Any]], down: dict[str, str] | None = None
+) -> dict[str, Any]:
+    """The same figures as `activity`, but totalled by Postgres over EVERY event, not a recent slice."""
+    calls = "FROM events WHERE event = 'tool_call'"
+    total, users, errors, incomplete = _read(
+        target,
+        f'SELECT COUNT(*), COUNT(DISTINCT "user"), COUNT(*) FILTER (WHERE {_ERR}),'
+        f" COUNT(*) FILTER (WHERE {_INCOMPLETE}) {calls}",
+        down,
+    )[0]
+    returning = _read(
+        target,
+        f'SELECT COUNT(*) FROM (SELECT 1 {calls} GROUP BY "user"'
+        " HAVING COUNT(DISTINCT substr(ts, 1, 10)) > 1) x",
+        down,
+    )[0][0]
+    days = _read(
+        target,
+        f"SELECT substr(ts, 1, 10) d, COUNT(*), COUNT(*) FILTER (WHERE {_ERR}) {calls}"
+        f" GROUP BY d ORDER BY d DESC LIMIT {DAYS_SHOWN}",
+        down,
+    )
+    per_user = _read(
+        target,
+        f"SELECT COALESCE(\"user\", '?'), COUNT(*) {calls} GROUP BY 1 ORDER BY 2 DESC LIMIT 20",
+        down,
+    )
+    tool_rows = _read(
+        target,
+        f"SELECT tool, COUNT(*), COUNT(*) FILTER (WHERE {_ERR}), COUNT(*) FILTER (WHERE {_INCOMPLETE}),"
+        f" avg({_MS}), percentile_disc(0.95) WITHIN GROUP (ORDER BY {_MS}), max({_MS})"
+        f" {calls} GROUP BY tool ORDER BY 2 DESC",
+        down,
+    )
+    logins = dict(
+        _read(target, "SELECT outcome, COUNT(*) FROM events WHERE event = 'login' GROUP BY 1", down)
+    )
+    shown = activity(recent)  # the latest-calls list is built from the newest events
+    return {
+        "total_calls": total,
+        "users": users,
+        "returning_users": returning,
+        "errors": errors,
+        "incomplete_calls": incomplete,
+        "logins_accepted": logins.get("accepted", 0),
+        "logins_refused": logins.get("refused", 0),
+        "per_day": [{"day": d, "calls": n, "errors": e} for d, n, e in reversed(days)],
+        "per_user": [{"user": u, "calls": n} for u, n in per_user],
+        "tools": [
+            {
+                "tool": t,
+                "calls": n,
+                "errors": e,
+                "incomplete": i,
+                "avg_ms": None if a is None else round(float(a)),
+                "p95_ms": p,
+                "max_ms": m,
+            }
+            for t, n, e, i, a, p, m in tool_rows
+        ],
+        "recent": shown["recent"],
     }
 
 
@@ -391,7 +462,11 @@ def snapshot(settings: Settings) -> dict[str, Any]:
         "source": source,
     }
     parts = {
-        "activity": lambda: activity(records),
+        "activity": lambda: (
+            activity_from_postgres(settings.audit_store, records, down)
+            if source["kind"] == "store" and isinstance(settings.audit_store, PgTarget)
+            else activity(records)
+        ),
         "checks": lambda: checks(settings, down),
         "audit": lambda: audit(settings, records, down),
     }

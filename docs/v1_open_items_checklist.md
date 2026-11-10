@@ -119,7 +119,7 @@ The proposal is now in [`completed/`](completed/multi_source_routing_impact_anal
 - [ ] Run the 16 questions with sign-in and SharePoint, not only Q1 (record in [`MCP-Server/docs/demo_guide.md`](../MCP-Server/docs/demo_guide.md))
 - [~] Two people, same questions: **done on one laptop 3 Nov 2026** (TP-0 to TP-3, TP-6 to TP-8, TP-10, TP-11, TP-13 to TP-15; guide section 8f). **Left:**
   - [ ] **Repeat TP-4, TP-5, TP-9 and TP-12 on a second laptop with the second person's own Claude account** (earlier checks and stored terms; on one laptop Claude answered from the user's earlier chats). Needs the server reachable from that laptop over HTTPS: this waits for 2.1. Steps: [`second_person_test.md`](../MCP-Server/docs/second_person_test.md)
-  - [x] File-name question (guide finding 14): **decided and built 4 Nov 2026**: B sees a count, not the names. Live repeat of TP-2 and TP-3 not done
+  - [x] File-name question (guide finding 14): **decided and built 4 Nov 2026**: B sees a count, not the names. live repeat of TP-2 and TP-3 as `ingenus.tester` passed 4 Nov 2026 (count shown, no names)
   - [ ] Live check of guidance v8 (finding 17) as `ingenus.tester`, who has no OneDrive folder: the report must say the folder was not found, not "no contracts" and not "OneDrive is down"
   - [ ] Clean up the test user `ingenus.tester`: remove from the SharePoint site and `SG-Ingenus-POC`, or keep for the second-laptop repeat; optional TP-16 and TP-17
 - [ ] Repeat test for guidance: the same question in 5 fresh chats, count how often `get_guide` is called first (one run is not a measure)
@@ -127,7 +127,7 @@ The proposal is now in [`completed/`](completed/multi_source_routing_impact_anal
 
 ## 3. Hardening backlog (from the findings)
 
-- [ ] Slow first call: 14.5 s for 30 files on SharePoint. List folders in parallel; measure with a larger library; find Desktop's tool timeout (**UNKNOWN**)
+- [ ] Slow first call: 14.5 s for 30 files on SharePoint. Parallel folder listing built (4 Nov 2026, `INGENUS_LIST_WORKERS`, default 6). Live A/B on Chain A showed no speed-up (second run 1.31 s with 1 worker, 1.36 s with 6); the 14.5 s is not reproduced and its cause is unknown. Still to do: measure with a larger library, add per-source seconds to the log if the cause matters, find Desktop's tool timeout (**UNKNOWN**)
 - [ ] Encrypt the bridge's sign-in cache (Windows DPAPI); it is a plain file readable by the user only
 - [ ] Note how long Claude Desktop waits at the first sign-in and whether it times out (not recorded; delete `%LOCALAPPDATA%\Ingenus\bridge\msal-cache.json` and retry)
 - [ ] Conditional Access that forces a new sign-in or MFA: the bridge retries once on a 401, but a claims challenge is not implemented

@@ -21,10 +21,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import random
 import re
 import sys
+import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
+
+import psycopg
 
 from ingenus_mcp.core import citations, db
 from ingenus_mcp.core.config import Settings
@@ -132,9 +137,14 @@ def save_verified(
                     "user": user,
                 }
             )
-        with _session(target) as conn:
-            for row in rows:
-                conn.execute(_UPSERT, row)
+        rows.sort(key=lambda r: r["term_id"])  # one lock order everywhere: see _touch
+
+        def write() -> None:
+            with _session(target) as conn:
+                for row in rows:
+                    conn.execute(_UPSERT, row)
+
+        _retry_on_deadlock(write)
         return len(rows)
     except Exception as exc:  # noqa: BLE001 - see the docstring
         print(
@@ -147,6 +157,41 @@ _COLUMNS = (
     "term_id, kind, product, rate_pct, effective_date, document_id, sha12, page, clause, quote,"
     " verified_at, verified_by"
 )
+
+
+def _retry_on_deadlock(work: Callable[[], Any], attempts: int = 4) -> Any:
+    """Run `work` (one whole transaction); if Postgres picks it as the deadlock victim, run it again."""
+    for n in range(attempts):
+        try:
+            return work()
+        except psycopg.errors.DeadlockDetected:
+            if n == attempts - 1:
+                raise
+            time.sleep(0.05 * (n + 1) + random.random() * 0.05)  # noqa: S311 - jitter, not security
+
+
+def _touch(target: Target, stale_ids: list[str], used_ids: list[str]) -> None:
+    """Mark terms stale / used. Rows are locked in term_id order, the same order save_verified uses, so two
+    callers can never wait on each other's rows (the cause of the deadlocks seen in the 10 Nov load test)."""
+    if not stale_ids and not used_ids:
+        return
+    now = _now()
+    work_list = sorted([(t, True) for t in set(stale_ids)] + [(t, False) for t in set(used_ids)])
+
+    def write() -> None:
+        with _session(target) as conn:
+            for tid, is_stale in work_list:
+                if is_stale:
+                    conn.execute(
+                        "UPDATE term SET status = 'stale' WHERE term_id = %(id)s", {"id": tid}
+                    )
+                else:
+                    conn.execute(
+                        "UPDATE term SET last_used = %(now)s WHERE term_id = %(id)s",
+                        {"id": tid, "now": now},
+                    )
+
+    _retry_on_deadlock(write)
 
 
 def lookup(
@@ -216,14 +261,7 @@ def lookup(
                     verified_by=by,
                 )
             )
-        now = _now()
-        for tid in stale_ids:
-            conn.execute("UPDATE term SET status = 'stale' WHERE term_id = %(id)s", {"id": tid})
-        for tid in used_ids:
-            conn.execute(
-                "UPDATE term SET last_used = %(now)s WHERE term_id = %(id)s",
-                {"id": tid, "now": now},
-            )
+    _touch(target, stale_ids, used_ids)
     return fresh, len(stale_ids)
 
 

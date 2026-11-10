@@ -214,3 +214,23 @@ def test_a_quote_that_is_no_longer_on_its_page_counts_as_uncovered():
         )
         >= 1
     )
+
+
+def test_a_write_that_loses_a_deadlock_is_run_again_and_a_persistent_one_is_raised():
+    import psycopg
+
+    calls = []
+
+    def twice_then_ok():
+        calls.append(1)
+        if len(calls) < 3:
+            raise psycopg.errors.DeadlockDetected("deadlock detected")
+        return "done"
+
+    assert records._retry_on_deadlock(twice_then_ok) == "done" and len(calls) == 3
+
+    def always():
+        raise psycopg.errors.DeadlockDetected("deadlock detected")
+
+    with pytest.raises(psycopg.errors.DeadlockDetected):
+        records._retry_on_deadlock(always, attempts=2)

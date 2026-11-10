@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ingenus MCP Operations</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --ink: #1c2330; --muted: #5d6778; --line: #e1e5ec;
+  --accent: #2456a6; --accent-soft: #e7eefb;
+  --ok: #17703e; --ok-bg: #e4f4ea; --warn: #9a3412; --warn-bg: #fdeadf; --info: #3b4a66; --info-bg: #e9edf4;
+  --bar: #2f66b8; --bar-err: #c2410c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12161d; --panel: #1a2029; --ink: #e6eaf1; --muted: #98a2b3; --line: #2b3342;
+    --accent: #7aa7ee; --accent-soft: #1f2d46;
+    --ok: #5fcf8f; --ok-bg: #16301f; --warn: #f5a77a; --warn-bg: #3a2216; --info: #b5c0d6; --info-bg: #252d3b;
+    --bar: #6c9be0; --bar-err: #f08a55;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, "Segoe UI", sans-serif; }
+header { background: var(--panel); border-bottom: 1px solid var(--line); }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; flex-wrap: wrap; }
+h1 { font-size: 18px; margin: 0; font-weight: 650; }
+.sub { color: var(--muted); font-size: 12px; }
+.tools { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
+button { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, [role=tab]:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.banner { background: var(--info-bg); color: var(--info); font-size: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+nav[role=tablist] { display: flex; gap: 4px; overflow-x: auto; }
+[role=tab] { background: none; border: 0; border-bottom: 3px solid transparent; border-radius: 0; padding: 10px 14px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+[role=tab][aria-selected=true] { color: var(--accent); border-bottom-color: var(--accent); }
+main.wrap { padding-top: 20px; padding-bottom: 48px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.kpi, .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.kpi { padding: 12px 14px; }
+.kpi .n { font-size: 24px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.kpi .l { color: var(--muted); font-size: 12px; }
+.card { padding: 16px; margin-bottom: 16px; }
+.card h2 { font-size: 14px; margin: 0 0 10px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--line); padding: 6px 8px; }
+td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.scroll { overflow-x: auto; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.ok { background: var(--ok-bg); color: var(--ok); } .warn { background: var(--warn-bg); color: var(--warn); }
+.off, .info { background: var(--info-bg); color: var(--info); }
+.muted { color: var(--muted); }
+.mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+.state { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 8px; margin-bottom: 16px; font-weight: 600; }
+.state.ok { background: var(--ok-bg); color: var(--ok); } .state.warn { background: var(--warn-bg); color: var(--warn); } .state.info { background: var(--info-bg); color: var(--info); }
+.bar-row { display: grid; grid-template-columns: 150px 1fr 40px; gap: 8px; align-items: center; margin: 5px 0; }
+.bar-row .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.track { background: var(--accent-soft); border-radius: 4px; height: 10px; }
+.track i { display: block; height: 10px; border-radius: 4px; background: var(--bar); }
+.empty { color: var(--muted); padding: 18px 4px; }
+details.chk { border-bottom: 1px solid var(--line); }
+details.chk summary { position: relative; display: grid; grid-template-columns: 150px 1fr 140px 140px 110px; gap: 8px; padding: 9px 4px 9px 18px; cursor: pointer; list-style: none; align-items: center; }
+details.chk summary::-webkit-details-marker { display: none; }
+details.chk summary::before { content: "\25B8"; position: absolute; left: 2px; color: var(--muted); }
+details.chk[open] summary::before { content: "\25BE"; }
+details.chk .body { padding: 4px 4px 14px; }
+@media (max-width: 800px) { details.chk summary { grid-template-columns: 1fr 1fr; } }
+.err { color: var(--warn); }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap top">
+    <div>
+      <h1>Ingenus MCP Operations</h1>
+      <div class="sub" id="meta">Loading&hellip;</div>
+    </div>
+    <div class="tools">
+      <label><input type="checkbox" id="auto" checked> Refresh every 30 s</label>
+      <span id="stamp"></span>
+      <button id="refresh" type="button">Refresh now</button>
+    </div>
+  </div>
+  <div class="banner"><div class="wrap">Operator view: shows every person's calls and checks. Read-only, this machine only. Synthetic data only.</div></div>
+  <div class="wrap"><nav role="tablist" aria-label="Sections" id="tabs"></nav></div>
+</header>
+<main class="wrap" id="view" aria-live="polite"></main>
+
+<script>
+"use strict";
+const TABS = [["activity", "Activity"], ["checks", "Contract checks"], ["audit", "Audit trail"], ["health", "Server health"]];
+let data = null, tab = (location.hash || "#activity").slice(1);
+if (!TABS.some(t => t[0] === tab)) tab = "activity";
+
+// All text goes in as text nodes, never parsed as markup: log and check text comes from outside.
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === null || v === undefined || v === false) continue;
+    if (k === "class") el.className = v; else el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()) {
+    if (kid === null || kid === undefined || kid === false) continue;
+    el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+  }
+  return el;
+}
+const when = ts => { const d = new Date(ts); return isNaN(d) ? (ts || "") : d.toLocaleString([], {day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit"}); };
+const money = s => { const n = Number(s); return isNaN(n) ? (s ?? "") : n.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}); };
+const ms = v => v === null || v === undefined ? "–" : v >= 1000 ? (v / 1000).toFixed(1) + " s" : v + " ms";
+const short = p => String(p || "").split("/").pop();
+const pill = (cls, text) => h("span", {class: "pill " + cls}, text);
+const empty = text => h("div", {class: "empty"}, text);
+const failed = s => s && s.error ? h("div", {class: "card err"}, "This section could not be read: " + s.error) : null;
+
+function kpi(n, label, cls) { return h("div", {class: "kpi"}, h("div", {class: "n " + (cls || "")}, n), h("div", {class: "l"}, label)); }
+function table(head, rows, numeric = []) {
+  return h("div", {class: "scroll"}, h("table", null,
+    h("thead", null, h("tr", null, head.map((c, i) => h("th", {class: numeric.includes(i) ? "num" : ""}, c)))),
+    h("tbody", null, rows.map(r => h("tr", null, r.map((c, i) => h("td", {class: numeric.includes(i) ? "num" : ""}, c)))))));
+}
+
+function dayChart(days) {
+  if (!days.length) return empty("No calls yet.");
+  const W = 520, H = 150, pad = 22, max = Math.max(1, ...days.map(d => d.calls));
+  const bw = (W - pad) / days.length;
+  const ns = "http://www.w3.org/2000/svg", s = document.createElementNS(ns, "svg");
+  s.setAttribute("viewBox", `0 0 ${W} ${H + 22}`); s.setAttribute("role", "img");
+  s.setAttribute("aria-label", "Calls per day: " + days.map(d => `${d.day} ${d.calls}`).join(", "));
+  s.style.width = "100%"; s.style.height = "auto";
+  const add = (tag, a, text) => { const e = document.createElementNS(ns, tag); for (const k in a) e.setAttribute(k, a[k]); if (text !== undefined) e.textContent = text; s.append(e); return e; };
+  add("line", {x1: pad, y1: H, x2: W, y2: H, stroke: "var(--line)"});
+  add("text", {x: 0, y: 10, fill: "var(--muted)", "font-size": 10}, max);
+  days.forEach((d, i) => {
+    const x = pad + i * bw + bw * 0.15, w = bw * 0.7, hh = (d.calls / max) * (H - 14);
+    add("rect", {x, y: H - hh, width: w, height: hh, rx: 2, fill: "var(--bar)"});
+    add("title", {}, `${d.day}: ${d.calls} call(s), ${d.errors} with errors`);
+    if (d.errors) add("rect", {x, y: H - (d.errors / max) * (H - 14), width: w, height: (d.errors / max) * (H - 14), rx: 2, fill: "var(--bar-err)"});
+    if (days.length <= 10 || i % 2 === 0) add("text", {x: x + w / 2, y: H + 14, "text-anchor": "middle", fill: "var(--muted)", "font-size": 10}, d.day.slice(5));
+  });
+  return s;
+}
+function bars(items, labelKey, valueKey) {
+  if (!items.length) return empty("Nothing yet.");
+  const max = Math.max(1, ...items.map(i => i[valueKey]));
+  return h("div", null, items.map(i => h("div", {class: "bar-row"},
+    h("span", {class: "t", title: i[labelKey]}, i[labelKey]),
+    h("div", {class: "track"}, h("i", {style: `width:${(i[valueKey] / max) * 100}%`})),
+    h("span", {class: "num"}, i[valueKey]))));
+}
+
+function viewActivity() {
+  const a = data.activity; if (a.error) return failed(a);
+  const k = h("div", {class: "kpis"},
+    kpi(a.total_calls, "Tool calls"), kpi(a.users, "People"), kpi(a.returning_users, "Came back on another day"),
+    kpi(a.incomplete_calls, "Calls with items not checked"), kpi(a.errors, "Calls with errors", a.errors ? "err" : ""),
+    kpi(a.logins_refused, "Sign-ins refused", a.logins_refused ? "err" : ""));
+  return [k,
+    h("div", {class: "grid2"},
+      h("section", {class: "card"}, h("h2", null, "Calls per day (red = with errors)"), dayChart(a.per_day)),
+      h("section", {class: "card"}, h("h2", null, "Calls per person"), bars(a.per_user, "user", "calls"))),
+    h("section", {class: "card"}, h("h2", null, "Tools: how often and how fast"),
+      a.tools.length ? table(["Tool", "Calls", "Errors", "Not fully checked", "Average", "Slowest 5%", "Slowest"],
+        a.tools.map(t => [t.tool, t.calls, t.errors || "–", t.incomplete || "–", ms(t.avg_ms), ms(t.p95_ms), ms(t.max_ms)]), [1, 2, 3, 4, 5, 6]) : empty("No calls yet.")),
+    h("section", {class: "card"}, h("h2", null, "Latest calls"),
+      a.recent.length ? table(["When", "Person", "Tool", "Customer", "Time", "Result"],
+        a.recent.map(r => [when(r.ts), r.user, r.tool, r.customer || "", ms(r.ms),
+          r.error ? pill("warn", "Error: " + r.error) : r.not_checked ? pill("warn", r.not_checked + " not checked") : pill("ok", "Complete")])) : empty("No calls yet."))];
+}
+
+function viewChecks() {
+  const c = data.checks; if (c.error) return failed(c);
+  if (!c.enabled) return h("div", {class: "card"}, empty(c.note));
+  if (!c.checks.length) return h("div", {class: "card"}, empty("No contract check has been recorded yet."));
+  const sorted = c.checks;
+  return [
+    h("div", {class: "kpis"}, kpi(sorted.length, "Recent checks"), kpi(new Set(sorted.map(x => x.customer_id)).size, "Customers"),
+      kpi(sorted.filter(x => x.not_checked).length, "Checks with items not checked")),
+    h("section", {class: "card"}, h("h2", null, "Contract checks, newest first. Select a row for its lines."),
+      h("div", {class: "muted", style: "font-size:12px;margin-bottom:6px"}, "Figures only. Quotes and page text are not stored here."),
+      sorted.map(x => h("details", {class: "chk"},
+        h("summary", null,
+          h("span", null, when(x.when)),
+          h("span", null, h("strong", null, x.customer_id), " ", h("span", {class: "muted"}, "as of " + x.as_of + ", by " + x.who)),
+          h("span", {class: "num"}, money(x.gap) + " / month"),
+          h("span", {class: "num"}, money(x.exposure) + " exposure"),
+          x.not_checked ? pill("warn", x.not_checked + " not checked") : pill("ok", "Complete")),
+        h("div", {class: "body"},
+          table(["Line", "Status", "Contract", "SAP", "Gap / month", "From"],
+            x.lines.map(l => [(l.kind || "") + (l.product ? " – " + l.product : ""), l.status, l.contract_rate_pct != null ? l.contract_rate_pct + "%" : "", l.sap_rate_pct != null ? l.sap_rate_pct + "%" : "–", money(l.monthly_gap), short(l.document)]), [2, 3, 4]),
+          h("div", {class: "muted", style: "margin-top:8px;font-size:12px"}, "Files used: " + (x.documents.map(short).join(", ") || "none")))))),
+  ];
+}
+
+function viewAudit() {
+  const a = data.audit; if (a.error) return failed(a);
+  const behind = a.events_in_store !== null && a.events_in_log !== null && a.events_in_store < a.events_in_log;
+  return [
+    h("div", {class: "state " + (a.chain_ok === null ? "info" : a.chain_ok ? "ok" : "warn"), role: "status"},
+      a.chain_ok === null ? "Hash chain not checked: " + a.chain_problem + "."
+        : a.chain_ok ? "Local log hash chain intact: no event has been altered, removed or reordered." : "Local log hash chain BROKEN: " + a.chain_problem),
+    h("div", {class: "kpis"}, kpi(a.chained, "Events chained"), kpi(a.legacy, "Older events (not covered)"),
+      kpi(a.events_in_log === null ? "none" : a.events_in_log, "Events in the local log"),
+      kpi(a.store_error ? "unreachable" : a.events_in_store === null ? "off" : a.events_in_store, "Events in the central store (" + a.store + ")", behind || a.store_error ? "err" : "")),
+    behind ? h("div", {class: "state warn"}, "The central store is behind the log by " + (a.events_in_log - a.events_in_store) + " event(s). Run the audit ship command.") : null,
+    h("section", {class: "card"}, h("h2", null, "Latest events"),
+      a.recent.length ? table(["When", "Event", "Person", "What", "Detail", "Hash"],
+        a.recent.map(r => [when(r.ts), r.event, r.user || "", r.what || "", r.detail || "", h("span", {class: "mono"}, r.hash || "–")])) : empty("No events yet."),
+      h("div", {class: "muted", style: "margin-top:8px;font-size:12px"}, "Chain verification cannot see lines cut off the end of the log. Last hash: " + (a.last_hash ? a.last_hash.slice(0, 16) + "…" : "none"))),
+  ];
+}
+
+function viewHealth() {
+  const x = data.health; if (x.error) return failed(x);
+  const label = {ok: "OK", warn: "Check", off: "Off", info: "Info"};
+  const bad = x.rows.filter(r => r.status === "warn").length;
+  return [
+    h("div", {class: "state " + (bad ? "warn" : "ok"), role: "status"}, bad ? bad + " item(s) need a look." : "Everything this machine can test is fine."),
+    h("section", {class: "card"}, h("h2", null, "Server health"),
+      table(["Item", "Status", "Detail"], x.rows.map(r => [r.name, pill(r.status, label[r.status]), r.detail])),
+      h("div", {class: "muted", style: "margin-top:8px;font-size:12px"}, "SharePoint and OneDrive are read as each signed-in person, so only a real check shows whether they work.")),
+  ];
+}
+
+const VIEWS = {activity: viewActivity, checks: viewChecks, audit: viewAudit, health: viewHealth};
+
+function render() {
+  const tabs = document.getElementById("tabs"); tabs.replaceChildren();
+  for (const [id, name] of TABS) {
+    tabs.append(h("button", {role: "tab", type: "button", "aria-selected": String(id === tab), id: "tab-" + id}, name));
+    tabs.lastChild.addEventListener("click", () => { tab = id; location.hash = id; render(); });
+    tabs.lastChild.addEventListener("keydown", e => {
+      const i = TABS.findIndex(t => t[0] === tab), step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+      if (step) { tab = TABS[(i + step + TABS.length) % TABS.length][0]; location.hash = tab; render(); document.getElementById("tab-" + tab).focus(); }
+    });
+  }
+  const view = document.getElementById("view"); view.replaceChildren();
+  if (!data) { view.append(empty("Loading…")); return; }
+  const note = data.source && data.source.note ? h("div", {class: "state warn", role: "status"}, data.source.note) : null;
+  view.append(...[note, VIEWS[tab]()].flat().filter(Boolean));
+}
+
+async function load() {
+  try {
+    const r = await fetch("/api/snapshot", {cache: "no-store"});
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    data = await r.json();
+    document.getElementById("meta").textContent = "Data from: " + data.source.label + (data.health && data.health.version ? "   ·   server " + data.health.version : "");
+    document.getElementById("stamp").textContent = "Updated " + new Date().toLocaleTimeString();
+    render();
+  } catch (e) {
+    document.getElementById("stamp").textContent = "Could not refresh: " + e.message;
+  }
+}
+document.getElementById("refresh").addEventListener("click", load);
+setInterval(() => { if (document.getElementById("auto").checked && !document.hidden) load(); }, 30000);
+window.addEventListener("hashchange", () => { const t = location.hash.slice(1); if (TABS.some(x => x[0] === t)) { tab = t; render(); } });
+render(); load();
+</script>
+</body>
+</html>

@@ -10,6 +10,7 @@ Run from the repo root `C:\Users\<username>\INGENUS\POC` unless a line says othe
 | Start for local tools (stdio) | `python -m ingenus_mcp.server --transport stdio` |
 | Stop | `Ctrl+C`, then start again after any `.env` or code change (guidance files are read fresh, no restart needed) |
 | Live sign-in check (server running in another terminal) | `python MCP-Server\scripts\signin_check.py` |
+| Operator dashboard (activity, contract checks, audit chain, health). Read-only, this machine only, shows every person's data (synthetic only). Open http://127.0.0.1:8766/ | `python -m ingenus_mcp.dashboard` |
 | Tool-call report from the log | `python -m ingenus_mcp.report --log MCP-Server\data\runtime\tool_calls.jsonl` |
 | Last 10 tool calls and logins (PowerShell). A `login` line with no `tool_call` after it means the chat connected but Claude used no tool | `Get-Content C:\Users\<username>\INGENUS\POC\MCP-Server\data\runtime\tool_calls.jsonl -Tail 10` |
 

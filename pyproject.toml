@@ -46,6 +46,9 @@ packages = [
     "mcp_servers.sap.adapters",
 ]
 
+[tool.setuptools.package-data]
+ingenus_mcp = ["dashboard.html"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests", "MCP-PlugIn/tests", "MCP-Server/tests"]
 markers = ["live: tests that call the Claude API (cost money; run only when asked)"]

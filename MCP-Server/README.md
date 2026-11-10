@@ -38,6 +38,7 @@ MCP-Server/
 │   ├── tools/       one module per tool; discover() imports them all at start-up
 │   ├── server/      HTTP (default) and stdio entry points
 │   ├── report.py    usage report from the tool-call log
+│   ├── dashboard.py + dashboard.html   read-only operator page (activity, checks, audit chain, health); loopback only
 │   ├── audit.py     verify, ship, query and prune the audit log, check records, stored terms and passages
 │   ├── embeddings.py  fetch and status of the local embedding model (the only place a model is downloaded)
 │   └── evals.py     page-finder recall on the labelled contracts
@@ -65,6 +66,7 @@ records, stored terms and search passages are in Postgres.
 python -m ingenus_mcp.server                     # HTTP on 127.0.0.1:8765, path /mcp
 python -m ingenus_mcp.server --transport stdio   # stdio, for local tools
 python -m ingenus_mcp.report --log MCP-Server\data\runtime\tool_calls.jsonl
+python -m ingenus_mcp.dashboard                  # operator page at http://127.0.0.1:8766/ (read-only, this machine only)
 ```
 
 The server binds to **loopback only** by default, and refuses to start on a network address with sign-in off

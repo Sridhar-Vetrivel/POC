@@ -528,6 +528,20 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._send(404, b"Not found", "text/plain; charset=utf-8")
 
+    def _refuse(self) -> None:
+        # The page is read-only: only GET exists. A small body is read and dropped first, because closing the
+        # socket with unread data makes Windows reset the client's connection (a flaky test showed it).
+        try:
+            size = min(int(self.headers.get("Content-Length") or 0), 65536)
+        except ValueError:
+            size = 0
+        if size > 0:
+            self.rfile.read(size)
+        self._send(501, b"Unsupported method", "text/plain; charset=utf-8")
+        self.close_connection = True
+
+    do_POST = do_PUT = do_PATCH = do_DELETE = _refuse  # noqa: N815 - the names http.server looks for
+
 
 def make_server(
     settings: Settings, host: str = "127.0.0.1", port: int = 8766

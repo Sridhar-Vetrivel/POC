@@ -2,11 +2,21 @@
 
 from __future__ import annotations
 
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 
 class ScopeError(ValueError):
     """The request points outside the folders this plug-in is allowed to read."""
+
+
+def _windows_style_absolute(relative: str) -> bool:
+    """True for a drive letter ('C:/x') or a rooted or network path, whatever system the server runs on.
+
+    On Linux `Path('C:/x').drive` is empty, so those ids looked like ordinary relative names there. They are
+    refused on every system, so the guard behaves the same on a Windows laptop and a Linux VM.
+    """
+    win = PureWindowsPath(relative)
+    return bool(win.drive or win.root)
 
 
 def check_relative(relative: str) -> PurePosixPath:
@@ -22,7 +32,12 @@ def check_relative(relative: str) -> PurePosixPath:
             "Use forward slashes in a document_id, as returned by find_contract_files."
         )
     candidate = Path(relative)
-    if candidate.is_absolute() or candidate.drive or relative.startswith("/"):
+    if (
+        candidate.is_absolute()
+        or candidate.drive
+        or relative.startswith("/")
+        or _windows_style_absolute(relative)
+    ):
         raise ScopeError(
             "Absolute paths are not accepted. Use a document_id from find_contract_files."
         )
@@ -36,7 +51,7 @@ def resolve_inside(root: Path, relative: str) -> Path:
     if not relative or "\x00" in relative:
         raise ScopeError("Empty or invalid document id.")
     candidate = Path(relative)
-    if candidate.is_absolute() or candidate.drive:
+    if candidate.is_absolute() or candidate.drive or _windows_style_absolute(relative):
         raise ScopeError(
             "Absolute paths are not accepted. Use a document_id from find_contract_files."
         )

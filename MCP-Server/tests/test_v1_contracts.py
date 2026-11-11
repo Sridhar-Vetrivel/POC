@@ -179,3 +179,24 @@ def test_resolve_customer_exact_alias_ambiguous_and_unknown():
         similar.resolved is None and similar.candidates and similar.candidates[0].match == "similar"
     )
     assert resolve_customer(name="Nobody Inc").candidates == []
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "C:/x.txt",
+        r"c:\x.txt",
+        "C:x.txt",
+        r"\x.txt",
+        "//server/share/x.txt",
+        r"\\server\share\x.txt",
+    ],
+)
+def test_windows_style_absolute_paths_are_refused_on_every_system(tmp_path, bad):
+    """On Linux `Path('C:/x').drive` is empty: the guard must still refuse these (found by the WSL run, 11 Nov)."""
+    with pytest.raises(ScopeError):
+        resolve_inside(tmp_path, bad)
+
+
+def test_ordinary_names_with_a_colon_further_in_are_still_allowed(tmp_path):
+    assert resolve_inside(tmp_path, "Chain_A/Note 1.txt").name == "Note 1.txt"

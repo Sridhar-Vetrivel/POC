@@ -30,13 +30,13 @@
 
 | # | Decision | Answer so far |
 |---|---|---|
-| 1 | Account, profile, region | Default profile; its region is `ap-southeast-2` (Sydney). **The CLI session had expired, so the account is not confirmed.** Step B |
+| 1 | Account, profile, region | **Confirmed 11 Nov 2026:** the console header shows `TACSandbox (089020215064)`, the same number the CLI reports; region Asia Pacific (Sydney), `ap-southeast-2` |
 | 2 | OS | **Linux, Ubuntu LTS** (Sridhar, 11 Nov) |
 | 3 | Size | Start with 4 GB of memory (`t3.medium`, **ASSUMED** enough for the server, Postgres and the embedding model; we measure in step L). **Verify** the type exists in the region |
-| 4 | Budget | A small cap, VM stopped when idle (Sridhar, 11 Nov). **The number is still to be set** (ask Aditya). I have not looked up prices |
-| 5 | HTTPS name | Ask Aditya for a domain (Sridhar, 11 Nov). Until it exists we test through a private tunnel (step J1) |
+| 4 | Budget | **No AWS Budget (Sridhar, 11 Nov 2026).** A budget made from the template counted the whole shared account (15.81 spent of 15 on the day it was made), so `ingenus-poc-monthly` was deleted. Cost control is: the VM is on only for second-person testing (a few days), every session starts with `sudo shutdown -h +120`, the VM is stopped when idle, and our cost is read on demand with the commands in section 2d (filtered by Sydney usage types, because cost allocation tags cannot be activated in this account). Prices were read from AWS on 11 Nov (section 2a) |
+| 5 | HTTPS name | **A temporary name is enough (Sridhar, 11 Nov).** The AWS-provided `ec2-...amazonaws.com` name will not get a free certificate (section 2c). Plan: steps A to H and J1 (tunnel, no name needed) first; register a cheap domain (about 3 USD a year) only when the second-person test needs HTTPS |
 | 6 | Who may reach the VM | See section 2, rule 6: **a public certificate needs ports 80 and 443 open to the internet**, so "only my IP" does not work for HTTPS. Sign-in stays on |
-| 7 | Data | **Synthetic only.** Check the Psiog AI policy before any file goes on the VM |
+| 7 | Data | **Synthetic only.** Sridhar confirmed on 11 Nov that synthetic contracts may sit on this VM under the Psiog AI policy |
 
 ## 2. Ground rules
 
@@ -45,8 +45,100 @@
 3. **Nothing secret in the repo or in chat.** The certificate key is made on the VM and stays there. The Postgres password is made on the VM. No AWS access keys in any file.
 4. **No real data.** Rule 9 of CLAUDE.md applies on the VM too.
 5. **No AWS-only services in the code** (decision 0009). The VM is plain Linux, Postgres and a proxy.
-6. **A correction to my first draft: an "only my IP" rule breaks free HTTPS.** The proxy (Caddy) gets its certificate from Let's Encrypt, whose servers must reach ports 80 and 443 on the VM. So those two ports must be open to the internet (`0.0.0.0/0`). This is acceptable only because the server refuses every call without a valid Entra token (checked in step I: it answers 401), the data is synthetic, and the VM is stopped when idle. If Aditya says no, the alternative is a load balancer with an AWS certificate (more cost, more steps): ask him. Port 22 is never opened.
+6. **A correction to my first draft: an "only my IP" rule breaks free HTTPS.** The proxy (Caddy) gets its certificate from Let's Encrypt, whose servers must reach ports 80 and 443 on the VM. So those two ports must be open to the internet (`0.0.0.0/0`). This is acceptable only because the server refuses every call without a valid Entra token (checked in step I: it answers 401), the data is synthetic, and the VM is stopped when idle. Section 2b explains this with an example. If it is not acceptable, the alternative is a load balancer with an AWS certificate (more cost, more steps). Port 22 is never opened.
 7. **Stop the VM whenever you are not testing.** A forgotten VM is the main cost risk.
+
+## 2a. What it will cost (prices read from AWS for Sydney, on demand, USD, on 11 Nov 2026)
+
+| Item | Price | Notes |
+|---|---|---|
+| VM `t3.medium` (Linux), while running | **0.0528 per hour** | `t3.small` is 0.0264, `t3.large` 0.1056 |
+| Public IPv4 address, while in use | 0.005 per hour | Charged for the VM's ordinary public address too |
+| Disk, gp3, 30 GB | **0.096 per GB-month = 2.88 a month** (about 0.10 a day) | Charged **even while the VM is stopped**, until the disk is deleted |
+| Elastic IP, if we use one | 0.005 per hour, **always** (in use or idle) = 0.12 a day | Release it when finished; stopping the VM does not stop this charge |
+| A domain in Route 53, `.click` | 3 a year (`.link` 5, `.com` 16) | Prices from Route 53; a non-refundable purchase. A hosted zone also costs about 0.50 a month (**not verified**) |
+| Session Manager, a few MB in S3 | about nothing | Not itemised |
+| Data going out to the internet | **not priced here** | Expected to be tiny for a POC |
+
+**What that means in practice**
+- **One 2-hour session:** about 0.12 (VM 0.11 plus its address 0.01).
+- **A test week of 5 sessions:** about 0.6 for the VM, plus 0.7 for the disk.
+- **A two-week round** (6 sessions, disk kept, Elastic IP kept, a `.click` domain): about 7 in all. That is the size of the whole round; there is no budget alarm.
+- **Worst case, VM left on for a month by mistake:** about 44 (41.6 for the VM and its address, 2.9 for the disk). The `shutdown -h +120` safety net limits a forgotten session to about 0.12.
+- **No AWS Budget is used** (deleted 11 Nov 2026), so nothing warns you if the VM is left on. About 44 would be the worst case for a month.
+
+## 2b. Rule 6 explained: ports 80 and 443, with an example
+
+A **port** is a numbered door on the VM. **443** is the door for HTTPS: Claude Desktop on the second laptop knocks there. **80** is the door a certificate authority (Let's Encrypt) knocks on once, to check that the name really points at us before it issues the free certificate. The **security group** is the list at those doors saying who may come in.
+
+**Example.** You are at home (address A), the tester is at the office (address B), and Let's Encrypt's checking computers are somewhere in the world (address C).
+- **List says "only A and B":** you and the tester get in. Let's Encrypt (C) is turned away, so **there is no certificate**. Claude Desktop refuses plain `http` to another machine, so the second-person test cannot run.
+- **List says "everyone" for 80 and 443:** Let's Encrypt gets in, the certificate is issued, and the tester connects from any network. **Strangers can also reach the door.** What they find is the server answering "who are you?" (401) to everything, because every call needs a valid Entra token. Port 22 and the dashboard port stay closed.
+
+**What the opening costs us:** the VM will be seen by internet scanners. They cannot call a tool without a token, but they can fill our login log with refused attempts, and any flaw in the server software would be exposed. For a POC that is on for a few hours with synthetic data, behind sign-in, that is a reasonable trade.
+
+**My recommendation:** open 80 and 443 to everyone **only while the VM is on** (it is stopped otherwise). After the certificate is issued, remove the rule for 80 (HTTPS needs only 443; renewals, due after about 60 days, are not in play for a few days). Locking 443 to the testers' addresses is not practical, because home and office addresses change.
+
+## 2c. The temporary name
+
+- **Not possible:** the name AWS gives every VM (`ec2-1-2-3-4.ap-southeast-2.compute.amazonaws.com`). Let's Encrypt does not issue certificates for it (older forum posts, 2019 and 2023; I did not check Let's Encrypt's own policy page). See [this community answer](https://community.letsencrypt.org/t/how-to-install-an-ssl-certificate-on-an-aws-ec2-instance/202218.md) and [Caddy's automatic HTTPS page](https://caddyserver.com/docs/automatic-https), which says a public name needs your own DNS record pointing at the server and ports 80 and 443 reachable.
+- **Not recommended:** free "wildcard DNS" names from third parties. I could not confirm they work with Let's Encrypt, and they add an outside dependency.
+- **Recommended:** a cheap domain from Route 53 (`.click`, about 3 a year), a record pointing at an Elastic IP, used only when the second-person test needs it. **Until then, steps A to H and J1 (the private tunnel) need no name and no cost.** Registering a domain is a purchase that needs your explicit go. Route 53 asks for contact details and sends a verification email (a registrant who does not confirm in time can lose the name: **verify** the period in Route 53).
+
+## 2d. Cheat codes: switch the VM on and off to save money
+
+**Written, not yet run** (the VM does not exist yet). Run these in your PowerShell terminal after `aws login`. Or tell me "start the VM" or "stop the VM" and I run them for you (they change the VM's state, so I wait for your word).
+
+**Set two variables once per terminal window** (the instance id appears after step D; it looks like `i-0123456789abcdef0`):
+
+```powershell
+$R = "ap-southeast-2"
+$IID = "i-PASTE-YOUR-INSTANCE-ID"
+```
+
+| I want to | Command |
+|---|---|
+| **See the state** (running, stopped) and the public address | `aws ec2 describe-instances --region $R --instance-ids $IID --query "Reservations[].Instances[].[InstanceId,State.Name,PublicIpAddress]" --output text` |
+| **Find the id** if you lost it (looks for our tag) | `aws ec2 describe-instances --region $R --filters "Name=tag:project,Values=ingenus-poc" --query "Reservations[].Instances[].[InstanceId,State.Name]" --output text` |
+| **Turn OFF** (stop: no compute charge, the disk and data stay) | `aws ec2 stop-instances --region $R --instance-ids $IID` |
+| **Wait until it is really off** | `aws ec2 wait instance-stopped --region $R --instance-ids $IID` |
+| **Turn ON** | `aws ec2 start-instances --region $R --instance-ids $IID` |
+| **Wait until it is on and healthy** (a few minutes) | `aws ec2 wait instance-running --region $R --instance-ids $IID; aws ec2 wait instance-status-ok --region $R --instance-ids $IID` |
+| **Turn OFF everything of ours that is running** (a safety sweep) | `aws ec2 describe-instances --region $R --filters "Name=tag:project,Values=ingenus-poc" "Name=instance-state-name,Values=running" --query "Reservations[].Instances[].InstanceId" --output text` shows the ids; stop each with the Turn OFF line |
+
+**After you turn it on**
+1. The server, Postgres and Caddy start by themselves (the service is set to start at boot in step H). Check from the VM terminal: `systemctl is-active ingenus-mcp postgresql caddy` should print `active` three times (no `caddy` line until step I).
+2. **The public address changes** each time unless you attached an Elastic IP (step I2). With the domain pointed at an Elastic IP nothing else changes. Without one, the address from the first table row is the new one; the tunnel in J1 is not affected because it goes through Session Manager.
+3. Session Manager takes a minute or two to reconnect after the VM starts.
+
+**Cost commands: see what our resources cost** (PowerShell; set `$R` and `$IID` first, as above)
+
+**Why not by tag:** cost allocation tags can only be activated by the organisation's payer account, and this account got "Access denied" on 11 Nov 2026. So the tag `project` cannot be used in cost reports. **Instead we filter by usage type.** Everything we create is in Sydney, and Sydney usage types start with `APS2-`. The other `t3.medium` usage in this account (about 4.35 USD this month) has no such prefix (`BoxUsage:t3.medium`), which means N. Virginia, so it is not counted. This holds only while nobody else runs things in Sydney: check with `aws ec2 describe-instances --region $R --query "Reservations[].Instances[].[InstanceId,State.Name]" --output text` (it should list only our VM).
+
+Each Cost Explorer call costs about 0.01 USD, and billing data can be up to 24 hours late, so a session shows up the next day.
+
+| I want to | Command |
+|---|---|
+| **1. One-time: write the filter file** (our Sydney usage types) | `@'`<br>`{"Dimensions":{"Key":"USAGE_TYPE","Values":["APS2-BoxUsage:t3.medium","APS2-EBS:VolumeUsage.gp3","APS2-PublicIPv4:InUseAddress","APS2-PublicIPv4:IdleAddress","APS2-TimedStorage-ByteHrs"]}}`<br>`'@ \| Set-Content -Path "$env:USERPROFILE\ingenus-ce-filter.json" -Encoding ascii` |
+| **2. Our cost this month so far** (a single number) | `$S=(Get-Date -Day 1).ToString("yyyy-MM-dd"); $E=(Get-Date).AddDays(1).ToString("yyyy-MM-dd"); aws ce get-cost-and-usage --time-period Start=$S,End=$E --granularity MONTHLY --metrics UnblendedCost --filter file://$env:USERPROFILE\ingenus-ce-filter.json --query "ResultsByTime[].[TimePeriod.Start,Total.UnblendedCost.Amount]" --output text` |
+| **3. The same, split by item** (VM, disk, address, bucket) | `aws ce get-cost-and-usage --time-period Start=$S,End=$E --granularity MONTHLY --metrics UnblendedCost --filter file://$env:USERPROFILE\ingenus-ce-filter.json --group-by Type=DIMENSION,Key=USAGE_TYPE --query "ResultsByTime[].Groups[].[Keys[0],Metrics.UnblendedCost.Amount]" --output text` |
+| **4. This session so far** (an estimate from the launch time; only while the VM is running) | `$t = aws ec2 describe-instances --region $R --instance-ids $IID --query "Reservations[0].Instances[0].[State.Name,LaunchTime]" --output text; $state,$launch = $t -split "\s+"; if ($state -eq "running") { $h = ((Get-Date).ToUniversalTime() - [datetime]::Parse($launch).ToUniversalTime()).TotalHours; "{0:N1} h running, about {1:N2} USD so far" -f $h, ($h*0.0578) } else { "VM is $state" }` |
+| **5. What still costs money while the VM is stopped** (our disks and addresses) | `aws ec2 describe-volumes --region $R --filters "Name=tag:project,Values=ingenus-poc" --query "Volumes[].[VolumeId,Size,State]" --output text; aws ec2 describe-addresses --region $R --filters "Name=tag:project,Values=ingenus-poc" --query "Addresses[].[PublicIp,AssociationId]" --output text` |
+
+- **Status (11 Nov 2026):** commands 1, 2 and 5 ran against the account now (nothing of ours exists yet, so they returned 0 and nothing). The calculation in 4 was tested with a made-up launch time. Command 3 and all of them against a **real** VM are **not tested yet**.
+- **Reading command 4:** the launch time resets each time the VM is started, so it shows the current session only. The price used is 0.0528 for the VM plus 0.005 for its address, per hour (section 2a).
+- **Reading command 5:** every line listed is a charge that continues while the VM is stopped (the disk about 0.10 USD a day, an Elastic IP 0.12 a day). Empty means nothing is accruing.
+- To see an earlier month, change `$S` and `$E`.
+
+**A safety net on the VM so it can never run all night (optional, on the VM terminal)**
+- **Run `sudo shutdown -h +120` at the start of every session, as the first command.** It switches the VM off in 2 hours (this **stops** it, because the default for "shutdown behavior" is Stop: **verify** it says Stop under **Advanced details** when you launch in step D).
+- `sudo shutdown -c` cancels it if you need longer; run `sudo shutdown -h +120` again for another 2 hours.
+- Starting the VM again later does **not** repeat it: run it every time.
+
+**What stopping does and does not save** (I have not looked up prices)
+- A stopped VM stops the compute charge. **The disk (EBS) still costs a little**, and an **Elastic IP still costs a little** while it exists: release it if you will be away for days (step M).
+- **Stopping is not deleting.** Use Terminate (step M) only when finished.
+- Each time before you leave: run the state command in row 1 and check it says `stopped`.
 
 ## 3. What we are building
 
@@ -74,13 +166,15 @@ The network-drive source cannot be reached from AWS, so it is not part of this t
 
 1. **[YOU]** In your terminal (the PowerShell where `aws` works) run `aws login`. A browser opens. Sign in with the account your boss gave you for the TAC sandbox, and approve.
 2. **[ME: laptop]** I run `aws sts get-caller-identity` and `aws configure get region`. **You should see:** an account number and a role name that match the TAC sandbox. **If it is not the sandbox, stop and tell Aditya.** Do not continue on a production account.
-3. **[YOU: Console]** Create the budget. Search the console for **Billing and Cost Management** > left menu **Budgets** > **Create budget** > **Use a template (simplified)** > **Monthly cost budget** > enter a name `ingenus-poc-monthly`, the amount (the cap Aditya gives you), your email > **Create budget**. (Labels: **verify**; a sandbox may block budgets: if so, ask Aditya who owns cost limits.) **You should see:** the budget in the list.
+3. **Budget: not used (decided 11 Nov 2026).** The account's budgets count everything in the shared account, so a budget would not show what our VM costs. **Cost allocation tags cannot be used either:** they are managed by the organisation's payer account, and activating one gave "Access denied" here. To see what our resources cost, use the cost commands in section 2d (they filter by Sydney usage types). The two existing budgets (`My Monthly Cost Budget`, `da-monthly`) are not ours: do not touch them.
 
 ### C. Make the VM's badge, firewall and a place for the code
 
+**Before every console step, read the region at the top right: it must say Asia Pacific (Sydney) `ap-southeast-2`.** On 11 Nov 2026 the console was on US East (N. Virginia): the security group was created there by mistake (found by a read-only check) and the S3 screen also showed `us-east-1`. Security groups, buckets and VMs belong to one region. The IAM role is global, so the region does not matter for C1. Opening Billing or IAM can switch the region shown, so check again each time.
+
 1. **[YOU: Console] The role (badge).** Search **IAM** > **Roles** > **Create role** > Trusted entity type **AWS service** > Use case **EC2** > Next > search and tick **AmazonSSMManagedInstanceCore** > Next > Role name `ingenus-poc-ssm-role` > add tag `project=ingenus-poc` > **Create role**. **You should see:** the role listed. (AWS creates the matching instance profile of the same name when you use the EC2 use case: **verify** in step D that it appears in the list.)
 2. **[YOU: Console] The firewall.** Search **EC2** > left menu **Security Groups** > **Create security group**. Name `ingenus-poc-sg`, description `Ingenus POC sandbox`, VPC: the default one. **Inbound rules** > **Add rule** twice: type **HTTP**, source **Anywhere-IPv4 (0.0.0.0/0)**; type **HTTPS**, source **Anywhere-IPv4**. **Do not add SSH.** Leave outbound as it is. Add the tag `project=ingenus-poc` > **Create security group**.
-3. **[YOU: Console] The code bucket.** Search **S3** > **Create bucket** > a name that is unique (for example `ingenus-poc-transfer-<your-initials>-<random digits>`), region as in B, leave **Block all public access ON** > tag `project=ingenus-poc` > **Create bucket**. Write the exact name down; I call it `BUCKET` below.
+3. **[YOU: Console] The code bucket.** Search **S3** > **Create bucket** > a name that is unique (for example `ingenus-poc-transfer`), region as in B, leave **Block all public access ON** > tag `project=ingenus-poc` > **Create bucket**. Write the exact name down; I call it `BUCKET` below.
 4. **[YOU: Console] Let the VM read that one bucket.** **IAM** > **Roles** > `ingenus-poc-ssm-role` > **Add permissions** > **Create inline policy** > **JSON** tab, paste (replace `BUCKET`):
 
 ```json
@@ -94,7 +188,7 @@ Name it `ingenus-poc-read-code` > **Create policy**.
 1. **[YOU: say go]** Tell me you are about to launch, and the budget cap is set.
 2. **[YOU: Console]** **EC2** > **Instances** > **Launch instances**. Check the region at the top right is the one from B.
    - **Name:** `ingenus-poc-sandbox`.
-   - **Application and OS Images:** choose **Ubuntu**; pick the newest **Ubuntu Server LTS**, **64-bit (x86)**. (**Verify** the version shown; I will not guess an image id.)
+   - **Application and OS Images:** choose **Ubuntu**; pick **Ubuntu Server 24.04 LTS**, **64-bit (x86)**. (Checked read-only on 11 Nov 2026: Canonical's images in this region are 24.04 LTS (`noble`), 26.04 LTS (`resolute`) and 26.10 (not an LTS). I recommend 24.04: it is mature, and the PostgreSQL package source surely supports it, which is not certain for 26.04 yet. The WSL test used 26.04, but our Python setup does not depend on the system Python. **Verify** the name shown on screen matches.)
    - **Instance type:** `t3.medium`.
    - **Key pair:** choose **Proceed without a key pair** (we use Session Manager, not SSH).
    - **Network settings** > **Edit**: **Auto-assign public IP: Enable**; **Select existing security group** > `ingenus-poc-sg`.
@@ -267,11 +361,11 @@ curl -s -o /dev/null -w "local answer: %{http_code}\n" http://127.0.0.1:8765/mcp
 
 **You should see:** `active (running)` and `local answer: 401` (sign-in is on, and the call has no token). **If it is `failed`:** run `journalctl -u ingenus-mcp -n 30 --no-pager` and send me the last lines (remove nothing secret: the log has none).
 
-### I. HTTPS in front (needs the domain; skip until Aditya gives one)
+### I. HTTPS in front (needs a domain name; skip until the second-person test needs HTTPS)
 
-1. **[YOU]** Get from Aditya: the domain name (for example `poc.<something>`) and who adds the DNS record.
+1. **[YOU: say go, then Console]** Register a cheap domain (a purchase: section 2c). **Route 53** > **Registered domains** > **Register domains** > type a name such as `ingenus-poc-<your initials>` and pick `.click` (about 3 USD a year, the price Route 53 showed me) > add to cart > fill in the contact details > purchase. Confirm the verification email within the time it states. Route 53 makes a **hosted zone** for the domain by itself.
 2. **[YOU: Console]** **EC2** > **Elastic IPs** > **Allocate Elastic IP address** > tag `project=ingenus-poc` > **Allocate** > select it > **Actions > Associate Elastic IP address** > choose the instance > **Associate**. Write the address down.
-3. **[YOU or Aditya]** Create an **A record** `<domain> -> <that elastic IP>`. Check later with `nslookup <domain>`.
+3. **[YOU: Console]** **Route 53** > **Hosted zones** > your domain > **Create record**: leave the name empty (or `poc`), type **A**, value the Elastic IP > **Create records**. Check later with `nslookup <domain>` (it can take a few minutes). Use that name as `<domain>` below.
 4. **[YOU: VM terminal]** Install Caddy (**verify** against https://caddyserver.com/docs/install#debian-ubuntu-raspbian; the lines there are the current ones), then:
 
 ```bash
@@ -285,6 +379,7 @@ systemctl restart caddy; sleep 10; systemctl status caddy --no-pager | head -5
 
 5. In `/etc/ingenus/ingenus.env` change `INGENUS_PUBLIC_URL` to `https://<domain>/mcp`, then `systemctl restart ingenus-mcp`.
 6. **[ME: laptop]** From your laptop: `curl -s -o /dev/null -w "%{http_code}" https://<domain>/mcp`. **You should see:** `401` (not a certificate error, not 200). **Also verify:** the SDK's host-header protection must accept the VM's name. This is **UNKNOWN and untested**. If you see a 4xx **other than 401** (for example 403 or 421) while step H4's local answer was 401, that is the symptom; send me the response and we look in the SDK for its allowed-hosts setting.
+7. **[YOU: Console] Close port 80 once the certificate is issued** (agreed 11 Nov 2026). Step 6 answering `401` over `https` proves the certificate works. **EC2** > **Security Groups** > `ingenus-poc-sg` > **Inbound rules** > **Edit inbound rules** > delete the **HTTP (80)** row > **Save rules**. Leave **HTTPS (443)** as it is. **You should see:** `https://<domain>/mcp` still answers `401`. Open 80 again only if Caddy needs to renew (after about 60 days, so not in a few-day test) or the VM gets a new Elastic IP and a new certificate is needed.
 
 ### J. Smoke test
 
@@ -312,7 +407,7 @@ On the VM: memory and CPU of the server while idle and during a check (`free -m`
 - **Idle:** **[YOU: Console]** **EC2** > select the instance > **Instance state** > **Stop instance**. (An Elastic IP that is not attached to a running VM costs a little: release it if you will be away for days.)
 - **Finished:** **Instance state > Terminate**; then delete: the **EBS volume** (if it remains), the **Elastic IP** (**Release**), the **security group**, the **S3 bucket** (empty it, then delete), the **IAM role** `ingenus-poc-ssm-role`, the **budget** if it is ours, and the **DNS record**. **Delete the test certificate row in Entra.**
 - **Check nothing is left [ME: laptop, read-only]:** `aws ec2 describe-instances`, `describe-volumes`, `describe-addresses` and `aws s3 ls`, filtered by or looking for the `project=ingenus-poc` tag. Check **Cost Explorer** the next day.
-- **Never leave the VM running overnight** unless the budget alarm exists and you have said so.
+- **Never leave the VM running overnight.** There is no budget alarm (decided 11 Nov 2026), so the 2-hour shutdown and your own check of the VM state (section 2d) are the only protection.
 
 ## 5. What this proves, and what it does not
 
@@ -324,7 +419,7 @@ On the VM: memory and CPU of the server while idle and during a check (`free -m`
 
 | Risk | What we do |
 |---|---|
-| A forgotten VM or disk costs money | Budget alarm, tags, "stop when idle", step M |
+| A forgotten VM or disk costs money | No budget alarm (decided 11 Nov): `shutdown -h +120` every session, stop when idle, my reminders, step M |
 | Wrong account | Step B stops the run if it is not the sandbox |
 | Ports 80 and 443 open to the world | Sign-in on (401 without a token), synthetic data only, stop when idle; port 22 and 8766 never open |
 | Key or password leaks | Made on the VM, mode 600, never in the repo or chat; delete the Entra certificate at the end |
@@ -336,9 +431,9 @@ On the VM: memory and CPU of the server while idle and during a check (`free -m`
 
 | # | What | From |
 |---|---|---|
-| D1 | A domain and a DNS record (or permission to use a temporary name); also whether 80 and 443 may be open (rule 6) | Aditya |
-| D2 | The monthly budget cap | Aditya |
-| D3 | May synthetic contracts sit on this VM under the Psiog AI policy? | Psiog AI policy, Aditya |
+| D1 | ~~A domain, and whether 80 and 443 may be open~~ | Decided by Sridhar (Aditya is busy): a temporary name (section 2c), ports as in section 2b. **Ports agreed by Sridhar on 11 Nov 2026:** 80 and 443 open to everyone only while the VM is on; remove the rule for 80 once the certificate is issued (step I7). **Still open:** a domain purchase of about 3 USD (Sridhar's go, only when HTTPS is needed). Tell Aditya when convenient |
+| D2 | ~~The monthly budget cap~~ | Dropped (Sridhar, 11 Nov): no AWS Budget; see decision 4 |
+| D3 | ~~May synthetic contracts sit on this VM?~~ | Yes (Sridhar, 11 Nov) |
 | D4 | A second person and laptop with their own Claude account (also unlocks TP-4, TP-5, TP-9 and TP-12) | Sridhar |
 | D5 | ~~The small fix in the path guard for Windows-style paths on Linux~~ | Done 11 Nov 2026 (Sridhar said do it); uncommitted |
 
@@ -347,7 +442,8 @@ On the VM: memory and CPU of the server while idle and during a check (`free -m`
 | Step | Result | Date |
 |---|---|---|
 | A, server on Linux (WSL) | 343 passed, 3 failed (Windows paths), 7 skipped; after the path-guard fix 353 passed, 0 failed, 7 skipped; server runs, 10 tools, chain intact | 11 Nov 2026 |
-| B, account and region | `aws login` done; account **089020215064**, IAM user `sridhar.vetrivel` in groups `Administrators` and `Bedrock-POC`; region `ap-southeast-2`. **Not yet confirmed as the TAC sandbox** (no account alias; no EC2 instances in the region; two existing budgets, `My Monthly Cost Budget` 100 and `da-monthly` 60; the groups date from 2022 and 2024). Waiting for Sridhar to confirm with Aditya | 11 Nov 2026 |
+| B, account and region | `aws login` done; account **089020215064**, IAM user `sridhar.vetrivel` in groups `Administrators` and `Bedrock-POC`; region `ap-southeast-2`. **Confirmed as the TAC sandbox** by Sridhar from the console header (`TACSandbox (089020215064)`, the same number as the CLI). No EC2 instances in the region yet. The account already has two budgets (`My Monthly Cost Budget` 100, `da-monthly` 60) that are not ours: do not touch them | 11 Nov 2026 |
+| C, role, firewall, bucket, policy | **Done and verified read-only, 11 Nov 2026.** Role `ingenus-poc-ssm-role` (tag, `AmazonSSMManagedInstanceCore`, instance profile of the same name). Firewall `sg-05188e7651da8a192` in the Sydney default VPC: inbound 80 and 443 from `0.0.0.0/0` only, no SSH. Bucket `ingenus-poc-transfer-089020215064-ap-southeast-2-an` in ap-southeast-2: public access blocked, SSE-S3, tag set, versioning never enabled. Inline policy `ingenus-poc-read-code`: `s3:GetObject` on that bucket only (simulated: GetObject allowed; Put, Delete, List and another bucket denied). A firewall made by mistake in us-east-1 was deleted | 11 Nov 2026 |
 | D, VM running; Session Manager connects | | |
 | E, code and Python 3.13 on the VM | | |
 | F, pgvector installed from packages | | |

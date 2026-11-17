@@ -149,6 +149,55 @@ second laptop (Claude Desktop + bridge) --HTTPS 443--> Caddy --> MCP server 127.
 
 The network-drive source cannot be reached from AWS, so it is not part of this test.
 
+## 3a. How the pieces connect (plain language)
+
+**In two lines each:**
+
+- **The server** (on the VM) answers the questions: it checks who is asking, reads the contract files from SharePoint and OneDrive, compares them with SAP (mock for now) and returns figures with quotes, and it logs every call under the person's name. It does the checking in plain code, not with AI.
+- **The bridge** (on each laptop) is a small program that Claude Desktop starts. It signs the person in with Microsoft and forwards Claude's questions to the server over HTTPS with the sign-in proof attached. It holds no data and no tools.
+
+**Picture (what was built and tested on 16 Nov 2026):**
+
+```
+ THE LAPTOP (Windows)
+ +---------------------------------------------------------------+
+ |  Claude Desktop  <-- pipe on this laptop -->  BRIDGE          |
+ |  (the chat app)      (no network)             (small Node     |
+ |                                                program that   |
+ |                                                Desktop runs)  |
+ +---------------------------------------------------+-----------+
+                                                     | HTTPS over the internet
+                                                     | + the person's Microsoft sign-in token
+                                                     v
+ THE VM (AWS)        Caddy (port 443)  -->  MCP server (127.0.0.1:8765)  -->  Postgres (same VM)
+                     shows the certificate        |
+                                                  | read-only requests, with the person's own permission
+                                                  v
+                                       Microsoft Graph  -->  SharePoint, OneDrive
+```
+
+**Why the bridge exists:** Claude Desktop can start small programs on the same laptop and talk to them directly. It cannot carry our Microsoft sign-in to a server on the internet by itself, so the bridge does that.
+
+**Why the bridge insists on HTTPS (and does accept it):** every message carries the person's sign-in token, like a hotel key card. Over plain `http` that card travels in the open, so the bridge allows `http` only to the same laptop (`127.0.0.1`, `localhost`, `[::1]`) and requires `https` for anything else (`bridge/server/bridge.js`). HTTPS also needs a **certificate**, which is the server's passport: the laptop trusts passports from known issuers (such as Let's Encrypt). Our own certificate is self-made, so each laptop must be told to trust it (`NODE_EXTRA_CA_CERTS`, section I-alt). A public IP alone is just a house number: something must listen at the door (Caddy on 443), show a passport the laptop trusts, and the number must not change (an Elastic IP).
+
+**How the server reaches SharePoint and OneDrive (the "on behalf of" sign-in):**
+
+1. The person signs in once, in the browser, through the bridge. Microsoft gives the bridge a token that says "this person may call our server" (scope `access_as_user`).
+2. The bridge sends that token with each question. The server checks it on every request (`core/auth.py`).
+3. To read files, the server swaps that token for a **second token for Microsoft Graph, for the same person**. This swap is called the on-behalf-of flow (`acquire_token_on_behalf_of` in `core/graph.py`). To ask Microsoft for the swap, the server must prove its own identity. It does that with **its certificate** (the key pair made on the VM in step G and uploaded to the Entra app `Ingenus POC MCP Server`). No password is stored.
+4. The server then asks Graph for the files with that second token: **GET requests only**, and only to `graph.microsoft.com` (the code refuses any other address). Because the token belongs to that person, the server can open only the files that person can open.
+5. The server does not keep the person's files: it reads the pages it needs, checks the quotes, and returns the answer. It keeps its record of checks and the log in Postgres.
+
+**What this means for testing:** the VM never needs the person's password, and two different people asking the same question can see different results, because each one's Graph token carries that person's own access (this is what checklist items SP-1 and OD-1 tested for SharePoint and OneDrive).
+
+**Where each part can fail (second laptop):**
+
+| Gate | What it is | Status on 16 Nov 2026 |
+|---|---|---|
+| 1. Install | The organisation's rule on which Claude Desktop extensions are allowed | **Closed:** the admin must approve the packed `ingenus-bridge.mcpb` (see I-alt) |
+| 2. Passport | The laptop must trust our self-made certificate | Planned; not tested |
+| 3. Reception | Caddy and the server must be running on the VM | Works when the VM is on (tested 16 Nov) |
+
 ## 4. Steps
 
 ### A. Run the server on Linux in WSL first (free) — **DONE 11 Nov 2026**
@@ -193,11 +242,12 @@ Name it `ingenus-poc-read-code` > **Create policy**.
    - **Key pair:** choose **Proceed without a key pair** (we use Session Manager, not SSH).
    - **Network settings** > **Edit**: **Auto-assign public IP: Enable**; **Select existing security group** > `ingenus-poc-sg`.
    - **Configure storage:** `30` GiB, type **gp3**; under **Advanced** set **Encrypted: Yes**.
-   - **Advanced details** (expand): **IAM instance profile** = `ingenus-poc-ssm-role`; **Metadata version** = **V2 only (token required)**.
-   - **Resource tags** > add `project=ingenus-poc`, `owner=sridhar`, `delete-after=<date>` for **Instances** and **Volumes**.
+   - **Advanced details** (expand): **IAM instance profile** = `ingenus-poc-ssm-role`; **Metadata version** = **V2 only (token required)**; **Shutdown behavior** = **Stop**; **Credit specification** = **Standard** (the console default is Unlimited, which can bill extra for CPU use above the baseline; Standard slows the VM instead).
+   - **Tags** are in the first section at the top of the page, **Name and tags** > **Add additional tags** (not at the bottom). Add `project=ingenus-poc`, `owner=sridhar`, `delete-after=<date>` and tick **Instances**, **Volumes** and **Network interfaces** for each. The disk tag matters: cost command 5 in section 2d finds our disks by it.
+   - **Before launching:** click **Preview code** (bottom right) and check it shows `"CpuCredits":"standard"`, `"HttpTokens":"required"`, `"Encrypted":true`, `VolumeSize` 30, and tag specifications for `instance`, `volume` and `network-interface`. (Done on 16 Nov 2026: it caught the Unlimited credit setting and missing disk tags.)
    - **Launch instance.**
-3. Wait until **Instance state** is **Running** and **Status check** is **2/2 checks passed** (a few minutes).
-4. **Connect.** Select the instance > **Connect** > tab **Session Manager** > **Connect**. If the button is grey, wait 2 to 5 minutes and refresh: the VM needs time to register. **You should see** a black browser terminal. **If it stays grey after 10 minutes:** the badge is missing or wrong (check step C1 and the instance's **Actions > Security > Modify IAM role**); tell me.
+3. Wait until **Instance state** is **Running** and **Status check** is **2/2 checks passed** (a few minutes; the console may show "2/3" for the first minutes, the third check is still starting).
+4. **Connect.** Select the instance > **Connect**. The page now shows cards under **In web browser**; the first one (EC2 Instance Connect) is selected by default and **does not work for us** (it needs SSH on port 22, which is closed). Select the **third card, SSM Session Manager**, then **Connect**. If it says the instance is not connected, wait 2 to 5 minutes and refresh: the VM needs time to register. **Run the VM commands in this browser terminal, not in your laptop's PowerShell** (on 16 Nov the first `sudo` went to the laptop by mistake; its prompt starts `PS C:\`, the VM's ends in `$` or `#`). **You should see** a black browser terminal. **If it stays grey after 10 minutes:** the badge is missing or wrong (check step C1 and the instance's **Actions > Security > Modify IAM role**); tell me.
 5. **[YOU: VM terminal]** Paste, then send me the output:
 
 ```bash
@@ -209,6 +259,10 @@ curl -s -m 5 -o /dev/null -w "outbound internet: %{http_code}\n" https://pypi.or
 ```
 
 **You should see:** Ubuntu, about 4 GB of memory, about 29 GB of disk, and `outbound internet: 200`.
+
+**Also, the first command of every session:** `sudo shutdown -h +120` (as `ssm-user`, before `sudo -i`). It prints `Shutdown scheduled for ...`. Stopping the VM cancels it, so run it again after each start.
+
+**Seen on 16 Nov 2026:** Ubuntu 24.04.5 LTS, 3832 MB memory (3362 available, idle), 29 GB disk 8% used, `outbound internet: 200`.
 
 ### E. Put the code on the VM
 
@@ -227,26 +281,19 @@ sudo -u ingenus unzip -q -o /tmp/ingenus-poc.zip -d /home/ingenus/app
 ls /home/ingenus/app | head
 ```
 
-**You should see:** `CLAUDE.md MCP-PlugIn MCP-Server README.md ... pyproject.toml`. **If `aws s3 cp` fails with access denied:** the policy in C4 has the wrong bucket name (**verify** it, and the instance profile).
+**You should see:** `CLAUDE.md MCP-PlugIn MCP-Server README.md ... pyproject.toml`. **Seen on 16 Nov 2026:** `apt-get install awscli` says `Package 'awscli' has no installation candidate` on Ubuntu 24.04 (expected: the line after `||` installs the AWS CLI v2 snap instead, and the download then worked). **If `aws s3 cp` fails with access denied:** the policy in C4 has the wrong bucket name (**verify** it, and the instance profile).
 
-4. **[YOU: VM terminal]** Install Python 3.13 and the server as the `ingenus` user (the same sequence that worked in WSL, **tested** there):
+4. **[YOU: VM terminal]** Install Python 3.13 and the server as the `ingenus` user. The script is in the repo: `MCP-Server/scripts/install.sh` (the same sequence that worked in WSL). Run it as root:
 
 ```bash
-sudo -iu ingenus bash -c '
-set -e
-cd /home/ingenus/app
-python3 -m venv --without-pip .boot
-curl -fsSL -o /tmp/get-pip.py https://bootstrap.pypa.io/get-pip.py
-.boot/bin/python /tmp/get-pip.py -q
-.boot/bin/python -m pip install -q uv
-.boot/bin/uv python install 3.13
-.boot/bin/uv venv --python 3.13 .venv
-.boot/bin/uv pip install --python .venv/bin/python -e ".[meaning]"
-.venv/bin/python -c "import ingenus_mcp; print(\"import ok\", ingenus_mcp.__version__)"
-'
+sudo -iu ingenus bash /home/ingenus/app/MCP-Server/scripts/install.sh
 ```
 
-**You should see:** `import ok 0.2.0`. It takes a few minutes. **If `python3 -m venv` fails** on the image: run `apt-get install -y python3-venv` as root and repeat.
+**You should see:** `import ok 0.2.0` as the last line. It takes a few minutes (the biggest download of the whole setup). **If `python3 -m venv` fails** on the image: run `apt-get install -y python3-venv` as root and repeat.
+
+**Do not paste the steps as one multi-line `sudo -iu ingenus bash -c '...'`.** On 16 Nov 2026 that failed in the Session Manager terminal with `set: -c: invalid option` (sudo mangles a multi-line argument; nothing was installed). Running a script file avoids it.
+
+**Seen on 16 Nov 2026:** the server was installed with the same steps typed into a file on the VM (`/home/ingenus/install.sh`) and ended with `import ok 0.2.0`. The repo's `install.sh` has two small differences from that tested file (it deletes and rebuilds the throwaway `.boot` first, and uses `uv venv --allow-existing`, so it can be run again), so **running the repo's `install.sh` itself on the VM is not tested yet**: the first run in step E on a fresh VM will be its test.
 
 ### F. Postgres with pgvector
 
@@ -282,14 +329,15 @@ sudo -u postgres psql -d ingenus_audit -c "SELECT extname, extversion FROM pg_ex
 1. **[YOU: VM terminal]** Make a **new** key pair **on the VM** (never copy the laptop's key). This is the same method as [developer_guide.md](../developer_guide.md#L131) (5.1), with a 180-day certificate:
 
 ```bash
-sudo -iu ingenus bash -c '
 cd /home/ingenus/app/MCP-Server/secrets
 openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 180 -keyout server_key.pem -out server_cert.pem -subj "/CN=ingenus-poc-sandbox"
-chmod 600 server_key.pem
 openssl x509 -in server_cert.pem -outform DER -out ingenus-poc-sandbox.cer
+chown ingenus:ingenus server_key.pem server_cert.pem ingenus-poc-sandbox.cer
+chmod 600 server_key.pem
 openssl x509 -in server_cert.pem -noout -fingerprint -sha1
-'
 ```
+
+(Run as root, one line per command: a multi-line `sudo -iu ingenus bash -c '...'` fails in this terminal, see step E. The files are then handed to the `ingenus` user.)
 
 2. **Send me the fingerprint** (the `SHA1 Fingerprint=...` line; it is not a secret). Remove the colons for the setting.
 3. **Get the public `.cer` file to your laptop** without the private key: in the VM terminal run `base64 -w0 /home/ingenus/app/MCP-Server/secrets/ingenus-poc-sandbox.cer` and paste the output to me; I decode it into a `.cer` file on your laptop (it is a public certificate).
@@ -381,9 +429,49 @@ systemctl restart caddy; sleep 10; systemctl status caddy --no-pager | head -5
 6. **[ME: laptop]** From your laptop: `curl -s -o /dev/null -w "%{http_code}" https://<domain>/mcp`. **You should see:** `401` (not a certificate error, not 200). **Also verify:** the SDK's host-header protection must accept the VM's name. This is **UNKNOWN and untested**. If you see a 4xx **other than 401** (for example 403 or 421) while step H4's local answer was 401, that is the symptom; send me the response and we look in the SDK for its allowed-hosts setting.
 7. **[YOU: Console] Close port 80 once the certificate is issued** (agreed 11 Nov 2026). Step 6 answering `401` over `https` proves the certificate works. **EC2** > **Security Groups** > `ingenus-poc-sg` > **Inbound rules** > **Edit inbound rules** > delete the **HTTP (80)** row > **Save rules**. Leave **HTTPS (443)** as it is. **You should see:** `https://<domain>/mcp` still answers `401`. Open 80 again only if Caddy needs to renew (after about 60 days, so not in a few-day test) or the VM gets a new Elastic IP and a new certificate is needed.
 
+### I-alt. HTTPS with no domain: our own certificate for an Elastic IP (used on 16 Nov 2026)
+
+Used because a domain was not possible from Sridhar's side. The bridge refuses `http://` to anything that is not the same machine (`bridge.js`), so a certificate is required; this one is ours, free, and must be trusted by each client.
+
+**Elastic IP: created, then removed (16 Nov 2026).** *Why it was created:* the certificate in this section names one fixed IP address, and the VM's normal public address changes every time it is stopped and started, so the certificate and every client's Server URL would break at each restart. *Why it was removed:* an Elastic IP costs about 0.12 USD a day all the time, also while the VM is stopped, and nobody is testing right now, so it was released to prevent unwanted costs (the address `52.65.245.17` is gone for good). *What that means:* the certificate on the VM and the files on the second laptop are for that old address and are out of date. **We will create an Elastic IP again when the next test needs one**, then redo steps 2 to 6 below with the new address (new certificate, `Caddyfile`, `INGENUS_PUBLIC_URL`, the certificate file and Server URL on each client laptop).
+
+1. **[ME: laptop]** Allocate and attach an **Elastic IP** (the auto-assigned address changes at every stop). Tagged like the rest. The address then replaces the old public one, so make the certificate **after** this. Done 16 Nov: `52.65.245.17` (`eipalloc-098de811c60257618`). It costs about 0.12 USD a day, also while the VM is stopped, until released (step M).
+2. **[YOU: VM terminal, root]** Install Caddy from Ubuntu's own package (2.6.2 on 24.04, enough for a fixed certificate) and make the certificate with the IP in its subject alternative name (replace `<ELASTIC-IP>`):
+
+```bash
+apt-get install -y caddy
+cd /etc/caddy
+openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 180 -keyout ip_key.pem -out ip_cert.pem -subj "/CN=<ELASTIC-IP>" -addext "subjectAltName=IP:<ELASTIC-IP>"
+chown caddy:caddy ip_key.pem ip_cert.pem && chmod 600 ip_key.pem
+cat > /etc/caddy/Caddyfile <<'EOF'
+{
+    default_sni <ELASTIC-IP>
+}
+
+https://<ELASTIC-IP> {
+    tls /etc/caddy/ip_cert.pem /etc/caddy/ip_key.pem
+    reverse_proxy 127.0.0.1:8765
+}
+EOF
+caddy validate --config /etc/caddy/Caddyfile 2>&1 | tail -1
+systemctl restart caddy
+sed -i 's#^INGENUS_PUBLIC_URL=.*#INGENUS_PUBLIC_URL=https://<ELASTIC-IP>/mcp#' /etc/ingenus/ingenus.env
+systemctl restart ingenus-mcp
+```
+
+3. **Why `default_sni` is needed (found 16 Nov):** a client that connects to an IP sends no server name, so Caddy picks a certificate by the VM's own inside address, finds none and resets the connection (every client, trusted or not). Without the `default_sni` block the handshake failed with `ConnectionResetError`; with it, the answer is 401.
+4. **[ME: laptop]** Fetch the **public** certificate (`cat /etc/caddy/ip_cert.pem` through Session Manager, `aws ssm send-command`). **Gotcha:** `--output text` joins the lines into one, which makes an invalid PEM file; use `--output json` or rebuild the lines. Then check from the laptop with the certificate as the trust file: **401** with it, refused as untrusted without it. **Result 16 Nov: 401 and refused, as expected. This also answers the open host-header question: the SDK accepts requests addressed to the IP (no 403 or 421).** Not yet tested with a name (none exists).
+5. **[YOU: console, or ME: CLI]** Port 80 is **not needed** here (nothing is requested from Let's Encrypt; Caddy only redirects on it), so remove the HTTP (80) rule from `ingenus-poc-sg`. Done 16 Nov: only 443 is open.
+6. **[YOU: each client laptop]** Save the public certificate (for example `C:\ingenus\vm-cert.pem`), run `setx NODE_EXTRA_CA_CERTS "C:\ingenus\vm-cert.pem"`, **fully restart Claude Desktop**, then enter the bridge settings with Server URL `https://<ELASTIC-IP>/mcp`. **Not tested yet:** whether Claude Desktop passes that variable to the bridge. To undo: delete the file and run `setx NODE_EXTRA_CA_CERTS ""`.
+7. While an Elastic IP is attached, the certificate (180 days, to 15 May 2027) stays valid across stops. **That Elastic IP was released on 16 Nov, so this certificate is no longer usable; make a new one when a new Elastic IP is attached.** If the Elastic IP is ever released, the certificate must be made again.
+
+**Blocker found 16 Nov (second laptop):** the second person's Claude Desktop is on the Psiog organisation plan, which has the **desktop extension allowlist** on. Installing the unpacked bridge failed with `Extension local.unpacked.psiog.ingenus-mcp-bridge is blocked by a security blocklist: Extension is not approved for your organization`. The fix is on the admin's side: an Owner uploads the packed `ingenus-bridge.mcpb` under **Organization settings > Connectors > Desktop > Add custom extension**, then **Add to team** (per Anthropic's support article; the article does not mention unpacked extensions, so use the packed file). A machine-level policy can also switch extensions off; a read-only check is `Get-ItemProperty "HKLM:\SOFTWARE\Policies\Claude"` (keys `isDesktopExtensionEnabled`, `isDesktopExtensionDirectoryEnabled`, `isLocalDevMcpEnabled`). **Ingenus's own organisation will need the same approval before their laptops can use the bridge: put this on the client readiness list.** Meanwhile a second person can be tested without Claude Desktop with a sign-in script (not written yet).
+
 ### J. Smoke test
 
-**J1. Without a domain (private tunnel):** **[YOU]** Install the **Session Manager plugin** on your laptop (search "Session Manager plugin install Windows" in the AWS docs; one-time). Then in your terminal: `aws ssm start-session --target <instance id> --document-name AWS-StartPortForwardingSession --parameters "portNumber=8765,localPortNumber=8765"` and leave it open. The VM's server now appears at `http://127.0.0.1:8765/mcp` on your laptop (loopback, so the bridge accepts plain `http`). Close your local server first so the port is free. **This tests everything except HTTPS and the host-header check.**
+**J1. Without a domain (private tunnel):** **[YOU]** Install the **Session Manager plugin** on your laptop (search "Session Manager plugin install Windows" in the AWS docs; one-time). Then in your terminal: `aws ssm start-session --target <instance id> --document-name AWS-StartPortForwardingSession --parameters "portNumber=8765,localPortNumber=8765"` and leave it open. The VM's server now appears at `http://127.0.0.1:8765/mcp` on your laptop (loopback, so the bridge accepts plain `http`). Close your local server first so the port is free. **This tests everything except HTTPS and the host-header check.** (Tried 16 Nov: the tunnel needs the Session Manager plugin; its installer needs admin, so the plugin's `package.zip` was unpacked into the user's own folder and that folder added to PATH for the window. The tunnel closes by itself after a while with no traffic: "Your session timed out due to inactivity".)
+
+**`scripts/signin_check.py` against the VM (16 Nov):** sign-in as `develop.admin@vvrzl.onmicrosoft.com` was accepted and logged by name, but `find_contract_files` for Chain X returned 0 files with `complete: true` (both sources answered) and compare reported 4 not checked. Reason: the VM reads only SharePoint and OneDrive (`INGENUS_SOURCES=sharepoint,onedrive`), and Chain X is in the laptop's other folders, so "numbers differ" is the correct, honest result there. The script is fixed to Chain X; the VM test is the Chain A question (Chain A is in SharePoint).
 
 **J2. With the domain:** **[ME: laptop]** `scripts/signin_check.py` against the VM; then on the **second laptop**, install the bridge as in the README (Server URL = `https://<domain>/mcp`, plus Tenant ID, Desktop client app ID and Server app ID). First chat opens a browser: sign in with a tenant account. Ask Q1: "Check Chain A against SAP as of 31 Aug 2026." **You should see:** 1,800.00 and 12,600.00, and the log on the VM names the signed-in person: `sudo tail -n 5 /home/ingenus/app/MCP-Server/data/runtime/tool_calls.jsonl` (**verify** the log path with `ls` if it differs).
 
@@ -444,12 +532,13 @@ On the VM: memory and CPU of the server while idle and during a check (`free -m`
 | A, server on Linux (WSL) | 343 passed, 3 failed (Windows paths), 7 skipped; after the path-guard fix 353 passed, 0 failed, 7 skipped; server runs, 10 tools, chain intact | 11 Nov 2026 |
 | B, account and region | `aws login` done; account **089020215064**, IAM user `sridhar.vetrivel` in groups `Administrators` and `Bedrock-POC`; region `ap-southeast-2`. **Confirmed as the TAC sandbox** by Sridhar from the console header (`TACSandbox (089020215064)`, the same number as the CLI). No EC2 instances in the region yet. The account already has two budgets (`My Monthly Cost Budget` 100, `da-monthly` 60) that are not ours: do not touch them | 11 Nov 2026 |
 | C, role, firewall, bucket, policy | **Done and verified read-only, 11 Nov 2026.** Role `ingenus-poc-ssm-role` (tag, `AmazonSSMManagedInstanceCore`, instance profile of the same name). Firewall `sg-05188e7651da8a192` in the Sydney default VPC: inbound 80 and 443 from `0.0.0.0/0` only, no SSH. Bucket `ingenus-poc-transfer-089020215064-ap-southeast-2-an` in ap-southeast-2: public access blocked, SSE-S3, tag set, versioning never enabled. Inline policy `ingenus-poc-read-code`: `s3:GetObject` on that bucket only (simulated: GetObject allowed; Put, Delete, List and another bucket denied). A firewall made by mistake in us-east-1 was deleted | 11 Nov 2026 |
-| D, VM running; Session Manager connects | | |
-| E, code and Python 3.13 on the VM | | |
-| F, pgvector installed from packages | | |
-| H, service running; local answer 401 | | |
-| I, HTTPS and host-header check with a real name | | |
-| J, second laptop signs in | | |
+| D, VM running; Session Manager connects | **Done 16 Nov 2026.** Instance `i-0046f66542691699f`, t3.medium, Ubuntu 24.04.5 LTS, CPU credits standard, IMDSv2 only, profile `ingenus-poc-ssm-role`, group `ingenus-poc-sg`, 30 GiB gp3 encrypted disk `vol-0b2f37564ba5b7cd5`; tags project, owner, delete-after, Name on instance and disk (checked read-only). Session Manager connected; `shutdown -h +120` scheduled; 3832 MB memory, 29 GB disk, outbound internet 200 | 16 Nov 2026 |
+| E, code and Python 3.13 on the VM | **Done 16 Nov 2026.** Zip from commit `54bd98d` (1.4 MiB, no secrets) in the bucket; downloaded on the VM with the role; unzipped to `/home/ingenus/app`; Python 3.13 and the server installed, `import ok 0.2.0`. The AWS CLI came from the snap (no apt package) | 16 Nov 2026 |
+| F, pgvector installed from packages | **Done 16 Nov 2026.** PostgreSQL 18.7 (pgdg, Ubuntu 24.04) active as `postgresql@18-main`; role `ingenus`, database `ingenus_audit`, extension `vector` 0.8.7; password only in `secrets/pg_password.txt` (mode 600). The commands in F1 and F2 ran as written | 16 Nov 2026 |
+| G, certificate key on the VM and in Entra | **Done 16 Nov 2026.** New key pair made on the VM (CN `ingenus-poc-sandbox`, 180 days, to 15 May 2027), private key never left the VM (mode 600); public `.cer` brought to the laptop (thumbprint checked equal to the VM's fingerprint `79FC8B52…3971`); uploaded to the Entra app `Ingenus POC MCP Server` as "AWS VM Certificate" next to the laptop's certificate. Sign-in with it worked (accepted logins in the VM's log) | 16 Nov 2026 |
+| H, service running; local answer 401 | **Done 16 Nov 2026.** Settings file `/etc/ingenus/ingenus.env` (mode 600); embedding model nomic (134 MB) fetched, 768 numbers per passage; systemd unit `ingenus-mcp` active and enabled; local answer **401**. Memory idle **85.7 MB** (peak 109 MB at start); whole VM 671 MB used, 3160 MB available | 16 Nov 2026 |
+| I, HTTPS and host-header check with a real name | **No domain** (not possible from Sridhar's side); done with our own certificate for an Elastic IP instead (section I-alt): `https://52.65.245.17/mcp` answers **401** with the certificate as trust file and is refused without it; the host-header check **passes for an IP** (not 403 or 421). Still untested with a real name. Port 80 closed, only 443 open. **The Elastic IP was released the same day to avoid idle cost; the certificate is for that old address and must be made again with a new Elastic IP** | 16 Nov 2026 |
+| J, second laptop signs in | **Partly.** Laptop through the tunnel: sign-in accepted and logged by name, 401 without a token (J1). Second person: **blocked** by the organisation's desktop extension allowlist (see I-alt); admin request prepared with the rebuilt `ingenus-bridge.mcpb` (built 16 Nov). Not tested: `NODE_EXTRA_CA_CERTS` with Claude Desktop | 16 Nov 2026 |
 | K1 to K6 | | |
 | L, memory and times | | |
 | M, teardown confirmed | | |
